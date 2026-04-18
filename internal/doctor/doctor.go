@@ -61,12 +61,6 @@ func Run(loaded rule.Loaded, home string) Report {
 		checks = append(checks, Check{ID: "rules.examples-pass", Category: "rules", Status: StatusFail, Message: "skipped because configuration is invalid"})
 	}
 
-	if warning := messageQualityWarning(loaded.Rules); warning != "" {
-		checks = append(checks, Check{ID: "rules.message-quality", Category: "diagnostics", Status: StatusWarn, Message: warning})
-	} else {
-		checks = append(checks, Check{ID: "rules.message-quality", Category: "diagnostics", Status: StatusPass, Message: "messages look actionable"})
-	}
-
 	if warning := broadnessWarning(loaded.Rules); warning != "" {
 		checks = append(checks, Check{ID: "rules.pattern-broadness", Category: "diagnostics", Status: StatusWarn, Message: warning})
 	} else {
@@ -137,18 +131,6 @@ type exampleError struct {
 
 func (e *exampleError) Error() string {
 	return "rule " + e.RuleID + " has failing " + e.Kind + " example: " + e.Example
-}
-
-func messageQualityWarning(rules []rule.Rule) string {
-	for _, r := range rules {
-		msg := strings.ToLower(r.Message)
-		if strings.Contains(msg, "because") || strings.Contains(msg, "use ") || strings.Contains(msg, "instead") ||
-			strings.Contains(msg, "してください") || strings.Contains(msg, "してから") {
-			continue
-		}
-		return "rule " + r.ID + " message may not explain a reason and alternative"
-	}
-	return ""
 }
 
 func broadnessWarning(rules []rule.Rule) string {

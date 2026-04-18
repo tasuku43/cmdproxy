@@ -63,7 +63,7 @@ Unknown rule-level keys are invalid in v1.
 
 - Must be a non-empty human-readable string
 - Should explain both the reason for the deny and the preferred alternative
-- Quality guidance is enforced by diagnostics, not parser-level validation
+- v1 does not attempt to lint natural-language quality heuristically
 
 ### `block_examples`
 

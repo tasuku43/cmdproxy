@@ -17,7 +17,7 @@ v1 doctor checks should be grouped into these categories:
 
 - `config`: file presence, parseability, schema validity
 - `rules`: regex compilation, examples present, examples pass
-- `diagnostics`: quality warnings such as likely shadowing or weak messages
+- `diagnostics`: quality warnings such as likely shadowing or broad patterns
 - `install`: binary and supported hook integration checks
 
 ## Required v1 Checks
@@ -37,7 +37,6 @@ At minimum, doctor should cover:
 The following should be warnings rather than hard failures in v1:
 
 - likely rule shadowing caused by first-match order
-- low-quality deny messages that do not appear to include an alternative
 - overly broad patterns that match many allow examples unintentionally
 
 These warnings are useful because v1 keeps the runtime model intentionally
