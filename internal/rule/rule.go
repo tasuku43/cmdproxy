@@ -23,11 +23,6 @@ type File struct {
 	Rules   []RuleSpec `yaml:"rules"`
 }
 
-type evalFile struct {
-	Version int            `yaml:"version"`
-	Rules   []evalRuleSpec `yaml:"rules"`
-}
-
 type RuleSpec struct {
 	ID            string   `yaml:"id"`
 	Pattern       string   `yaml:"pattern"`
@@ -36,24 +31,17 @@ type RuleSpec struct {
 	AllowExamples []string `yaml:"allow_examples"`
 }
 
+type evalFile struct {
+	Version int
+	Rules   []evalRuleSpec
+}
+
 type evalRuleSpec struct {
-	ID            string         `yaml:"id"`
-	Pattern       string         `yaml:"pattern"`
-	Message       string         `yaml:"message"`
-	BlockExamples skipStringList `yaml:"block_examples"`
-	AllowExamples skipStringList `yaml:"allow_examples"`
-}
-
-type skipStringList struct {
-	Count int
-}
-
-func (l *skipStringList) UnmarshalYAML(node *yaml.Node) error {
-	if node.Kind != yaml.SequenceNode {
-		return fmt.Errorf("must be a YAML sequence")
-	}
-	l.Count = len(node.Content)
-	return nil
+	ID              string
+	Pattern         string
+	Message         string
+	BlockExampleLen int
+	AllowExampleLen int
 }
 
 type Source struct {
@@ -212,14 +200,106 @@ func decodeFullFile(src Source, data string) (File, error) {
 }
 
 func decodeEvalFile(src Source, data string) (evalFile, error) {
-	dec := yaml.NewDecoder(strings.NewReader(data))
-	dec.KnownFields(true)
-
-	var file evalFile
-	if err := dec.Decode(&file); err != nil {
+	var root yaml.Node
+	if err := yaml.Unmarshal([]byte(data), &root); err != nil {
 		return evalFile{}, fmt.Errorf("%s config %s is invalid: %w", src.Layer, src.Path, err)
 	}
+	if len(root.Content) == 0 {
+		return evalFile{}, fmt.Errorf("%s config %s is invalid: empty YAML document", src.Layer, src.Path)
+	}
+	doc := root.Content[0]
+	if doc.Kind != yaml.MappingNode {
+		return evalFile{}, fmt.Errorf("%s config %s is invalid: top-level must be a mapping", src.Layer, src.Path)
+	}
+
+	file := evalFile{}
+	seenTopLevel := map[string]struct{}{}
+	for i := 0; i < len(doc.Content); i += 2 {
+		key := doc.Content[i]
+		val := doc.Content[i+1]
+		if _, ok := seenTopLevel[key.Value]; ok {
+			continue
+		}
+		seenTopLevel[key.Value] = struct{}{}
+		switch key.Value {
+		case "version":
+			if val.Kind != yaml.ScalarNode {
+				return evalFile{}, fmt.Errorf("%s config %s is invalid: version must be a scalar", src.Layer, src.Path)
+			}
+			var version int
+			if err := val.Decode(&version); err != nil {
+				return evalFile{}, fmt.Errorf("%s config %s is invalid: version must be an integer", src.Layer, src.Path)
+			}
+			file.Version = version
+		case "rules":
+			rules, err := decodeEvalRules(src, val)
+			if err != nil {
+				return evalFile{}, err
+			}
+			file.Rules = rules
+		default:
+			return evalFile{}, fmt.Errorf("%s config %s is invalid: field %q not allowed", src.Layer, src.Path, key.Value)
+		}
+	}
 	return file, nil
+}
+
+func decodeEvalRules(src Source, node *yaml.Node) ([]evalRuleSpec, error) {
+	if node.Kind != yaml.SequenceNode {
+		return nil, fmt.Errorf("%s config %s is invalid: rules must be a sequence", src.Layer, src.Path)
+	}
+	rules := make([]evalRuleSpec, 0, len(node.Content))
+	for idx, item := range node.Content {
+		if item.Kind != yaml.MappingNode {
+			return nil, fmt.Errorf("%s config %s is invalid: rules[%d] must be a mapping", src.Layer, src.Path, idx)
+		}
+		ruleSpec, err := decodeEvalRule(src, idx, item)
+		if err != nil {
+			return nil, err
+		}
+		rules = append(rules, ruleSpec)
+	}
+	return rules, nil
+}
+
+func decodeEvalRule(src Source, idx int, node *yaml.Node) (evalRuleSpec, error) {
+	var spec evalRuleSpec
+	seenFields := map[string]struct{}{}
+	for i := 0; i < len(node.Content); i += 2 {
+		key := node.Content[i]
+		val := node.Content[i+1]
+		seenFields[key.Value] = struct{}{}
+		switch key.Value {
+		case "id":
+			if val.Kind != yaml.ScalarNode {
+				return evalRuleSpec{}, fmt.Errorf("%s config %s is invalid: rules[%d].id must be a string", src.Layer, src.Path, idx)
+			}
+			spec.ID = val.Value
+		case "pattern":
+			if val.Kind != yaml.ScalarNode {
+				return evalRuleSpec{}, fmt.Errorf("%s config %s is invalid: rules[%d].pattern must be a string", src.Layer, src.Path, idx)
+			}
+			spec.Pattern = val.Value
+		case "message":
+			if val.Kind != yaml.ScalarNode {
+				return evalRuleSpec{}, fmt.Errorf("%s config %s is invalid: rules[%d].message must be a string", src.Layer, src.Path, idx)
+			}
+			spec.Message = val.Value
+		case "block_examples":
+			if val.Kind != yaml.SequenceNode {
+				return evalRuleSpec{}, fmt.Errorf("%s config %s is invalid: rules[%d].block_examples must be a sequence", src.Layer, src.Path, idx)
+			}
+			spec.BlockExampleLen = len(val.Content)
+		case "allow_examples":
+			if val.Kind != yaml.SequenceNode {
+				return evalRuleSpec{}, fmt.Errorf("%s config %s is invalid: rules[%d].allow_examples must be a sequence", src.Layer, src.Path, idx)
+			}
+			spec.AllowExampleLen = len(val.Content)
+		default:
+			return evalRuleSpec{}, fmt.Errorf("%s config %s is invalid: rules[%d].%s not allowed", src.Layer, src.Path, idx, key.Value)
+		}
+	}
+	return spec, nil
 }
 
 func validateFile(file File) []string {
@@ -287,10 +367,10 @@ func validateEvalFile(file evalFile) []string {
 		if strings.TrimSpace(r.Message) == "" {
 			issues = append(issues, prefix+".message must be non-empty")
 		}
-		if r.BlockExamples.Count == 0 {
+		if r.BlockExampleLen == 0 {
 			issues = append(issues, prefix+".block_examples must be non-empty")
 		}
-		if r.AllowExamples.Count == 0 {
+		if r.AllowExampleLen == 0 {
 			issues = append(issues, prefix+".allow_examples must be non-empty")
 		}
 	}
