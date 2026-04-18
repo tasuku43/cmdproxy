@@ -1,8 +1,6 @@
 package engine
 
 import (
-	"regexp"
-
 	"github.com/tasuku43/cmdguard/internal/input"
 	"github.com/tasuku43/cmdguard/internal/rule"
 )
@@ -15,7 +13,7 @@ type Decision struct {
 
 func Evaluate(rules []rule.Rule, req input.ExecRequest) (Decision, error) {
 	for i := range rules {
-		matched, err := regexp.MatchString(rules[i].Pattern, req.Command)
+		matched, err := rules[i].Match(req.Command)
 		if err != nil {
 			return Decision{}, err
 		}

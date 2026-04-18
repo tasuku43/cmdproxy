@@ -16,6 +16,8 @@ const (
 	LayerUser = "user"
 )
 
+var ruleIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
+
 type File struct {
 	Version int        `yaml:"version"`
 	Rules   []RuleSpec `yaml:"rules"`
@@ -51,11 +53,6 @@ func (l *skipStringList) UnmarshalYAML(node *yaml.Node) error {
 		return fmt.Errorf("must be a YAML sequence")
 	}
 	l.Count = len(node.Content)
-	for i, child := range node.Content {
-		if child.Kind != yaml.ScalarNode || child.Tag != "!!str" {
-			return fmt.Errorf("entry %d must be a string", i)
-		}
-	}
 	return nil
 }
 
@@ -67,6 +64,7 @@ type Source struct {
 type Rule struct {
 	RuleSpec
 	Source Source `json:"source"`
+	re     *regexp.Regexp
 }
 
 type Loaded struct {
@@ -145,7 +143,8 @@ func LoadFileIfPresent(src Source) ([]Rule, error) {
 
 	rules := make([]Rule, 0, len(file.Rules))
 	for _, spec := range file.Rules {
-		rules = append(rules, Rule{RuleSpec: spec, Source: src})
+		compiled, _ := regexp.Compile(spec.Pattern)
+		rules = append(rules, Rule{RuleSpec: spec, Source: src, re: compiled})
 	}
 	return rules, nil
 }
@@ -173,6 +172,7 @@ func LoadFileForEvalIfPresent(src Source) ([]Rule, error) {
 
 	rules := make([]Rule, 0, len(file.Rules))
 	for _, spec := range file.Rules {
+		compiled, _ := regexp.Compile(spec.Pattern)
 		rules = append(rules, Rule{
 			RuleSpec: RuleSpec{
 				ID:      spec.ID,
@@ -180,6 +180,7 @@ func LoadFileForEvalIfPresent(src Source) ([]Rule, error) {
 				Message: spec.Message,
 			},
 			Source: src,
+			re:     compiled,
 		})
 	}
 	return rules, nil
@@ -233,7 +234,7 @@ func validateFile(file File) []string {
 	seen := map[string]struct{}{}
 	for i, r := range file.Rules {
 		prefix := fmt.Sprintf("rules[%d]", i)
-		if !regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`).MatchString(r.ID) {
+		if !ruleIDPattern.MatchString(r.ID) {
 			issues = append(issues, prefix+".id must match [a-z0-9][a-z0-9-]*")
 		}
 		if _, ok := seen[r.ID]; ok && r.ID != "" {
@@ -271,7 +272,7 @@ func validateEvalFile(file evalFile) []string {
 	seen := map[string]struct{}{}
 	for i, r := range file.Rules {
 		prefix := fmt.Sprintf("rules[%d]", i)
-		if !regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`).MatchString(r.ID) {
+		if !ruleIDPattern.MatchString(r.ID) {
 			issues = append(issues, prefix+".id must match [a-z0-9][a-z0-9-]*")
 		}
 		if _, ok := seen[r.ID]; ok && r.ID != "" {
@@ -295,6 +296,17 @@ func validateEvalFile(file evalFile) []string {
 	}
 
 	return issues
+}
+
+func (r Rule) Match(command string) (bool, error) {
+	if r.re != nil {
+		return r.re.MatchString(command), nil
+	}
+	compiled, err := regexp.Compile(r.Pattern)
+	if err != nil {
+		return false, err
+	}
+	return compiled.MatchString(command), nil
 }
 
 func validateDuplicateIDs(rules []Rule) []error {
