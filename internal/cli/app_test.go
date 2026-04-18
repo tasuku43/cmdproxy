@@ -213,9 +213,9 @@ func TestRunTestHelpMentionsMainAuthoringCommand(t *testing.T) {
 	}
 }
 
-func TestRunAddGuidancePointsToDirectEditAndTest(t *testing.T) {
+func TestRunUnknownCommandReturnsError(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	code := Run([]string{"add"}, Streams{
+	code := Run([]string{"unknown"}, Streams{
 		Stdin:  strings.NewReader(""),
 		Stdout: &stdout,
 		Stderr: &stderr,
@@ -224,10 +224,7 @@ func TestRunAddGuidancePointsToDirectEditAndTest(t *testing.T) {
 		t.Fatalf("code = %d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
 	errOut := stderr.String()
-	if !strings.Contains(errOut, "Edit ~/.config/cmdguard/cmdguard.yml directly") {
-		t.Fatalf("stderr=%q", errOut)
-	}
-	if !strings.Contains(errOut, "cmdguard test") {
+	if !strings.Contains(errOut, "unknown command: unknown") {
 		t.Fatalf("stderr=%q", errOut)
 	}
 }

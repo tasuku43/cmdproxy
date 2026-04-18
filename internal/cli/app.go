@@ -51,9 +51,6 @@ func Run(args []string, streams Streams, env Env) int {
 		return runDoctor(args[1:], streams, env)
 	case "init":
 		return runInit(args[1:], streams, env)
-	case "add":
-		writeErr(streams.Stderr, addGuidance())
-		return exitError
 	case "-h", "--help", "help":
 		if len(args) > 1 {
 			writeCommandHelp(streams.Stdout, args[1])
@@ -383,8 +380,6 @@ Note:
   You usually do not run this manually. Edit rules and use cmdguard test or
   cmdguard check instead.
 `)
-	case "add":
-		fmt.Fprint(w, addGuidance()+"\n")
 	default:
 		writeUsage(w)
 	}
@@ -397,18 +392,6 @@ func wantsHelp(args []string) bool {
 		}
 	}
 	return false
-}
-
-func addGuidance() string {
-	return `cmdguard add is intentionally not implemented.
-
-Edit ~/.config/cmdguard/cmdguard.yml directly and then run:
-  cmdguard test
-
-If you use Claude Code, the intended flow is:
-  1. Ask the agent to edit the rule file
-  2. Ask it to run cmdguard test
-  3. Optionally ask it to run cmdguard check for a concrete command`
 }
 
 func writeErr(w io.Writer, msg string) {

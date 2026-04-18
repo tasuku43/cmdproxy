@@ -41,7 +41,6 @@ features. The core CLI contract is:
   - `core/EVALUATION.md`: rule model, evaluation order, and match selection
   - `core/OUTPUT_CONTRACT.md`: exit codes and output payloads
 - Commands
-  - `commands/add.md`: planned rule-authoring helper command
   - `commands/eval.md`: hook entrypoint behavior
   - `commands/check.md`: single-command evaluation without hook JSON
   - `commands/init.md`: safe setup and starter config behavior
