@@ -44,7 +44,7 @@ The next `cmdproxy` contract prioritizes:
   - `core/EVALUATION.md`: parse, match, directive application, and pass-through behavior
   - `core/OUTPUT_CONTRACT.md`: output contract for pass, rewrite, reject, and error
 - Commands
-  - `commands/eval.md`: current hook entrypoint, pending rename risk
+  - `commands/hook.md`: Claude Code hook entrypoint and hook-specific output contract
   - `commands/check.md`: interactive single-command evaluation
   - `commands/init.md`: setup and starter config behavior
   - `commands/test.md`: rule example verification behavior

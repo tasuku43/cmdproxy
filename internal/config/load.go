@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,8 +18,7 @@ import (
 const LayerUser = "user"
 
 type File struct {
-	Version int               `yaml:"version"`
-	Rules   []policy.RuleSpec `yaml:"rules"`
+	Rules []policy.RuleSpec `yaml:"rules"`
 }
 
 type Source = policy.Source
@@ -29,8 +30,7 @@ type Loaded struct {
 }
 
 type evalFile struct {
-	Version int
-	Rules   []evalRuleSpec
+	Rules []evalRuleSpec
 }
 
 type evalRuleSpec struct {
@@ -44,8 +44,7 @@ type evalRuleSpec struct {
 type evalCacheFile struct {
 	Version       int              `json:"version"`
 	SourcePath    string           `json:"source_path"`
-	SourceSize    int64            `json:"source_size"`
-	SourceModTime int64            `json:"source_mod_time"`
+	SourceHash    string           `json:"source_hash"`
 	CompiledRules []evalCachedRule `json:"compiled_rules"`
 }
 
@@ -68,21 +67,21 @@ func ConfigPaths(home string, xdgConfigHome string) []Source {
 	}}
 }
 
-func CachePath(home string, xdgCacheHome string) string {
+func HookCacheDir(home string, xdgCacheHome string) string {
 	cacheBase := xdgCacheHome
 	if cacheBase == "" {
 		cacheBase = filepath.Join(home, ".cache")
 	}
-	return filepath.Join(cacheBase, "cmdproxy", "eval-cache-v1.json")
+	return filepath.Join(cacheBase, "cmdproxy")
 }
 
 func LoadEffective(home string, xdgConfigHome string) Loaded {
 	return loadEffectiveWithLoader(home, xdgConfigHome, LoadFileIfPresent)
 }
 
-func LoadEffectiveForEval(home string, xdgConfigHome string, xdgCacheHome string) Loaded {
+func LoadEffectiveForHook(home string, xdgConfigHome string, xdgCacheHome string) Loaded {
 	loader := func(src Source) ([]policy.Rule, error) {
-		return LoadFileForEvalIfPresent(src, CachePath(home, xdgCacheHome))
+		return LoadFileForEvalIfPresent(src, HookCacheDir(home, xdgCacheHome))
 	}
 	return loadEffectiveWithLoader(home, xdgConfigHome, loader)
 }
@@ -131,23 +130,18 @@ func LoadFileIfPresent(src Source) ([]policy.Rule, error) {
 	return rules, nil
 }
 
-func LoadFileForEvalIfPresent(src Source, cachePath string) ([]policy.Rule, error) {
-	info, err := os.Stat(src.Path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("%s config read failed: %w", src.Layer, err)
-	}
-	if rules, ok := loadEvalCache(src, cachePath, info); ok {
-		return rules, nil
-	}
+func LoadFileForEvalIfPresent(src Source, cacheDir string) ([]policy.Rule, error) {
 	data, err := readConfigFile(src)
 	if err != nil {
 		return nil, err
 	}
 	if data == "" {
 		return nil, nil
+	}
+	sourceHash := contentHash(data)
+	cachePath := cachePathForHash(cacheDir, sourceHash)
+	if rules, ok := loadEvalCache(src, cachePath, sourceHash); ok {
+		return rules, nil
 	}
 	file, err := decodeEvalFile(src, data)
 	if err != nil {
@@ -182,11 +176,20 @@ func LoadFileForEvalIfPresent(src Source, cachePath string) ([]policy.Rule, erro
 	writeEvalCache(cachePath, evalCacheFile{
 		Version:       1,
 		SourcePath:    src.Path,
-		SourceSize:    info.Size(),
-		SourceModTime: info.ModTime().UnixNano(),
+		SourceHash:    sourceHash,
 		CompiledRules: cached,
 	})
+	pruneOldEvalCaches(cacheDir, cachePath)
 	return rules, nil
+}
+
+func cachePathForHash(cacheDir string, sourceHash string) string {
+	return filepath.Join(cacheDir, "compiled-rules-"+sourceHash+".json")
+}
+
+func contentHash(data string) string {
+	sum := sha256.Sum256([]byte(data))
+	return hex.EncodeToString(sum[:])
 }
 
 func readConfigFile(src Source) (string, error) {
@@ -235,15 +238,6 @@ func decodeEvalFile(src Source, data string) (evalFile, error) {
 		}
 		seenTopLevel[key.Value] = struct{}{}
 		switch key.Value {
-		case "version":
-			if val.Kind != yaml.ScalarNode {
-				return evalFile{}, fmt.Errorf("%s config %s is invalid: version must be a scalar", src.Layer, src.Path)
-			}
-			var version int
-			if err := val.Decode(&version); err != nil {
-				return evalFile{}, fmt.Errorf("%s config %s is invalid: version must be an integer", src.Layer, src.Path)
-			}
-			file.Version = version
 		case "rules":
 			rules, err := decodeEvalRules(src, val)
 			if err != nil {
@@ -636,9 +630,6 @@ func decodeStringSequence(src Source, idx int, field string, node *yaml.Node) ([
 
 func validateFile(file File) []string {
 	var issues []string
-	if file.Version != 2 {
-		issues = append(issues, "version must be 2")
-	}
 	if len(file.Rules) == 0 {
 		issues = append(issues, "rules must be non-empty")
 	}
@@ -648,9 +639,6 @@ func validateFile(file File) []string {
 
 func validateEvalFile(file evalFile) []string {
 	var issues []string
-	if file.Version != 2 {
-		issues = append(issues, "version must be 2")
-	}
 	if len(file.Rules) == 0 {
 		issues = append(issues, "rules must be non-empty")
 	}
@@ -670,7 +658,7 @@ func validateEvalFile(file evalFile) []string {
 	return issues
 }
 
-func loadEvalCache(src Source, cachePath string, info os.FileInfo) ([]policy.Rule, bool) {
+func loadEvalCache(src Source, cachePath string, sourceHash string) ([]policy.Rule, bool) {
 	data, err := os.ReadFile(cachePath)
 	if err != nil {
 		return nil, false
@@ -679,7 +667,7 @@ func loadEvalCache(src Source, cachePath string, info os.FileInfo) ([]policy.Rul
 	if err := json.Unmarshal(data, &cache); err != nil {
 		return nil, false
 	}
-	if cache.Version != 1 || cache.SourcePath != src.Path || cache.SourceSize != info.Size() || cache.SourceModTime != info.ModTime().UnixNano() {
+	if cache.Version != 1 || cache.SourcePath != src.Path || cache.SourceHash != sourceHash {
 		return nil, false
 	}
 	rules := make([]policy.Rule, 0, len(cache.CompiledRules))
@@ -709,4 +697,25 @@ func writeEvalCache(cachePath string, cache evalCacheFile) {
 		return
 	}
 	_ = os.WriteFile(cachePath, data, 0o644)
+}
+
+func pruneOldEvalCaches(cacheDir string, keepPath string) {
+	entries, err := os.ReadDir(cacheDir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if !strings.HasPrefix(name, "compiled-rules-") || !strings.HasSuffix(name, ".json") {
+			continue
+		}
+		path := filepath.Join(cacheDir, name)
+		if path == keepPath {
+			continue
+		}
+		_ = os.Remove(path)
+	}
 }

@@ -30,31 +30,29 @@ cmdproxy check aws --profile read-only-profile s3 ls
 cmdproxy check bash -c 'git status'
 ```
 
-5. Register `cmdproxy eval` in your hook runner
+5. Register `cmdproxy hook claude` in your hook runner
 
 ## Claude Code
 
-For Claude Code, add `cmdproxy eval` as a `PreToolUse` Bash hook.
+For Claude Code, add `cmdproxy hook claude` as a `PreToolUse` Bash hook.
 
 ```json
 {
   "matcher": "Bash",
   "hooks": [
-    { "type": "command", "command": "cmdproxy eval" }
+    { "type": "command", "command": "cmdproxy hook claude" }
   ]
 }
 ```
 
 If you also use another Bash hook such as `rtk hook claude`, place
-`cmdproxy eval` first.
+`cmdproxy hook claude` first.
 
 That ordering matters because `cmdproxy` should canonicalize or reject the
 invocation before later hook-side processing and before Claude Code permissions
 evaluate the final command shape.
 
 ## Current Rule Model
-
-The current config format is `version: 2`.
 
 - rules use `match` or `pattern`
 - rules use one directive: `rewrite` or `reject`

@@ -11,10 +11,10 @@ date: 2026-04-19
 `cmdproxy check` evaluates a single invocation interactively without requiring
 stdin JSON from an external hook.
 
-## Relationship To `eval`
+## Relationship To `hook claude`
 
 `cmdproxy check` is the interactive convenience wrapper over the same directive
-application logic used by `cmdproxy eval`.
+application logic used by `cmdproxy hook claude`.
 
 - it accepts a command string as CLI input
 - it constructs the canonical execution request internally

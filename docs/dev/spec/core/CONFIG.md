@@ -34,7 +34,7 @@ v1 does not provide an override mechanism based on matching IDs.
 - Invalid YAML: invalid configuration
 - Valid YAML with schema errors: invalid configuration
 
-Invalid configuration causes `cmdproxy eval` to exit with error rather than
+Invalid configuration causes `cmdproxy hook claude` to return a deny response rather than
 silently falling back to partial policy enforcement.
 
 ## 5. Future Extensions

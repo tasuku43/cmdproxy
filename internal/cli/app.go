@@ -41,8 +41,8 @@ func Run(args []string, streams Streams, env Env) int {
 	}
 
 	switch args[0] {
-	case "eval":
-		return runEval(args[1:], streams, env)
+	case "hook":
+		return runHook(args[1:], streams, env)
 	case "check":
 		return runCheck(args[1:], streams, env)
 	case "test":
@@ -64,26 +64,25 @@ func Run(args []string, streams Streams, env Env) int {
 	}
 }
 
-func runEval(args []string, streams Streams, env Env) int {
+func runHook(args []string, streams Streams, env Env) int {
 	if wantsHelp(args) {
-		writeCommandHelp(streams.Stdout, "eval")
+		writeCommandHelp(streams.Stdout, "hook")
 		return exitAllow
 	}
-	format, rest, err := parseCommonFlags(args)
-	if err != nil || len(rest) != 0 {
-		writeCommandHelp(streams.Stderr, "eval")
+	if len(args) != 1 || args[0] != "claude" {
+		writeCommandHelp(streams.Stderr, "hook")
 		return exitError
 	}
 	raw, err := io.ReadAll(streams.Stdin)
 	if err != nil {
-		return emitError(streams, format, "runtime_error", err.Error())
+		return emitClaudeHookError(streams, "runtime_error", err.Error())
 	}
 
 	req, err := input.Normalize(raw)
 	if err != nil {
-		return emitError(streams, format, "invalid_input", err.Error())
+		return emitClaudeHookError(streams, "invalid_input", err.Error())
 	}
-	return evaluateRequest(req, format, streams, env)
+	return runClaudeHook(req, streams, env)
 }
 
 func runCheck(args []string, streams Streams, env Env) int {
@@ -209,20 +208,32 @@ func runInit(args []string, streams Streams, env Env) int {
 	}
 
 	fmt.Fprintln(streams.Stdout, "hook snippet:")
-	fmt.Fprintln(streams.Stdout, `{"matcher":"Bash","hooks":[{"type":"command","command":"cmdproxy eval"}]}`)
+	fmt.Fprintln(streams.Stdout, `{"matcher":"Bash","hooks":[{"type":"command","command":"cmdproxy hook claude"}]}`)
 	return exitAllow
 }
 
 func evaluateRequest(req input.ExecRequest, format string, streams Streams, env Env) int {
-	loaded := config.LoadEffectiveForEval(env.Home, env.XDGConfigHome, env.XDGCacheHome)
+	decision, err := evaluateDecision(req, env)
+	if err != nil {
+		return emitError(streams, format, "runtime_error", err.Error())
+	}
+	return emitDecision(streams, format, decision)
+}
+
+func evaluateDecision(req input.ExecRequest, env Env) (policy.Decision, error) {
+	loaded := config.LoadEffectiveForHook(env.Home, env.XDGConfigHome, env.XDGCacheHome)
 	if len(loaded.Errors) > 0 {
-		return emitError(streams, format, "invalid_config", strings.Join(policy.ErrorStrings(loaded.Errors), "; "))
+		return policy.Decision{}, errors.New(strings.Join(policy.ErrorStrings(loaded.Errors), "; "))
 	}
 
 	decision, err := policy.Evaluate(loaded.Rules, req.Command)
 	if err != nil {
-		return emitError(streams, format, "runtime_error", err.Error())
+		return policy.Decision{}, err
 	}
+	return decision, nil
+}
+
+func emitDecision(streams Streams, format string, decision policy.Decision) int {
 	if decision.Outcome == "pass" {
 		if format == "json" {
 			_ = json.NewEncoder(streams.Stdout).Encode(map[string]any{
@@ -262,6 +273,53 @@ func evaluateRequest(req input.ExecRequest, format string, streams Streams, env 
 		fmt.Fprintf(streams.Stderr, "[%s] %s\n", decision.Rule.ID, decision.Rule.RejectMessage())
 	}
 	return exitReject
+}
+
+func runClaudeHook(req input.ExecRequest, streams Streams, env Env) int {
+	decision, err := evaluateDecision(req, env)
+	if err != nil {
+		return emitClaudeHookError(streams, "invalid_config", err.Error())
+	}
+
+	switch decision.Outcome {
+	case "pass":
+		return exitAllow
+	case "rewrite":
+		payload := map[string]any{
+			"hookSpecificOutput": map[string]any{
+				"hookEventName":            "PreToolUse",
+				"permissionDecision":       "allow",
+				"permissionDecisionReason": "cmdproxy rewrite: " + decision.Rule.ID,
+				"updatedInput":             map[string]any{"command": decision.Command},
+			},
+		}
+		_ = json.NewEncoder(streams.Stdout).Encode(payload)
+		return exitAllow
+	case "reject":
+		payload := map[string]any{
+			"hookSpecificOutput": map[string]any{
+				"hookEventName":            "PreToolUse",
+				"permissionDecision":       "deny",
+				"permissionDecisionReason": decision.Rule.RejectMessage(),
+			},
+		}
+		_ = json.NewEncoder(streams.Stdout).Encode(payload)
+		return exitAllow
+	default:
+		return emitClaudeHookError(streams, "runtime_error", "unsupported decision outcome")
+	}
+}
+
+func emitClaudeHookError(streams Streams, code string, message string) int {
+	payload := map[string]any{
+		"hookSpecificOutput": map[string]any{
+			"hookEventName":            "PreToolUse",
+			"permissionDecision":       "deny",
+			"permissionDecisionReason": "cmdproxy " + code + ": " + message,
+		},
+	}
+	_ = json.NewEncoder(streams.Stdout).Encode(payload)
+	return exitAllow
 }
 
 func emitError(streams Streams, format string, code string, message string) int {
@@ -310,7 +368,7 @@ Typical workflow:
   2. Add directive tests under rewrite.test or reject.test
   3. Run cmdproxy test
   4. Use cmdproxy check for spot checks
-  5. Let Claude Code call cmdproxy eval from PreToolUse
+  5. Let Claude Code call cmdproxy hook claude from PreToolUse
 
 Usage:
   cmdproxy <command> [flags]
@@ -320,7 +378,7 @@ Commands:
   test     validate every rule example; this is the main authoring command
   check    evaluate one command string interactively
   doctor   inspect config quality and installation state
-  eval     hook entrypoint used by Claude Code and other callers
+  hook     Claude Code hook entrypoint
 
 Help:
   cmdproxy help <command>
@@ -328,8 +386,9 @@ Help:
 
 Examples:
   cmdproxy init
-  cmdproxy test
+	cmdproxy test
   cmdproxy check --format json 'git -C repo status'
+  cmdproxy hook claude
   cmdproxy doctor --format json
 `)
 }
@@ -390,14 +449,15 @@ Examples:
   cmdproxy doctor
   cmdproxy doctor --format json
 `)
-	case "eval":
-		fmt.Fprint(w, `cmdproxy eval
+	case "hook":
+		fmt.Fprint(w, `cmdproxy hook claude
 
-Hook entrypoint for Claude Code and other callers.
-Reads stdin JSON and returns allow, deny, or error.
+Claude Code hook entrypoint.
+Reads stdin JSON and returns Claude Code hook JSON for pass, rewrite, reject,
+or error outcomes.
 
 Usage:
-  cmdproxy eval [--format json]
+  cmdproxy hook claude
 
 Note:
   You usually do not run this manually. Edit rules and use cmdproxy test or
@@ -428,8 +488,7 @@ func userConfigBase(home string, xdgConfigHome string) string {
 	return filepath.Join(home, ".config")
 }
 
-const starterConfig = `version: 2
-rules:
+const starterConfig = `rules:
   - id: no-git-dash-c
     match:
       command: git

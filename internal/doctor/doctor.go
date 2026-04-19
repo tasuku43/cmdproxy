@@ -82,10 +82,10 @@ func Run(loaded config.Loaded, home string) Report {
 	claudeSettings := filepath.Join(home, ".claude", "settings.json")
 	if _, err := os.Stat(claudeSettings); err == nil {
 		data, readErr := os.ReadFile(claudeSettings)
-		if readErr == nil && strings.Contains(string(data), "cmdproxy eval") && strings.Contains(string(data), "\"matcher\": \"Bash\"") {
+		if readErr == nil && strings.Contains(string(data), "cmdproxy hook claude") && strings.Contains(string(data), "\"matcher\": \"Bash\"") {
 			checks = append(checks, Check{ID: "install.claude-registered", Category: "install", Status: StatusPass, Message: "Claude Code hook registration detected"})
 		} else {
-			checks = append(checks, Check{ID: "install.claude-registered", Category: "install", Status: StatusWarn, Message: "Claude Code settings found but cmdproxy eval hook not detected"})
+			checks = append(checks, Check{ID: "install.claude-registered", Category: "install", Status: StatusWarn, Message: "Claude Code settings found but cmdproxy hook claude not detected"})
 		}
 	} else {
 		checks = append(checks, Check{ID: "install.claude-registered", Category: "install", Status: StatusWarn, Message: "Claude Code settings.json not found"})

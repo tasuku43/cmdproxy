@@ -36,10 +36,10 @@ Today, the codebase already supports:
 - `rewrite.unwrap_wrapper`
 - `rewrite.continue`
 - ordered first-match evaluation
-- `cmdproxy test`, `cmdproxy check`, `cmdproxy doctor`, and `cmdproxy eval`
+- `cmdproxy test`, `cmdproxy check`, `cmdproxy doctor`, and `cmdproxy hook claude`
 
-The current on-disk config format is `version: 2` and uses directive-local
-tests under `rewrite.test` or `reject.test`.
+The current on-disk config format uses directive-local tests under
+`rewrite.test` or `reject.test`.
 
 ## Typical Workflow
 
@@ -59,25 +59,25 @@ cmdproxy check aws --profile read-only-profile s3 ls
 cmdproxy doctor --format json
 ```
 
-4. Register `cmdproxy eval` in your hook runner
+4. Register `cmdproxy hook claude` in your hook runner
 
 ## Claude Code Setup
 
 `cmdproxy` is intended to run before Claude Code permissions are evaluated.
 
-Add a `PreToolUse` Bash hook that calls `cmdproxy eval`.
+Add a `PreToolUse` Bash hook that calls `cmdproxy hook claude`.
 
 ```json
 {
   "matcher": "Bash",
   "hooks": [
-    { "type": "command", "command": "cmdproxy eval" }
+    { "type": "command", "command": "cmdproxy hook claude" }
   ]
 }
 ```
 
 If you also use another Bash hook such as `rtk hook claude`, place
-`cmdproxy eval` first so canonicalization and rejection happen before later
+`cmdproxy hook claude` first so canonicalization and rejection happen before later
 hook-side processing.
 
 ## Current Config Shape
@@ -85,7 +85,6 @@ hook-side processing.
 The currently implemented config file looks like this:
 
 ```yaml
-version: 2
 rules:
   - id: aws-profile-to-env
     match:

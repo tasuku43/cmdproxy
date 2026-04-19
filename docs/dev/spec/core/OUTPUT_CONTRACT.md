@@ -11,8 +11,8 @@ date: 2026-04-19
 This document defines the target output contract for the main hook entrypoint of
 `cmdproxy`.
 
-The command name may remain `eval` temporarily, but the contract below is for
-the directive-driven model rather than the earlier deny-only model.
+The command name is `hook claude`, and the contract below is for the
+directive-driven model.
 
 ## 2. Runtime Outcomes
 

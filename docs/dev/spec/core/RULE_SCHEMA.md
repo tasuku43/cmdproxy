@@ -15,7 +15,6 @@ This document defines the directive-based YAML schema for `cmdproxy`.
 The current target configuration shape is:
 
 ```yaml
-version: 2
 rules:
   - id: aws-profile-to-env
     match:
@@ -49,7 +48,6 @@ rules:
 
 ## 3. Top-Level Fields
 
-- `version`: required integer, value `2`
 - `rules`: required non-empty array of rule objects
 
 Unknown top-level keys are invalid.

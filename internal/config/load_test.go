@@ -13,8 +13,7 @@ func TestLoadEffectiveUsesUserConfig(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(userPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	body := `version: 2
-rules:
+	body := `rules:
   - id: user-rule
     pattern: "^echo"
     reject:
@@ -39,9 +38,8 @@ rules:
 func TestLoadFileForEvalIfPresentSupportsRewriteDirective(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "cmdproxy.yml")
-	cachePath := filepath.Join(t.TempDir(), "eval-cache-v1.json")
-	body := `version: 2
-rules:
+	cachePath := filepath.Join(t.TempDir(), "hook-cache-v1.json")
+	body := `rules:
   - id: unwrap-shell-dash-c
     match:
       command_in: ["bash", "sh"]
@@ -71,9 +69,8 @@ rules:
 func TestLoadFileForEvalIfPresentSupportsMoveFlagToEnv(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "cmdproxy.yml")
-	cachePath := filepath.Join(t.TempDir(), "eval-cache-v1.json")
-	body := `version: 2
-rules:
+	cachePath := filepath.Join(t.TempDir(), "hook-cache-v1.json")
+	body := `rules:
   - id: aws-profile-to-env
     match:
       command: aws
@@ -105,9 +102,8 @@ rules:
 func TestLoadFileForEvalIfPresentSupportsMoveEnvToFlag(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "cmdproxy.yml")
-	cachePath := filepath.Join(t.TempDir(), "eval-cache-v1.json")
-	body := `version: 2
-rules:
+	cachePath := filepath.Join(t.TempDir(), "hook-cache-v1.json")
+	body := `rules:
   - id: aws-env-to-profile
     match:
       command: aws
@@ -139,9 +135,8 @@ rules:
 func TestLoadFileForEvalIfPresentSupportsUnwrapWrapper(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "cmdproxy.yml")
-	cachePath := filepath.Join(t.TempDir(), "eval-cache-v1.json")
-	body := `version: 2
-rules:
+	cachePath := filepath.Join(t.TempDir(), "hook-cache-v1.json")
+	body := `rules:
   - id: unwrap-safe-wrappers
     pattern: '^\s*(env|command|exec)\b'
     rewrite:
@@ -170,8 +165,7 @@ rules:
 func TestLoadFileIfPresentRejectsPatternAndMatchTogether(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "cmdproxy.yml")
-	body := `version: 2
-rules:
+	body := `rules:
   - id: bad-rule
     pattern: "^git"
     match:

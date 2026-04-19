@@ -18,13 +18,13 @@ func BenchmarkEvaluateRequestWithSmallConfig(b *testing.B) {
 		Stderr: bytes.NewBuffer(nil),
 	}
 	env := Env{Cwd: b.TempDir(), Home: home, XDGCacheHome: cacheHome}
-	reqJSON := []byte(`{"action":"exec","command":"git -C repos/foo status"}`)
+	reqJSON := []byte(`{"tool_name":"Bash","tool_input":{"command":"git -C repos/foo status"}}`)
 
-	if code := Run([]string{"eval", "--format", "json"}, Streams{
+	if code := Run([]string{"hook", "claude"}, Streams{
 		Stdin:  bytes.NewReader(reqJSON),
 		Stdout: bytes.NewBuffer(nil),
 		Stderr: bytes.NewBuffer(nil),
-	}, env); code != 2 {
+	}, env); code != 0 {
 		b.Fatalf("unexpected warmup code %d", code)
 	}
 
@@ -32,12 +32,12 @@ func BenchmarkEvaluateRequestWithSmallConfig(b *testing.B) {
 	for b.Loop() {
 		streams.Stdout = bytes.NewBuffer(nil)
 		streams.Stderr = bytes.NewBuffer(nil)
-		code := Run([]string{"eval", "--format", "json"}, Streams{
+		code := Run([]string{"hook", "claude"}, Streams{
 			Stdin:  bytes.NewReader(reqJSON),
 			Stdout: streams.Stdout,
 			Stderr: streams.Stderr,
 		}, env)
-		if code != 2 {
+		if code != 0 {
 			b.Fatalf("unexpected code %d", code)
 		}
 	}
@@ -48,24 +48,24 @@ func BenchmarkEvaluateRequestWithLargeConfig(b *testing.B) {
 	cacheHome := b.TempDir()
 	writeUserConfigBenchmark(b, home, benchmarkConfig(200, 20))
 	env := Env{Cwd: b.TempDir(), Home: home, XDGCacheHome: cacheHome}
-	reqJSON := []byte(`{"action":"exec","command":"git -C repos/foo status"}`)
+	reqJSON := []byte(`{"tool_name":"Bash","tool_input":{"command":"git -C repos/foo status"}}`)
 
-	if code := Run([]string{"eval", "--format", "json"}, Streams{
+	if code := Run([]string{"hook", "claude"}, Streams{
 		Stdin:  bytes.NewReader(reqJSON),
 		Stdout: bytes.NewBuffer(nil),
 		Stderr: bytes.NewBuffer(nil),
-	}, env); code != 2 {
+	}, env); code != 0 {
 		b.Fatalf("unexpected warmup code %d", code)
 	}
 
 	b.ResetTimer()
 	for b.Loop() {
-		code := Run([]string{"eval", "--format", "json"}, Streams{
+		code := Run([]string{"hook", "claude"}, Streams{
 			Stdin:  bytes.NewReader(reqJSON),
 			Stdout: bytes.NewBuffer(nil),
 			Stderr: bytes.NewBuffer(nil),
 		}, env)
-		if code != 2 {
+		if code != 0 {
 			b.Fatalf("unexpected code %d", code)
 		}
 	}
@@ -73,7 +73,7 @@ func BenchmarkEvaluateRequestWithLargeConfig(b *testing.B) {
 
 func benchmarkConfig(ruleCount, examplesPerRule int) string {
 	var buf bytes.Buffer
-	buf.WriteString("version: 2\nrules:\n")
+	buf.WriteString("rules:\n")
 	for i := 0; i < ruleCount; i++ {
 		fmt.Fprintf(&buf, "  - id: bench-rule-%d\n", i)
 		if i == ruleCount-1 {

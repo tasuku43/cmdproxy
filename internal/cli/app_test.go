@@ -9,8 +9,7 @@ import (
 	"testing"
 )
 
-const fullUserConfig = `version: 2
-rules:
+const fullUserConfig = `rules:
   - id: no-git-dash-c
     match:
       command: git
@@ -124,10 +123,9 @@ rules:
           - "git --version"
 `
 
-func TestRunEvalJSONDeny(t *testing.T) {
+func TestRunHookClaudeReject(t *testing.T) {
 	home := t.TempDir()
-	writeUserConfig(t, home, `version: 2
-rules:
+	writeUserConfig(t, home, `rules:
   - id: no-git-dash-c
     pattern: '^\s*git\s+-C\b'
     reject:
@@ -138,12 +136,12 @@ rules:
 `)
 
 	var stdout, stderr bytes.Buffer
-	code := Run([]string{"eval", "--format", "json"}, Streams{
-		Stdin:  strings.NewReader(`{"action":"exec","command":"git -C foo status"}`),
+	code := Run([]string{"hook", "claude"}, Streams{
+		Stdin:  strings.NewReader(`{"tool_name":"Bash","tool_input":{"command":"git -C foo status"}}`),
 		Stdout: &stdout,
 		Stderr: &stderr,
 	}, Env{Cwd: t.TempDir(), Home: home})
-	if code != 2 {
+	if code != 0 {
 		t.Fatalf("code = %d stderr=%s", code, stderr.String())
 	}
 
@@ -151,18 +149,21 @@ rules:
 	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
 		t.Fatalf("json error: %v", err)
 	}
-	if payload["decision"] != "reject" {
+	hookOut, ok := payload["hookSpecificOutput"].(map[string]any)
+	if !ok {
 		t.Fatalf("payload = %+v", payload)
 	}
-	if payload["message"] != "git -C is blocked. Change into the target directory and rerun the command." {
+	if hookOut["permissionDecision"] != "deny" {
+		t.Fatalf("payload = %+v", payload)
+	}
+	if hookOut["permissionDecisionReason"] != "git -C is blocked. Change into the target directory and rerun the command." {
 		t.Fatalf("payload = %+v", payload)
 	}
 }
 
-func TestRunEvalJSONRewrite(t *testing.T) {
+func TestRunHookClaudeRewrite(t *testing.T) {
 	home := t.TempDir()
-	writeUserConfig(t, home, `version: 2
-rules:
+	writeUserConfig(t, home, `rules:
   - id: unwrap-shell-dash-c
     match:
       command_in: ["bash", "sh"]
@@ -177,8 +178,8 @@ rules:
 `)
 
 	var stdout, stderr bytes.Buffer
-	code := Run([]string{"eval", "--format", "json"}, Streams{
-		Stdin:  strings.NewReader(`{"action":"exec","command":"bash -c 'git status'"}`),
+	code := Run([]string{"hook", "claude"}, Streams{
+		Stdin:  strings.NewReader(`{"tool_name":"Bash","tool_input":{"command":"bash -c 'git status'"}}`),
 		Stdout: &stdout,
 		Stderr: &stderr,
 	}, Env{Cwd: t.TempDir(), Home: home})
@@ -190,15 +191,22 @@ rules:
 	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
 		t.Fatalf("json error: %v", err)
 	}
-	if payload["decision"] != "rewrite" || payload["command"] != "git status" {
+	hookOut, ok := payload["hookSpecificOutput"].(map[string]any)
+	if !ok {
+		t.Fatalf("payload = %+v", payload)
+	}
+	if hookOut["permissionDecision"] != "allow" {
+		t.Fatalf("payload = %+v", payload)
+	}
+	updatedInput, ok := hookOut["updatedInput"].(map[string]any)
+	if !ok || updatedInput["command"] != "git status" {
 		t.Fatalf("payload = %+v", payload)
 	}
 }
 
-func TestRunEvalJSONRewriteContinueThenReject(t *testing.T) {
+func TestRunHookClaudeRewriteContinueThenReject(t *testing.T) {
 	home := t.TempDir()
-	writeUserConfig(t, home, `version: 2
-rules:
+	writeUserConfig(t, home, `rules:
   - id: unwrap-shell-dash-c
     match:
       command_in: ["bash", "sh"]
@@ -223,12 +231,12 @@ rules:
 `)
 
 	var stdout, stderr bytes.Buffer
-	code := Run([]string{"eval", "--format", "json"}, Streams{
-		Stdin:  strings.NewReader(`{"action":"exec","command":"bash -c 'git -C repo status'"}`),
+	code := Run([]string{"hook", "claude"}, Streams{
+		Stdin:  strings.NewReader(`{"tool_name":"Bash","tool_input":{"command":"bash -c 'git -C repo status'"}}`),
 		Stdout: &stdout,
 		Stderr: &stderr,
 	}, Env{Cwd: t.TempDir(), Home: home})
-	if code != 2 {
+	if code != 0 {
 		t.Fatalf("code = %d stderr=%s", code, stderr.String())
 	}
 
@@ -236,15 +244,15 @@ rules:
 	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
 		t.Fatalf("json error: %v", err)
 	}
-	if payload["decision"] != "reject" || payload["rule_id"] != "no-git-dash-c" {
+	hookOut, ok := payload["hookSpecificOutput"].(map[string]any)
+	if !ok || hookOut["permissionDecision"] != "deny" {
 		t.Fatalf("payload = %+v", payload)
 	}
 }
 
-func TestRunEvalJSONMoveFlagToEnvRewrite(t *testing.T) {
+func TestRunHookClaudeMoveFlagToEnvRewrite(t *testing.T) {
 	home := t.TempDir()
-	writeUserConfig(t, home, `version: 2
-rules:
+	writeUserConfig(t, home, `rules:
   - id: aws-profile-to-env
     match:
       command: aws
@@ -261,8 +269,8 @@ rules:
 `)
 
 	var stdout, stderr bytes.Buffer
-	code := Run([]string{"eval", "--format", "json"}, Streams{
-		Stdin:  strings.NewReader(`{"action":"exec","command":"aws --profile read-only-profile s3 ls"}`),
+	code := Run([]string{"hook", "claude"}, Streams{
+		Stdin:  strings.NewReader(`{"tool_name":"Bash","tool_input":{"command":"aws --profile read-only-profile s3 ls"}}`),
 		Stdout: &stdout,
 		Stderr: &stderr,
 	}, Env{Cwd: t.TempDir(), Home: home})
@@ -274,15 +282,19 @@ rules:
 	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
 		t.Fatalf("json error: %v", err)
 	}
-	if payload["decision"] != "rewrite" || payload["command"] != "AWS_PROFILE=read-only-profile aws s3 ls" {
+	hookOut, ok := payload["hookSpecificOutput"].(map[string]any)
+	if !ok {
+		t.Fatalf("payload = %+v", payload)
+	}
+	updatedInput, ok := hookOut["updatedInput"].(map[string]any)
+	if !ok || updatedInput["command"] != "AWS_PROFILE=read-only-profile aws s3 ls" {
 		t.Fatalf("payload = %+v", payload)
 	}
 }
 
-func TestRunEvalJSONMoveEnvToFlagRewrite(t *testing.T) {
+func TestRunHookClaudeMoveEnvToFlagRewrite(t *testing.T) {
 	home := t.TempDir()
-	writeUserConfig(t, home, `version: 2
-rules:
+	writeUserConfig(t, home, `rules:
   - id: aws-env-to-profile
     match:
       command: aws
@@ -299,8 +311,8 @@ rules:
 `)
 
 	var stdout, stderr bytes.Buffer
-	code := Run([]string{"eval", "--format", "json"}, Streams{
-		Stdin:  strings.NewReader(`{"action":"exec","command":"AWS_PROFILE=read-only-profile aws s3 ls"}`),
+	code := Run([]string{"hook", "claude"}, Streams{
+		Stdin:  strings.NewReader(`{"tool_name":"Bash","tool_input":{"command":"AWS_PROFILE=read-only-profile aws s3 ls"}}`),
 		Stdout: &stdout,
 		Stderr: &stderr,
 	}, Env{Cwd: t.TempDir(), Home: home})
@@ -312,15 +324,19 @@ rules:
 	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
 		t.Fatalf("json error: %v", err)
 	}
-	if payload["decision"] != "rewrite" || payload["command"] != "aws --profile read-only-profile s3 ls" {
+	hookOut, ok := payload["hookSpecificOutput"].(map[string]any)
+	if !ok {
+		t.Fatalf("payload = %+v", payload)
+	}
+	updatedInput, ok := hookOut["updatedInput"].(map[string]any)
+	if !ok || updatedInput["command"] != "aws --profile read-only-profile s3 ls" {
 		t.Fatalf("payload = %+v", payload)
 	}
 }
 
-func TestRunEvalJSONUnwrapWrapperRewrite(t *testing.T) {
+func TestRunHookClaudeUnwrapWrapperRewrite(t *testing.T) {
 	home := t.TempDir()
-	writeUserConfig(t, home, `version: 2
-rules:
+	writeUserConfig(t, home, `rules:
   - id: unwrap-safe-wrappers
     pattern: '^\s*(env|command|exec)\b'
     rewrite:
@@ -334,8 +350,8 @@ rules:
 `)
 
 	var stdout, stderr bytes.Buffer
-	code := Run([]string{"eval", "--format", "json"}, Streams{
-		Stdin:  strings.NewReader(`{"action":"exec","command":"env AWS_PROFILE=dev command exec aws s3 ls"}`),
+	code := Run([]string{"hook", "claude"}, Streams{
+		Stdin:  strings.NewReader(`{"tool_name":"Bash","tool_input":{"command":"env AWS_PROFILE=dev command exec aws s3 ls"}}`),
 		Stdout: &stdout,
 		Stderr: &stderr,
 	}, Env{Cwd: t.TempDir(), Home: home})
@@ -347,15 +363,19 @@ rules:
 	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
 		t.Fatalf("json error: %v", err)
 	}
-	if payload["decision"] != "rewrite" || payload["command"] != "AWS_PROFILE=dev aws s3 ls" {
+	hookOut, ok := payload["hookSpecificOutput"].(map[string]any)
+	if !ok {
+		t.Fatalf("payload = %+v", payload)
+	}
+	updatedInput, ok := hookOut["updatedInput"].(map[string]any)
+	if !ok || updatedInput["command"] != "AWS_PROFILE=dev aws s3 ls" {
 		t.Fatalf("payload = %+v", payload)
 	}
 }
 
 func TestRunCheckAllow(t *testing.T) {
 	home := t.TempDir()
-	writeUserConfig(t, home, `version: 2
-rules:
+	writeUserConfig(t, home, `rules:
   - id: no-git-dash-c
     pattern: '^\s*git\s+-C\b'
     reject:
@@ -381,8 +401,7 @@ rules:
 
 func TestRunTest(t *testing.T) {
 	home := t.TempDir()
-	writeUserConfig(t, home, `version: 2
-rules:
+	writeUserConfig(t, home, `rules:
   - id: no-git-dash-c
     pattern: '^\s*git\s+-C\b'
     reject:
@@ -422,7 +441,7 @@ func TestRunInitCreatesStarterConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read config: %v", err)
 	}
-	if !strings.Contains(string(data), "version: 2") {
+	if !strings.Contains(string(data), "rules:") {
 		t.Fatalf("config=%q", string(data))
 	}
 }

@@ -18,7 +18,7 @@ modifying existing user configuration.
 - create a starter user-wide config when one does not exist
 - explain where the user-wide config lives
 - detect compatible Claude Code settings files
-- print the hook snippet needed to register `cmdproxy eval`
+- print the hook snippet needed to register `cmdproxy hook claude`
 
 ## Starter Config Goal
 

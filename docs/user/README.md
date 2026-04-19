@@ -10,7 +10,7 @@ Start here if your goal is to use `cmdproxy` in local workflows.
 
 - user-wide config at `~/.config/cmdproxy/cmdproxy.yml`
 - rule editing followed by `cmdproxy test`
-- hook integration via `cmdproxy eval`
+- hook integration via `cmdproxy hook claude`
 
 ## Intended Guide Set
 
