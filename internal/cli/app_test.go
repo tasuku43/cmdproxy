@@ -12,7 +12,10 @@ import (
 const fullUserConfig = `version: 1
 rules:
   - id: no-git-dash-c
-    pattern: '^\s*git\s+-C\b'
+    match:
+      command: git
+      args_contains:
+        - "-C"
     message: "git -C is blocked. Change into the target directory and rerun the command."
     block_examples:
       - "git -C repos/foo status"
@@ -30,7 +33,15 @@ rules:
       - "git diff HEAD~1"
       - "gh pr diff"
   - id: no-shell-dash-c
-    pattern: '^\s*((env|command|exec)\s+)?((/[^[:space:]]+/)?(bash|sh|zsh|dash|ksh))\s+-c\b|^\s*/usr/bin/env\s+(bash|sh|zsh|dash|ksh)\s+-c\b'
+    match:
+      command_in:
+        - bash
+        - sh
+        - zsh
+        - dash
+        - ksh
+      args_contains:
+        - "-c"
     message: "shell -c is blocked because it can bypass command chaining guards. Run cd separately, then run the next command."
     block_examples:
       - "bash -c 'git status && git diff'"
@@ -58,7 +69,10 @@ rules:
       - "AWS_PROFILE=read-only-profile aws s3 ls"
       - "echo docs mention profile flag"
   - id: require-aws-profile-env
-    pattern: '^\s*aws\s'
+    match:
+      command: aws
+      env_missing:
+        - AWS_PROFILE
     message: "aws commands must start with AWS_PROFILE=<profile>, for example AWS_PROFILE=read-only-profile aws s3 ls."
     block_examples:
       - "aws s3 ls"
@@ -77,7 +91,10 @@ rules:
       - "cd repo"
       - "git status"
   - id: no-git-git-dir
-    pattern: '^\s*git\s+--git-dir\b'
+    match:
+      command: git
+      args_prefixes:
+        - "--git-dir"
     message: "git --git-dir is blocked. Change into the target directory and rerun the command."
     block_examples:
       - "git --git-dir=.git status"

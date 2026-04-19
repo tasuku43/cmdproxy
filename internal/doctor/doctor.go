@@ -4,7 +4,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/tasuku43/cmdguard/internal/rule"
@@ -37,7 +36,7 @@ func Run(loaded rule.Loaded, home string) Report {
 			Check{ID: "config.parse", Category: "config", Status: StatusPass, Message: "configuration files parsed"},
 			Check{ID: "config.schema", Category: "config", Status: StatusPass, Message: "configuration schema is valid"},
 			Check{ID: "rules.unique-id", Category: "rules", Status: StatusPass, Message: "rule IDs are unique"},
-			Check{ID: "rules.regex-compile", Category: "rules", Status: StatusPass, Message: "patterns compile"},
+			Check{ID: "rules.matcher-validate", Category: "rules", Status: StatusPass, Message: "rule matchers are valid"},
 			Check{ID: "rules.examples-present", Category: "rules", Status: StatusPass, Message: "examples are present"},
 		)
 	} else {
@@ -46,7 +45,7 @@ func Run(loaded rule.Loaded, home string) Report {
 			Check{ID: "config.parse", Category: "config", Status: StatusFail, Message: msg},
 			Check{ID: "config.schema", Category: "config", Status: StatusFail, Message: msg},
 			Check{ID: "rules.unique-id", Category: "rules", Status: StatusFail, Message: msg},
-			Check{ID: "rules.regex-compile", Category: "rules", Status: StatusFail, Message: msg},
+			Check{ID: "rules.matcher-validate", Category: "rules", Status: StatusFail, Message: msg},
 			Check{ID: "rules.examples-present", Category: "rules", Status: StatusFail, Message: msg},
 		)
 	}
@@ -105,17 +104,21 @@ func HasFailures(report Report) bool {
 
 func examplesPass(rules []rule.Rule) error {
 	for _, r := range rules {
-		re, err := regexp.Compile(r.Pattern)
-		if err != nil {
-			return err
-		}
 		for _, ex := range r.BlockExamples {
-			if !re.MatchString(ex) {
+			matched, err := r.Match(ex)
+			if err != nil {
+				return err
+			}
+			if !matched {
 				return &exampleError{RuleID: r.ID, Kind: "block", Example: ex}
 			}
 		}
 		for _, ex := range r.AllowExamples {
-			if re.MatchString(ex) {
+			matched, err := r.Match(ex)
+			if err != nil {
+				return err
+			}
+			if matched {
 				return &exampleError{RuleID: r.ID, Kind: "allow", Example: ex}
 			}
 		}
@@ -135,6 +138,9 @@ func (e *exampleError) Error() string {
 
 func broadnessWarning(rules []rule.Rule) string {
 	for _, r := range rules {
+		if r.Pattern == "" {
+			continue
+		}
 		if r.Pattern == ".*" || r.Pattern == "^.*$" || r.Pattern == ".+" || r.Pattern == "^.+$" {
 			return "rule " + r.ID + " pattern is extremely broad"
 		}
@@ -144,13 +150,13 @@ func broadnessWarning(rules []rule.Rule) string {
 
 func shadowingWarning(rules []rule.Rule) string {
 	for i := 0; i < len(rules); i++ {
-		re, err := regexp.Compile(rules[i].Pattern)
-		if err != nil {
-			continue
-		}
 		for j := i + 1; j < len(rules); j++ {
 			for _, ex := range rules[j].BlockExamples {
-				if re.MatchString(ex) {
+				matched, err := rules[i].Match(ex)
+				if err != nil {
+					continue
+				}
+				if matched {
 					return "rule " + rules[i].ID + " likely shadows later rule " + rules[j].ID
 				}
 			}

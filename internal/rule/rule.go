@@ -25,11 +25,22 @@ type File struct {
 }
 
 type RuleSpec struct {
-	ID            string   `yaml:"id"`
-	Pattern       string   `yaml:"pattern"`
-	Message       string   `yaml:"message"`
-	BlockExamples []string `yaml:"block_examples"`
-	AllowExamples []string `yaml:"allow_examples"`
+	ID            string    `yaml:"id"`
+	Pattern       string    `yaml:"pattern"`
+	Matcher       MatchSpec `yaml:"match"`
+	Message       string    `yaml:"message"`
+	BlockExamples []string  `yaml:"block_examples"`
+	AllowExamples []string  `yaml:"allow_examples"`
+}
+
+type MatchSpec struct {
+	Command      string   `yaml:"command" json:"command,omitempty"`
+	CommandIn    []string `yaml:"command_in" json:"command_in,omitempty"`
+	Subcommand   string   `yaml:"subcommand" json:"subcommand,omitempty"`
+	ArgsContains []string `yaml:"args_contains" json:"args_contains,omitempty"`
+	ArgsPrefixes []string `yaml:"args_prefixes" json:"args_prefixes,omitempty"`
+	EnvRequires  []string `yaml:"env_requires" json:"env_requires,omitempty"`
+	EnvMissing   []string `yaml:"env_missing" json:"env_missing,omitempty"`
 }
 
 type evalFile struct {
@@ -40,6 +51,7 @@ type evalFile struct {
 type evalRuleSpec struct {
 	ID              string
 	Pattern         string
+	Match           MatchSpec
 	Message         string
 	BlockExampleLen int
 	AllowExampleLen int
@@ -54,9 +66,10 @@ type evalCacheFile struct {
 }
 
 type evalCachedRule struct {
-	ID      string `json:"id"`
-	Pattern string `json:"pattern"`
-	Message string `json:"message"`
+	ID      string    `json:"id"`
+	Pattern string    `json:"pattern"`
+	Match   MatchSpec `json:"match,omitempty"`
+	Message string    `json:"message"`
 }
 
 type Source struct {
@@ -157,8 +170,7 @@ func LoadFileIfPresent(src Source) ([]Rule, error) {
 
 	rules := make([]Rule, 0, len(file.Rules))
 	for _, spec := range file.Rules {
-		compiled, _ := regexp.Compile(spec.Pattern)
-		rules = append(rules, Rule{RuleSpec: spec, Source: src, re: compiled})
+		rules = append(rules, newRule(spec, src))
 	}
 	return rules, nil
 }
@@ -198,19 +210,17 @@ func LoadFileForEvalIfPresent(src Source, cachePath string) ([]Rule, error) {
 	rules := make([]Rule, 0, len(file.Rules))
 	cached := make([]evalCachedRule, 0, len(file.Rules))
 	for _, spec := range file.Rules {
-		compiled, _ := regexp.Compile(spec.Pattern)
-		rules = append(rules, Rule{
-			RuleSpec: RuleSpec{
-				ID:      spec.ID,
-				Pattern: spec.Pattern,
-				Message: spec.Message,
-			},
-			Source: src,
-			re:     compiled,
-		})
+		ruleSpec := RuleSpec{
+			ID:      spec.ID,
+			Pattern: spec.Pattern,
+			Matcher: spec.Match,
+			Message: spec.Message,
+		}
+		rules = append(rules, newRule(ruleSpec, src))
 		cached = append(cached, evalCachedRule{
 			ID:      spec.ID,
 			Pattern: spec.Pattern,
+			Match:   spec.Match,
 			Message: spec.Message,
 		})
 	}
@@ -330,6 +340,12 @@ func decodeEvalRule(src Source, idx int, node *yaml.Node) (evalRuleSpec, error) 
 				return evalRuleSpec{}, fmt.Errorf("%s config %s is invalid: rules[%d].pattern must be a string", src.Layer, src.Path, idx)
 			}
 			spec.Pattern = val.Value
+		case "match":
+			match, err := decodeEvalMatch(src, idx, val)
+			if err != nil {
+				return evalRuleSpec{}, err
+			}
+			spec.Match = match
 		case "message":
 			if val.Kind != yaml.ScalarNode {
 				return evalRuleSpec{}, fmt.Errorf("%s config %s is invalid: rules[%d].message must be a string", src.Layer, src.Path, idx)
@@ -352,6 +368,76 @@ func decodeEvalRule(src Source, idx int, node *yaml.Node) (evalRuleSpec, error) 
 	return spec, nil
 }
 
+func decodeEvalMatch(src Source, idx int, node *yaml.Node) (MatchSpec, error) {
+	if node.Kind != yaml.MappingNode {
+		return MatchSpec{}, fmt.Errorf("%s config %s is invalid: rules[%d].match must be a mapping", src.Layer, src.Path, idx)
+	}
+	var match MatchSpec
+	for i := 0; i < len(node.Content); i += 2 {
+		key := node.Content[i]
+		val := node.Content[i+1]
+		switch key.Value {
+		case "command":
+			if val.Kind != yaml.ScalarNode {
+				return MatchSpec{}, fmt.Errorf("%s config %s is invalid: rules[%d].match.command must be a string", src.Layer, src.Path, idx)
+			}
+			match.Command = val.Value
+		case "command_in":
+			values, err := decodeStringSequence(src, idx, "match.command_in", val)
+			if err != nil {
+				return MatchSpec{}, err
+			}
+			match.CommandIn = values
+		case "subcommand":
+			if val.Kind != yaml.ScalarNode {
+				return MatchSpec{}, fmt.Errorf("%s config %s is invalid: rules[%d].match.subcommand must be a string", src.Layer, src.Path, idx)
+			}
+			match.Subcommand = val.Value
+		case "args_contains":
+			values, err := decodeStringSequence(src, idx, "match.args_contains", val)
+			if err != nil {
+				return MatchSpec{}, err
+			}
+			match.ArgsContains = values
+		case "args_prefixes":
+			values, err := decodeStringSequence(src, idx, "match.args_prefixes", val)
+			if err != nil {
+				return MatchSpec{}, err
+			}
+			match.ArgsPrefixes = values
+		case "env_requires":
+			values, err := decodeStringSequence(src, idx, "match.env_requires", val)
+			if err != nil {
+				return MatchSpec{}, err
+			}
+			match.EnvRequires = values
+		case "env_missing":
+			values, err := decodeStringSequence(src, idx, "match.env_missing", val)
+			if err != nil {
+				return MatchSpec{}, err
+			}
+			match.EnvMissing = values
+		default:
+			return MatchSpec{}, fmt.Errorf("%s config %s is invalid: rules[%d].match.%s not allowed", src.Layer, src.Path, idx, key.Value)
+		}
+	}
+	return match, nil
+}
+
+func decodeStringSequence(src Source, idx int, field string, node *yaml.Node) ([]string, error) {
+	if node.Kind != yaml.SequenceNode {
+		return nil, fmt.Errorf("%s config %s is invalid: rules[%d].%s must be a sequence", src.Layer, src.Path, idx, field)
+	}
+	values := make([]string, 0, len(node.Content))
+	for _, item := range node.Content {
+		if item.Kind != yaml.ScalarNode {
+			return nil, fmt.Errorf("%s config %s is invalid: rules[%d].%s must contain only strings", src.Layer, src.Path, idx, field)
+		}
+		values = append(values, item.Value)
+	}
+	return values, nil
+}
+
 func validateFile(file File) []string {
 	var issues []string
 	if file.Version != 1 {
@@ -371,11 +457,7 @@ func validateFile(file File) []string {
 			issues = append(issues, prefix+".id duplicates another rule in the same file")
 		}
 		seen[r.ID] = struct{}{}
-		if strings.TrimSpace(r.Pattern) == "" {
-			issues = append(issues, prefix+".pattern must be non-empty")
-		} else if _, err := regexp.Compile(r.Pattern); err != nil {
-			issues = append(issues, prefix+".pattern failed to compile: "+err.Error())
-		}
+		issues = append(issues, validateRuleMatcher(prefix, r.Pattern, r.Matcher)...)
 		if strings.TrimSpace(r.Message) == "" {
 			issues = append(issues, prefix+".message must be non-empty")
 		}
@@ -409,11 +491,7 @@ func validateEvalFile(file evalFile) []string {
 			issues = append(issues, prefix+".id duplicates another rule in the same file")
 		}
 		seen[r.ID] = struct{}{}
-		if strings.TrimSpace(r.Pattern) == "" {
-			issues = append(issues, prefix+".pattern must be non-empty")
-		} else if _, err := regexp.Compile(r.Pattern); err != nil {
-			issues = append(issues, prefix+".pattern failed to compile: "+err.Error())
-		}
+		issues = append(issues, validateRuleMatcher(prefix, r.Pattern, r.Match)...)
 		if strings.TrimSpace(r.Message) == "" {
 			issues = append(issues, prefix+".message must be non-empty")
 		}
@@ -429,6 +507,9 @@ func validateEvalFile(file evalFile) []string {
 }
 
 func (r Rule) Match(command string) (bool, error) {
+	if !isZeroMatchSpec(r.Matcher) {
+		return r.Matcher.matches(ParseCommand(command)), nil
+	}
 	if r.re != nil {
 		return r.re.MatchString(command), nil
 	}
@@ -437,6 +518,127 @@ func (r Rule) Match(command string) (bool, error) {
 		return false, err
 	}
 	return compiled.MatchString(command), nil
+}
+
+func (m MatchSpec) matches(parsed ParsedCommand) bool {
+	if parsed.Command == "" {
+		return false
+	}
+	if m.Command != "" && parsed.Command != m.Command {
+		return false
+	}
+	if len(m.CommandIn) > 0 && !containsString(m.CommandIn, parsed.Command) {
+		return false
+	}
+	if m.Subcommand != "" && parsed.Subcommand != m.Subcommand {
+		return false
+	}
+	for _, arg := range m.ArgsContains {
+		if !containsString(parsed.Args, arg) {
+			return false
+		}
+	}
+	for _, prefix := range m.ArgsPrefixes {
+		if !containsPrefix(parsed.Args, prefix) {
+			return false
+		}
+	}
+	for _, env := range m.EnvRequires {
+		if _, ok := parsed.EnvAssignments[env]; !ok {
+			return false
+		}
+	}
+	for _, env := range m.EnvMissing {
+		if _, ok := parsed.EnvAssignments[env]; ok {
+			return false
+		}
+	}
+	return true
+}
+
+func validateRuleMatcher(prefix string, pattern string, match MatchSpec) []string {
+	var issues []string
+	hasPattern := strings.TrimSpace(pattern) != ""
+	hasMatch := !isZeroMatchSpec(match)
+
+	switch {
+	case hasPattern && hasMatch:
+		issues = append(issues, prefix+" must not set both pattern and match")
+	case !hasPattern && !hasMatch:
+		issues = append(issues, prefix+" must set exactly one of pattern or match")
+	case hasPattern:
+		if _, err := regexp.Compile(pattern); err != nil {
+			issues = append(issues, prefix+".pattern failed to compile: "+err.Error())
+		}
+	case hasMatch:
+		issues = append(issues, validateMatchSpec(prefix+".match", match)...)
+	}
+	return issues
+}
+
+func validateMatchSpec(prefix string, match MatchSpec) []string {
+	var issues []string
+	if isZeroMatchSpec(match) {
+		return []string{prefix + " must not be empty"}
+	}
+	if strings.TrimSpace(match.Command) == "" && match.Command != "" {
+		issues = append(issues, prefix+".command must be non-empty")
+	}
+	if strings.TrimSpace(match.Subcommand) == "" && match.Subcommand != "" {
+		issues = append(issues, prefix+".subcommand must be non-empty")
+	}
+	issues = append(issues, validateNonEmptyStrings(prefix+".command_in", match.CommandIn)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".args_contains", match.ArgsContains)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".args_prefixes", match.ArgsPrefixes)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".env_requires", match.EnvRequires)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".env_missing", match.EnvMissing)...)
+	return issues
+}
+
+func validateNonEmptyStrings(prefix string, values []string) []string {
+	var issues []string
+	for i, value := range values {
+		if strings.TrimSpace(value) == "" {
+			issues = append(issues, fmt.Sprintf("%s[%d] must be non-empty", prefix, i))
+		}
+	}
+	return issues
+}
+
+func isZeroMatchSpec(match MatchSpec) bool {
+	return match.Command == "" &&
+		len(match.CommandIn) == 0 &&
+		match.Subcommand == "" &&
+		len(match.ArgsContains) == 0 &&
+		len(match.ArgsPrefixes) == 0 &&
+		len(match.EnvRequires) == 0 &&
+		len(match.EnvMissing) == 0
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+func containsPrefix(values []string, prefix string) bool {
+	for _, value := range values {
+		if strings.HasPrefix(value, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func newRule(spec RuleSpec, src Source) Rule {
+	r := Rule{RuleSpec: spec, Source: src}
+	if strings.TrimSpace(spec.Pattern) != "" {
+		r.re, _ = regexp.Compile(spec.Pattern)
+	}
+	return r
 }
 
 func validateDuplicateIDs(rules []Rule) []error {
@@ -483,19 +685,17 @@ func loadEvalCache(src Source, cachePath string, info os.FileInfo) ([]Rule, bool
 	}
 	rules := make([]Rule, 0, len(cache.CompiledRules))
 	for _, spec := range cache.CompiledRules {
-		compiled, err := regexp.Compile(spec.Pattern)
-		if err != nil {
-			return nil, false
+		if strings.TrimSpace(spec.Pattern) != "" {
+			if _, err := regexp.Compile(spec.Pattern); err != nil {
+				return nil, false
+			}
 		}
-		rules = append(rules, Rule{
-			RuleSpec: RuleSpec{
-				ID:      spec.ID,
-				Pattern: spec.Pattern,
-				Message: spec.Message,
-			},
-			Source: src,
-			re:     compiled,
-		})
+		rules = append(rules, newRule(RuleSpec{
+			ID:      spec.ID,
+			Pattern: spec.Pattern,
+			Matcher: spec.Match,
+			Message: spec.Message,
+		}, src))
 	}
 	return rules, true
 }

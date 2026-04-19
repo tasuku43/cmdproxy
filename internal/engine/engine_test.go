@@ -20,3 +20,26 @@ func TestEvaluateFirstMatchWins(t *testing.T) {
 		t.Fatalf("got %+v", got)
 	}
 }
+
+func TestEvaluatePredicateRule(t *testing.T) {
+	rules := []rule.Rule{
+		{
+			RuleSpec: rule.RuleSpec{
+				ID: "no-shell-dash-c",
+				Matcher: rule.MatchSpec{
+					CommandIn:    []string{"bash", "sh"},
+					ArgsContains: []string{"-c"},
+				},
+				Message: "blocked",
+			},
+		},
+	}
+
+	got, err := Evaluate(rules, input.ExecRequest{Action: "exec", Command: "/usr/bin/env bash -c 'echo hi'"})
+	if err != nil {
+		t.Fatalf("Evaluate() error = %v", err)
+	}
+	if got.Allowed || got.Rule == nil || got.Rule.ID != "no-shell-dash-c" {
+		t.Fatalf("got %+v", got)
+	}
+}

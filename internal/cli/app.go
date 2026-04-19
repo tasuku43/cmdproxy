@@ -335,8 +335,8 @@ Usage:
   cmdguard test
 
 What it checks:
-  - every block_examples entry matches its rule pattern
-  - every allow_examples entry does not match its rule pattern
+  - every block_examples entry matches its rule matcher
+  - every allow_examples entry does not match its rule matcher
 
 Typical use:
   $EDITOR ~/.config/cmdguard/cmdguard.yml
@@ -408,7 +408,10 @@ func userConfigBase(home string, xdgConfigHome string) string {
 const starterConfig = `version: 1
 rules:
   - id: no-git-dash-c
-    pattern: '^\s*git\s+-C\b'
+    match:
+      command: git
+      args_contains:
+        - "-C"
     message: "git -C is blocked. Change into the target directory and rerun the command."
     block_examples:
       - "git -C repos/foo status"
