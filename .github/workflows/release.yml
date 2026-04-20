@@ -1,0 +1,97 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache: true
+
+      - name: Release preflight
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [[ -n "${unformatted}" ]]; then
+            echo "These files are not gofmt'd:"
+            echo "${unformatted}"
+            exit 1
+          fi
+          go vet ./...
+          go test ./...
+          go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine release channel
+        id: channel
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          if [[ "${tag}" == *-* ]]; then
+            echo "stable=false" >>"${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          echo "stable=true" >>"${GITHUB_OUTPUT}"
+
+      - name: Create GitHub App token for Homebrew tap
+        if: steps.channel.outputs.stable == 'true' && secrets.HOMEBREW_APP_ID != '' && secrets.HOMEBREW_APP_KEY != ''
+        id: homebrew-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HOMEBREW_APP_ID }}
+          private-key: ${{ secrets.HOMEBREW_APP_KEY }}
+          owner: tasuku43
+          repositories: homebrew-cmdproxy
+
+      - name: Checkout Homebrew tap
+        if: steps.homebrew-token.outputs.token != ''
+        uses: actions/checkout@v4
+        with:
+          repository: tasuku43/homebrew-cmdproxy
+          token: ${{ steps.homebrew-token.outputs.token }}
+          path: homebrew-tap
+
+      - name: Update Homebrew formula
+        if: steps.homebrew-token.outputs.token != ''
+        working-directory: homebrew-tap
+        run: |
+          ../.github/scripts/update-homebrew-formula.sh "${GITHUB_REF_NAME}" "../dist/checksums.txt"
+
+      - name: Create PR for Homebrew formula update
+        if: steps.homebrew-token.outputs.token != ''
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ steps.homebrew-token.outputs.token }}
+          path: homebrew-tap
+          commit-message: "Update Homebrew formula for ${{ github.ref_name }}"
+          title: "Update Homebrew formula for ${{ github.ref_name }}"
+          body: |
+            Updates `Formula/cmdproxy.rb` to point to GitHub Releases artifacts for `${{ github.ref_name }}`.
+          add-paths: |
+            Formula/cmdproxy.rb
+          base: main
+          branch: "chore/homebrew-formula-${{ github.ref_name }}"
+          delete-branch: true

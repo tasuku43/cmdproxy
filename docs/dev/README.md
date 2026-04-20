@@ -7,6 +7,7 @@ architecture.
 
 - `docs/concepts/product-concept.md`
 - `docs/dev/spec/README.md`
+- `docs/dev/ops/RELEASING.md`
 
 ## Focus
 
