@@ -327,6 +327,9 @@ func verifyStatus(report doctor.Report, info buildinfo.Info) (bool, []string) {
 		if check.ID == "install.claude-registered" && check.Status == doctor.StatusWarn && strings.Contains(check.Message, "settings found but") {
 			reasons = append(reasons, check.ID+": "+check.Message)
 		}
+		if check.ID == "install.claude-hook-path" && check.Status == doctor.StatusWarn {
+			reasons = append(reasons, check.ID+": "+check.Message)
+		}
 	}
 	if info.VCSRevision == "" {
 		reasons = append(reasons, "build metadata missing: prefer a binary built with embedded VCS info")

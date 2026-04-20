@@ -102,6 +102,11 @@ func Run(loaded config.Loaded, home string) Report {
 		data, readErr := os.ReadFile(claudeSettings)
 		if readErr == nil && strings.Contains(string(data), "cmdproxy hook claude") && strings.Contains(string(data), "\"matcher\": \"Bash\"") {
 			checks = append(checks, Check{ID: "install.claude-registered", Category: "install", Status: StatusPass, Message: "Claude Code hook registration detected"})
+			if strings.Contains(string(data), "/cmdproxy hook claude") {
+				checks = append(checks, Check{ID: "install.claude-hook-path", Category: "install", Status: StatusPass, Message: "Claude Code hook appears to use an absolute cmdproxy path"})
+			} else {
+				checks = append(checks, Check{ID: "install.claude-hook-path", Category: "install", Status: StatusWarn, Message: "Claude Code hook uses PATH lookup; prefer an absolute cmdproxy path"})
+			}
 		} else {
 			checks = append(checks, Check{ID: "install.claude-registered", Category: "install", Status: StatusWarn, Message: "Claude Code settings found but cmdproxy hook claude not detected"})
 		}

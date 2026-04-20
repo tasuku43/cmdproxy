@@ -231,6 +231,23 @@ func TestVerifyStatusPassesWithBuildMetadataAndNoFatalChecks(t *testing.T) {
 	}
 }
 
+func TestVerifyStatusFailsWhenClaudeHookUsesPATHLookup(t *testing.T) {
+	report := doctor.Report{
+		Checks: []doctor.Check{
+			{ID: "config.parse", Category: "config", Status: doctor.StatusPass, Message: "ok"},
+			{ID: "install.claude-registered", Category: "install", Status: doctor.StatusPass, Message: "Claude Code hook registration detected"},
+			{ID: "install.claude-hook-path", Category: "install", Status: doctor.StatusWarn, Message: "Claude Code hook uses PATH lookup; prefer an absolute cmdproxy path"},
+		},
+	}
+	ok, reasons := verifyStatus(report, buildinfo.Info{Version: "dev", Module: "github.com/tasuku43/cmdproxy", VCSRevision: "abc123"})
+	if ok {
+		t.Fatalf("expected verifyStatus to fail")
+	}
+	if len(reasons) == 0 {
+		t.Fatalf("expected failure reasons")
+	}
+}
+
 func TestRunHookClaudeRewrite(t *testing.T) {
 	home := t.TempDir()
 	writeUserConfig(t, home, `rules:

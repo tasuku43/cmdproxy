@@ -22,6 +22,8 @@ execution path?**
 - run the same config and rule validation used by `doctor`
 - require build metadata to be visible in the current binary
 - fail if Claude Code settings exist but do not point at `cmdproxy hook claude`
+- fail if Claude Code settings use `cmdproxy hook claude` via PATH lookup
+  rather than an absolute binary path
 
 It should not require Claude Code to be installed. If no Claude settings file is
 present, that condition should remain informational rather than fatal.
