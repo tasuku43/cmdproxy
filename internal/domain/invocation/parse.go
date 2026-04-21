@@ -8,6 +8,7 @@ import (
 
 type Parsed struct {
 	EnvAssignments map[string]string
+	CommandToken   string
 	Command        string
 	Subcommand     string
 	Args           []string
@@ -27,6 +28,7 @@ func Parse(command string) Parsed {
 	commandToken, args := unwrapCommand(tokens[i:])
 	parsed := Parsed{
 		EnvAssignments: envAssignments,
+		CommandToken:   commandToken,
 		Command:        BaseCommand(commandToken),
 		Args:           args,
 	}
@@ -143,6 +145,10 @@ func basenameCommand(token string) string {
 
 func BaseCommand(token string) string {
 	return basenameCommand(token)
+}
+
+func IsAbsoluteCommand(token string) bool {
+	return strings.HasPrefix(token, "/")
 }
 
 func isEnvAssignment(token string) bool {

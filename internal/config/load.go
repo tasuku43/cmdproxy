@@ -349,6 +349,15 @@ func decodeEvalRewrite(src Source, idx int, node *yaml.Node) (policy.RewriteSpec
 				return policy.RewriteSpec{}, err
 			}
 			rewrite.MoveEnvToFlag = spec
+		case "strip_command_path":
+			if val.Kind != yaml.ScalarNode {
+				return policy.RewriteSpec{}, fmt.Errorf("%s config %s is invalid: rules[%d].rewrite.strip_command_path must be a boolean", src.Layer, src.Path, idx)
+			}
+			var enabled bool
+			if err := val.Decode(&enabled); err != nil {
+				return policy.RewriteSpec{}, fmt.Errorf("%s config %s is invalid: rules[%d].rewrite.strip_command_path must be a boolean", src.Layer, src.Path, idx)
+			}
+			rewrite.StripCommandPath = enabled
 		case "test":
 			spec, err := decodeEvalRewriteTest(src, idx, val)
 			if err != nil {
@@ -578,6 +587,15 @@ func decodeEvalMatch(src Source, idx int, node *yaml.Node) (policy.MatchSpec, er
 				return policy.MatchSpec{}, err
 			}
 			match.CommandIn = values
+		case "command_is_absolute_path":
+			if val.Kind != yaml.ScalarNode {
+				return policy.MatchSpec{}, fmt.Errorf("%s config %s is invalid: rules[%d].match.command_is_absolute_path must be a boolean", src.Layer, src.Path, idx)
+			}
+			var enabled bool
+			if err := val.Decode(&enabled); err != nil {
+				return policy.MatchSpec{}, fmt.Errorf("%s config %s is invalid: rules[%d].match.command_is_absolute_path must be a boolean", src.Layer, src.Path, idx)
+			}
+			match.CommandIsAbsolutePath = enabled
 		case "subcommand":
 			if val.Kind != yaml.ScalarNode {
 				return policy.MatchSpec{}, fmt.Errorf("%s config %s is invalid: rules[%d].match.subcommand must be a string", src.Layer, src.Path, idx)

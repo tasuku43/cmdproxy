@@ -301,7 +301,7 @@ func TestRunHookClaudeRewrite(t *testing.T) {
 	if !ok {
 		t.Fatalf("payload = %+v", payload)
 	}
-	if hookOut["permissionDecision"] != "allow" {
+	if _, ok := hookOut["permissionDecision"]; ok {
 		t.Fatalf("payload = %+v", payload)
 	}
 	if payload["systemMessage"] != "cmdproxy: rewrote [unwrap-shell-dash-c] -> git status" {
@@ -414,6 +414,9 @@ func TestRunHookClaudeMoveFlagToEnvRewrite(t *testing.T) {
 	if !ok {
 		t.Fatalf("payload = %+v", payload)
 	}
+	if _, ok := hookOut["permissionDecision"]; ok {
+		t.Fatalf("payload = %+v", payload)
+	}
 	if payload["systemMessage"] != "cmdproxy: rewrote [aws-profile-to-env] -> AWS_PROFILE=read-only-profile aws s3 ls" {
 		t.Fatalf("payload = %+v", payload)
 	}
@@ -459,6 +462,9 @@ func TestRunHookClaudeMoveEnvToFlagRewrite(t *testing.T) {
 	if !ok {
 		t.Fatalf("payload = %+v", payload)
 	}
+	if _, ok := hookOut["permissionDecision"]; ok {
+		t.Fatalf("payload = %+v", payload)
+	}
 	updatedInput, ok := hookOut["updatedInput"].(map[string]any)
 	if !ok || updatedInput["command"] != "aws --profile read-only-profile s3 ls" {
 		t.Fatalf("payload = %+v", payload)
@@ -496,6 +502,9 @@ func TestRunHookClaudeUnwrapWrapperRewrite(t *testing.T) {
 	}
 	hookOut, ok := payload["hookSpecificOutput"].(map[string]any)
 	if !ok {
+		t.Fatalf("payload = %+v", payload)
+	}
+	if _, ok := hookOut["permissionDecision"]; ok {
 		t.Fatalf("payload = %+v", payload)
 	}
 	updatedInput, ok := hookOut["updatedInput"].(map[string]any)
@@ -548,6 +557,9 @@ func TestRunHookClaudeWithRTKOptionAppliesFinalRewrite(t *testing.T) {
 	if !ok {
 		t.Fatalf("payload = %+v", payload)
 	}
+	if _, ok := hookOut["permissionDecision"]; ok {
+		t.Fatalf("payload = %+v", payload)
+	}
 	if payload["systemMessage"] != "cmdproxy: rewrote [aws-profile-to-env -> rtk] -> rtk aws s3 ls" {
 		t.Fatalf("payload = %+v", payload)
 	}
@@ -561,6 +573,114 @@ func TestRunHookClaudeWithRTKOptionAppliesFinalRewrite(t *testing.T) {
 	}
 	trace, ok := cmdproxyOut["trace"].([]any)
 	if !ok || len(trace) != 2 {
+		t.Fatalf("payload = %+v", payload)
+	}
+}
+
+func TestRunHookClaudeWithRTKPreservesAllowVerdictFromPreRTKCommand(t *testing.T) {
+	home := t.TempDir()
+	writeClaudeSettings(t, home, `{
+  "permissions": {
+    "allow": ["Bash(AWS_PROFILE=read-only-profile aws:*)"]
+  }
+}`)
+	writeUserConfig(t, home, `rules:
+  - id: aws-profile-to-env
+    match:
+      command: aws
+      args_prefixes: ["--profile"]
+    rewrite:
+      move_flag_to_env:
+        flag: "--profile"
+        env: "AWS_PROFILE"
+      test:
+        expect:
+          - in: "aws --profile read-only-profile s3 ls"
+            out: "AWS_PROFILE=read-only-profile aws s3 ls"
+        pass: ["AWS_PROFILE=read-only-profile aws s3 ls"]
+`)
+	binDir := t.TempDir()
+	rtkPath := filepath.Join(binDir, "rtk")
+	script := "#!/bin/sh\nif [ \"$1\" = \"rewrite\" ] && [ \"$2\" = \"AWS_PROFILE=read-only-profile aws s3 ls\" ]; then\n  printf 'rtk aws s3 ls\\n'\n  exit 3\nfi\nexit 1\n"
+	if err := os.WriteFile(rtkPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write fake rtk: %v", err)
+	}
+	oldPath := os.Getenv("PATH")
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+oldPath)
+
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"hook", "claude", "--rtk"}, Streams{
+		Stdin:  strings.NewReader(`{"tool_name":"Bash","tool_input":{"command":"aws --profile read-only-profile s3 ls"}}`),
+		Stdout: &stdout,
+		Stderr: &stderr,
+	}, Env{Cwd: t.TempDir(), Home: home})
+	if code != 0 {
+		t.Fatalf("code = %d stderr=%s", code, stderr.String())
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("json error: %v", err)
+	}
+	hookOut, ok := payload["hookSpecificOutput"].(map[string]any)
+	if !ok {
+		t.Fatalf("payload = %+v", payload)
+	}
+	if hookOut["permissionDecision"] != "allow" {
+		t.Fatalf("payload = %+v", payload)
+	}
+	updatedInput, ok := hookOut["updatedInput"].(map[string]any)
+	if !ok || updatedInput["command"] != "rtk aws s3 ls" {
+		t.Fatalf("payload = %+v", payload)
+	}
+}
+
+func TestRunHookClaudeRewriteCanReturnDenyFromClaudeSettings(t *testing.T) {
+	home := t.TempDir()
+	writeClaudeSettings(t, home, `{
+  "permissions": {
+    "deny": ["Bash(AWS_PROFILE=read-only-profile aws:*)"]
+  }
+}`)
+	writeUserConfig(t, home, `rules:
+  - id: aws-profile-to-env
+    match:
+      command: aws
+      args_contains: ["--profile"]
+    rewrite:
+      move_flag_to_env:
+        flag: "--profile"
+        env: "AWS_PROFILE"
+      test:
+        expect:
+          - in: "aws --profile read-only-profile s3 ls"
+            out: "AWS_PROFILE=read-only-profile aws s3 ls"
+        pass: ["AWS_PROFILE=read-only-profile aws s3 ls"]
+`)
+
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"hook", "claude"}, Streams{
+		Stdin:  strings.NewReader(`{"tool_name":"Bash","tool_input":{"command":"aws --profile read-only-profile s3 ls"}}`),
+		Stdout: &stdout,
+		Stderr: &stderr,
+	}, Env{Cwd: t.TempDir(), Home: home})
+	if code != 0 {
+		t.Fatalf("code = %d stderr=%s", code, stderr.String())
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("json error: %v", err)
+	}
+	hookOut, ok := payload["hookSpecificOutput"].(map[string]any)
+	if !ok {
+		t.Fatalf("payload = %+v", payload)
+	}
+	if hookOut["permissionDecision"] != "deny" {
+		t.Fatalf("payload = %+v", payload)
+	}
+	updatedInput, ok := hookOut["updatedInput"].(map[string]any)
+	if !ok || updatedInput["command"] != "AWS_PROFILE=read-only-profile aws s3 ls" {
 		t.Fatalf("payload = %+v", payload)
 	}
 }
@@ -823,6 +943,17 @@ func TestRunCheckFullGuardAllowCases(t *testing.T) {
 func writeUserConfig(t *testing.T, home string, body string) {
 	t.Helper()
 	path := filepath.Join(home, ".config", "cmdproxy", "cmdproxy.yml")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeClaudeSettings(t *testing.T, home string, body string) {
+	t.Helper()
+	path := filepath.Join(home, ".claude", "settings.json")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}

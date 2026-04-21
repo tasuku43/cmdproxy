@@ -1,6 +1,8 @@
 package directive
 
 import (
+	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -152,6 +154,41 @@ done:
 	rewritten := make([]string, 0, len(prefixAssignments)+len(tokens[i:]))
 	rewritten = append(rewritten, prefixAssignments...)
 	rewritten = append(rewritten, tokens[i:]...)
+	if slices.Equal(rewritten, tokens) {
+		return "", false
+	}
+	return invocation.Join(rewritten), true
+}
+
+func StripCommandPath(command string) (string, bool) {
+	tokens := invocation.Tokens(command)
+	if len(tokens) == 0 {
+		return "", false
+	}
+
+	prefixEnd := 0
+	for prefixEnd < len(tokens) && invocation.IsEnvAssignment(tokens[prefixEnd]) {
+		prefixEnd++
+	}
+	if prefixEnd >= len(tokens) {
+		return "", false
+	}
+
+	commandToken := tokens[prefixEnd]
+	if !invocation.IsAbsoluteCommand(commandToken) {
+		return "", false
+	}
+
+	base := filepath.Base(commandToken)
+	if strings.TrimSpace(base) == "" || base == commandToken {
+		return "", false
+	}
+	if _, err := exec.LookPath(base); err != nil {
+		return "", false
+	}
+
+	rewritten := append([]string(nil), tokens...)
+	rewritten[prefixEnd] = base
 	if slices.Equal(rewritten, tokens) {
 		return "", false
 	}

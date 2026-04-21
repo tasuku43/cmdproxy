@@ -162,6 +162,36 @@ func TestLoadFileForEvalIfPresentSupportsUnwrapWrapper(t *testing.T) {
 	}
 }
 
+func TestLoadFileForEvalIfPresentSupportsStripCommandPath(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "cmdproxy.yml")
+	cachePath := filepath.Join(t.TempDir(), "hook-cache-v1.json")
+	body := `rules:
+  - id: strip-command-path
+    match:
+      command_is_absolute_path: true
+    rewrite:
+      strip_command_path: true
+      test:
+        expect:
+          - in: "/bin/ls -R foo"
+            out: "ls -R foo"
+        pass: ["ls -R foo"]
+`
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	rules, err := LoadFileForEvalIfPresent(Source{Layer: LayerUser, Path: path}, cachePath)
+	if err != nil {
+		t.Fatalf("LoadFileForEvalIfPresent() error = %v", err)
+	}
+	rewritten, ok := rules[0].RewriteCommand("/bin/ls -R foo")
+	if !ok || rewritten != "ls -R foo" {
+		t.Fatalf("RewriteCommand() = %q ok=%v", rewritten, ok)
+	}
+}
+
 func TestLoadFileIfPresentRejectsPatternAndMatchTogether(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "cmdproxy.yml")

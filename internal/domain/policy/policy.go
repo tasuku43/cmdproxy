@@ -31,6 +31,7 @@ type RewriteSpec struct {
 	UnwrapWrapper    UnwrapWrapperSpec `yaml:"unwrap_wrapper" json:"unwrap_wrapper,omitempty"`
 	MoveFlagToEnv    MoveFlagToEnvSpec `yaml:"move_flag_to_env" json:"move_flag_to_env,omitempty"`
 	MoveEnvToFlag    MoveEnvToFlagSpec `yaml:"move_env_to_flag" json:"move_env_to_flag,omitempty"`
+	StripCommandPath bool              `yaml:"strip_command_path" json:"strip_command_path,omitempty"`
 	Continue         bool              `yaml:"continue" json:"continue,omitempty"`
 	Test             RewriteTestSpec   `yaml:"test" json:"test,omitempty"`
 }
@@ -65,13 +66,14 @@ type RewriteExpectCase struct {
 }
 
 type MatchSpec struct {
-	Command      string   `yaml:"command" json:"command,omitempty"`
-	CommandIn    []string `yaml:"command_in" json:"command_in,omitempty"`
-	Subcommand   string   `yaml:"subcommand" json:"subcommand,omitempty"`
-	ArgsContains []string `yaml:"args_contains" json:"args_contains,omitempty"`
-	ArgsPrefixes []string `yaml:"args_prefixes" json:"args_prefixes,omitempty"`
-	EnvRequires  []string `yaml:"env_requires" json:"env_requires,omitempty"`
-	EnvMissing   []string `yaml:"env_missing" json:"env_missing,omitempty"`
+	Command               string   `yaml:"command" json:"command,omitempty"`
+	CommandIn             []string `yaml:"command_in" json:"command_in,omitempty"`
+	CommandIsAbsolutePath bool     `yaml:"command_is_absolute_path" json:"command_is_absolute_path,omitempty"`
+	Subcommand            string   `yaml:"subcommand" json:"subcommand,omitempty"`
+	ArgsContains          []string `yaml:"args_contains" json:"args_contains,omitempty"`
+	ArgsPrefixes          []string `yaml:"args_prefixes" json:"args_prefixes,omitempty"`
+	EnvRequires           []string `yaml:"env_requires" json:"env_requires,omitempty"`
+	EnvMissing            []string `yaml:"env_missing" json:"env_missing,omitempty"`
 }
 
 type Source struct {
@@ -201,6 +203,9 @@ func (m MatchSpec) matches(parsed invocation.Parsed) bool {
 	if len(m.CommandIn) > 0 && !containsString(m.CommandIn, parsed.Command) {
 		return false
 	}
+	if m.CommandIsAbsolutePath && !invocation.IsAbsoluteCommand(parsed.CommandToken) {
+		return false
+	}
 	if m.Subcommand != "" && parsed.Subcommand != m.Subcommand {
 		return false
 	}
@@ -290,6 +295,9 @@ func ValidateRewrite(prefix string, rewrite RewriteSpec) []string {
 		if strings.TrimSpace(rewrite.MoveEnvToFlag.Flag) == "" {
 			issues = append(issues, prefix+".move_env_to_flag.flag must be non-empty")
 		}
+	}
+	if rewrite.StripCommandPath {
+		primitiveCount++
 	}
 	switch {
 	case primitiveCount == 0:
@@ -394,12 +402,16 @@ func (r Rule) RewriteCommand(command string) (string, bool) {
 	if !IsZeroMoveEnvToFlagSpec(r.Rewrite.MoveEnvToFlag) {
 		return directive.MoveEnvToFlag(command, r.Rewrite.MoveEnvToFlag.Env, r.Rewrite.MoveEnvToFlag.Flag)
 	}
+	if r.Rewrite.StripCommandPath {
+		return directive.StripCommandPath(command)
+	}
 	return "", false
 }
 
 func IsZeroMatchSpec(match MatchSpec) bool {
 	return match.Command == "" &&
 		len(match.CommandIn) == 0 &&
+		!match.CommandIsAbsolutePath &&
 		match.Subcommand == "" &&
 		len(match.ArgsContains) == 0 &&
 		len(match.ArgsPrefixes) == 0 &&
@@ -411,7 +423,8 @@ func IsZeroRewriteSpec(rewrite RewriteSpec) bool {
 	return !rewrite.UnwrapShellDashC &&
 		IsZeroUnwrapWrapperSpec(rewrite.UnwrapWrapper) &&
 		IsZeroMoveFlagToEnvSpec(rewrite.MoveFlagToEnv) &&
-		IsZeroMoveEnvToFlagSpec(rewrite.MoveEnvToFlag)
+		IsZeroMoveEnvToFlagSpec(rewrite.MoveEnvToFlag) &&
+		!rewrite.StripCommandPath
 }
 
 func IsZeroMoveFlagToEnvSpec(spec MoveFlagToEnvSpec) bool {

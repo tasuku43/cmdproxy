@@ -49,3 +49,23 @@ func TestUnwrapWrapperRejectsEnvOptions(t *testing.T) {
 		t.Fatal("expected unwrap to fail")
 	}
 }
+
+func TestStripCommandPath(t *testing.T) {
+	got, ok := StripCommandPath("/bin/ls -R foo")
+	if !ok || got != "ls -R foo" {
+		t.Fatalf("got %q ok=%v", got, ok)
+	}
+}
+
+func TestStripCommandPathPreservesEnvAssignments(t *testing.T) {
+	got, ok := StripCommandPath("FOO=bar /bin/ls -R foo")
+	if !ok || got != "FOO=bar ls -R foo" {
+		t.Fatalf("got %q ok=%v", got, ok)
+	}
+}
+
+func TestStripCommandPathRejectsRelativeCommand(t *testing.T) {
+	if _, ok := StripCommandPath("ls -R foo"); ok {
+		t.Fatal("expected strip_command_path to fail")
+	}
+}

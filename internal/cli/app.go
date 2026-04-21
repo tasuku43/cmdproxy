@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/tasuku43/cmdproxy/internal/buildinfo"
+	"github.com/tasuku43/cmdproxy/internal/claude"
 	"github.com/tasuku43/cmdproxy/internal/config"
 	"github.com/tasuku43/cmdproxy/internal/doctor"
 	"github.com/tasuku43/cmdproxy/internal/domain/policy"
@@ -409,26 +410,56 @@ func runClaudeHook(req input.ExecRequest, useRTK bool, streams Streams, env Env)
 	if err != nil {
 		return emitClaudeHookError(streams, "invalid_config", err.Error())
 	}
+
+	verdict := claude.PermissionDefault
+	shouldEmitVerdict := false
+	if decision.Outcome != "reject" {
+		permissionCommand := decision.Command
+		if decision.Outcome == "rewrite" || useRTK {
+			verdict = claude.CheckCommand(permissionCommand, env.Cwd, env.Home)
+			shouldEmitVerdict = true
+		}
+	}
 	if useRTK && decision.Outcome != "reject" {
 		decision = applyRTKRewrite(decision)
 	}
 
 	switch decision.Outcome {
 	case "pass":
+		if shouldEmitVerdict && verdict == claude.PermissionDeny {
+			payload := map[string]any{
+				"hookSpecificOutput": map[string]any{
+					"hookEventName":            "PreToolUse",
+					"permissionDecision":       "deny",
+					"permissionDecisionReason": "blocked by Claude Code permission rules",
+				},
+				"cmdproxy": map[string]any{
+					"outcome": "deny",
+				},
+			}
+			_ = json.NewEncoder(streams.Stdout).Encode(payload)
+			return exitAllow
+		}
 		return exitAllow
 	case "rewrite":
 		reason := "cmdproxy rewrite applied"
 		if len(decision.Trace) > 1 {
 			reason = "cmdproxy rewrite chain applied"
 		}
+		hookOutput := map[string]any{
+			"hookEventName":            "PreToolUse",
+			"permissionDecisionReason": reason,
+			"updatedInput":             map[string]any{"command": decision.Command},
+		}
+		switch verdict {
+		case claude.PermissionAllow:
+			hookOutput["permissionDecision"] = "allow"
+		case claude.PermissionDeny:
+			hookOutput["permissionDecision"] = "deny"
+		}
 		payload := map[string]any{
-			"systemMessage": buildRewriteSystemMessage(decision),
-			"hookSpecificOutput": map[string]any{
-				"hookEventName":            "PreToolUse",
-				"permissionDecision":       "allow",
-				"permissionDecisionReason": reason,
-				"updatedInput":             map[string]any{"command": decision.Command},
-			},
+			"systemMessage":      buildRewriteSystemMessage(decision),
+			"hookSpecificOutput": hookOutput,
 			"cmdproxy": map[string]any{
 				"outcome": "rewrite",
 				"trace":   decision.Trace,

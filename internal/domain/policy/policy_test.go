@@ -246,6 +246,64 @@ func TestEvaluateUnwrapWrapperRewriteRule(t *testing.T) {
 	}
 }
 
+func TestEvaluateStripCommandPathRewriteRule(t *testing.T) {
+	rules := []Rule{
+		NewRule(RuleSpec{
+			ID: "strip-command-path",
+			Matcher: MatchSpec{
+				CommandIsAbsolutePath: true,
+			},
+			Rewrite: RewriteSpec{
+				StripCommandPath: true,
+				Test: RewriteTestSpec{
+					Expect: []RewriteExpectCase{{In: "/bin/ls -R foo", Out: "ls -R foo"}},
+					Pass:   []string{"ls -R foo"},
+				},
+			},
+		}, Source{}),
+	}
+
+	got, err := Evaluate(rules, "/bin/ls -R foo")
+	if err != nil {
+		t.Fatalf("Evaluate() error = %v", err)
+	}
+	if got.Outcome != "rewrite" || got.Command != "ls -R foo" {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestMatchAbsoluteCommandPath(t *testing.T) {
+	rule := NewRule(RuleSpec{
+		ID: "absolute-command-only",
+		Matcher: MatchSpec{
+			CommandIsAbsolutePath: true,
+		},
+		Reject: RejectSpec{
+			Message: "blocked",
+			Test: RejectTestSpec{
+				Expect: []string{"/bin/ls -R foo"},
+				Pass:   []string{"ls -R foo"},
+			},
+		},
+	}, Source{})
+
+	matched, err := rule.Match("/bin/ls -R foo")
+	if err != nil {
+		t.Fatalf("Match() error = %v", err)
+	}
+	if !matched {
+		t.Fatal("expected absolute-path command to match")
+	}
+
+	matched, err = rule.Match("ls -R foo")
+	if err != nil {
+		t.Fatalf("Match() error = %v", err)
+	}
+	if matched {
+		t.Fatal("expected bare command not to match")
+	}
+}
+
 func TestValidateDirectiveKinds(t *testing.T) {
 	issues := ValidateDirective("rules[0]", RejectSpec{Message: "new"}, RewriteSpec{UnwrapShellDashC: true})
 	if len(issues) != 1 {
