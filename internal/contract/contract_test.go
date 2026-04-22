@@ -7,240 +7,69 @@ import (
 	"github.com/tasuku43/cmdproxy/internal/domain/policy"
 )
 
-func TestValidateRulesAcceptsBuiltInContracts(t *testing.T) {
-	rules := []policy.RuleSpec{
-		{
-			ID: "aws-profile-to-env",
-			Matcher: policy.MatchSpec{
-				Command: "aws",
-			},
-			Rewrite: policy.RewriteSpec{
-				MoveFlagToEnv: policy.MoveFlagToEnvSpec{
-					Flag: "--profile",
-					Env:  "AWS_PROFILE",
-				},
-			},
+func TestValidateRewritesAcceptsStrictAWSMappings(t *testing.T) {
+	issues := ValidateRewrites([]policy.RewriteStepSpec{{
+		Match: policy.MatchSpec{Command: "aws"},
+		MoveFlagToEnv: policy.MoveFlagToEnvSpec{
+			Flag: "--profile",
+			Env:  "AWS_PROFILE",
 		},
-		{
-			ID: "gh-repo-to-env",
-			Matcher: policy.MatchSpec{
-				Command: "gh",
-			},
-			Rewrite: policy.RewriteSpec{
-				MoveFlagToEnv: policy.MoveFlagToEnvSpec{
-					Flag: "--repo",
-					Env:  "GH_REPO",
-				},
-			},
+		Test: policy.RewriteTestSpec{
+			{In: "aws --profile dev sts get-caller-identity", Out: "AWS_PROFILE=dev aws sts get-caller-identity"},
+			{Pass: "AWS_PROFILE=dev aws sts get-caller-identity"},
 		},
-		{
-			ID: "unwrap-git-shell",
-			Matcher: policy.MatchSpec{
-				Command: "git",
-			},
-			Rewrite: policy.RewriteSpec{
-				UnwrapShellDashC: true,
-			},
-		},
-		{
-			ID: "unwrap-docker-shell",
-			Matcher: policy.MatchSpec{
-				Command: "docker",
-			},
-			Rewrite: policy.RewriteSpec{
-				UnwrapShellDashC: true,
-			},
-		},
-		{
-			ID: "unwrap-kubectl-wrapper",
-			Matcher: policy.MatchSpec{
-				Command: "kubectl",
-			},
-			Rewrite: policy.RewriteSpec{
-				UnwrapWrapper: policy.UnwrapWrapperSpec{
-					Wrappers: []string{"env", "command", "exec"},
-				},
-			},
-		},
-		{
-			ID: "unwrap-npm-shell",
-			Matcher: policy.MatchSpec{
-				Command: "npm",
-			},
-			Rewrite: policy.RewriteSpec{
-				UnwrapShellDashC: true,
-			},
-		},
-		{
-			ID: "unwrap-pnpm-shell",
-			Matcher: policy.MatchSpec{
-				Command: "pnpm",
-			},
-			Rewrite: policy.RewriteSpec{
-				UnwrapShellDashC: true,
-			},
-		},
-		{
-			ID: "unwrap-yarn-shell",
-			Matcher: policy.MatchSpec{
-				Command: "yarn",
-			},
-			Rewrite: policy.RewriteSpec{
-				UnwrapShellDashC: true,
-			},
-		},
-		{
-			ID: "unwrap-terraform-wrapper",
-			Matcher: policy.MatchSpec{
-				Command: "terraform",
-			},
-			Rewrite: policy.RewriteSpec{
-				UnwrapWrapper: policy.UnwrapWrapperSpec{
-					Wrappers: []string{"env", "command"},
-				},
-			},
-		},
-		{
-			ID: "unwrap-go-shell",
-			Matcher: policy.MatchSpec{
-				Command: "go",
-			},
-			Rewrite: policy.RewriteSpec{
-				UnwrapShellDashC: true,
-			},
-		},
-		{
-			ID: "aws-region-to-env",
-			Matcher: policy.MatchSpec{
-				Command: "aws",
-			},
-			Rewrite: policy.RewriteSpec{
-				MoveFlagToEnv: policy.MoveFlagToEnvSpec{
-					Flag: "--region",
-					Env:  "AWS_DEFAULT_REGION",
-				},
-			},
-		},
-		{
-			ID: "kubectl-kubeconfig-relaxed",
-			Matcher: policy.MatchSpec{
-				Command: "kubectl",
-			},
-			Rewrite: policy.RewriteSpec{
-				MoveFlagToEnv: policy.MoveFlagToEnvSpec{
-					Flag: "--kubeconfig",
-					Env:  "KUBECONFIG",
-				},
-				Strict: boolPtr(false),
-			},
-		},
-	}
-
-	issues := ValidateRules(rules)
+	}})
 	if len(issues) != 0 {
 		t.Fatalf("issues = %v", issues)
 	}
 }
 
-func TestValidateRulesRejectsUnknownEnvMapping(t *testing.T) {
-	rules := []policy.RuleSpec{
-		{
-			ID: "bad-aws-profile-to-env",
-			Matcher: policy.MatchSpec{
-				Command: "aws",
-			},
-			Rewrite: policy.RewriteSpec{
-				MoveFlagToEnv: policy.MoveFlagToEnvSpec{
-					Flag: "--profile",
-					Env:  "HOGE",
-				},
-			},
+func TestValidateRewritesRejectsUnknownEnvMapping(t *testing.T) {
+	issues := ValidateRewrites([]policy.RewriteStepSpec{{
+		Match: policy.MatchSpec{Command: "aws"},
+		MoveFlagToEnv: policy.MoveFlagToEnvSpec{
+			Flag: "--profile",
+			Env:  "HOGE",
 		},
-	}
-
-	issues := ValidateRules(rules)
-	if len(issues) == 0 {
-		t.Fatal("expected issues")
-	}
-	if !strings.Contains(issues[0], "AWS_PROFILE") {
+		Test: policy.RewriteTestSpec{
+			{In: "aws --profile dev sts get-caller-identity", Out: "HOGE=dev aws sts get-caller-identity"},
+			{Pass: "aws sts get-caller-identity"},
+		},
+	}})
+	if len(issues) == 0 || !strings.Contains(issues[0], "AWS_PROFILE") {
 		t.Fatalf("issues = %v", issues)
 	}
 }
 
-func TestValidateRulesRejectsRelaxedCandidateWhenStrict(t *testing.T) {
-	rules := []policy.RuleSpec{
-		{
-			ID: "kubectl-kubeconfig-strict",
-			Matcher: policy.MatchSpec{
-				Command: "kubectl",
-			},
-			Rewrite: policy.RewriteSpec{
-				MoveFlagToEnv: policy.MoveFlagToEnvSpec{
-					Flag: "--kubeconfig",
-					Env:  "KUBECONFIG",
-				},
-			},
+func TestValidateRewritesAllowsRelaxedKubectlMapping(t *testing.T) {
+	strict := false
+	issues := ValidateRewrites([]policy.RewriteStepSpec{{
+		Match: policy.MatchSpec{Command: "kubectl"},
+		MoveFlagToEnv: policy.MoveFlagToEnvSpec{
+			Flag: "--kubeconfig",
+			Env:  "KUBECONFIG",
 		},
-	}
-
-	issues := ValidateRules(rules)
-	if len(issues) == 0 {
-		t.Fatal("expected issues")
-	}
-	if !strings.Contains(issues[0], "no strict") {
+		Strict: &strict,
+		Test: policy.RewriteTestSpec{
+			{In: "kubectl --kubeconfig /tmp/dev get pods", Out: "KUBECONFIG=/tmp/dev kubectl get pods"},
+			{Pass: "KUBECONFIG=/tmp/dev kubectl get pods"},
+		},
+	}})
+	if len(issues) != 0 {
 		t.Fatalf("issues = %v", issues)
 	}
 }
 
-func TestValidateRulesRejectsUnsupportedCommandContract(t *testing.T) {
-	rules := []policy.RuleSpec{
-		{
-			ID: "python-rewrite",
-			Matcher: policy.MatchSpec{
-				Command: "python",
-			},
-			Rewrite: policy.RewriteSpec{
-				MoveFlagToEnv: policy.MoveFlagToEnvSpec{
-					Flag: "-m",
-					Env:  "PYTHON_MODULE",
-				},
-			},
+func TestValidateRewritesSkipsStripCommandPathContract(t *testing.T) {
+	issues := ValidateRewrites([]policy.RewriteStepSpec{{
+		Match:            policy.MatchSpec{CommandIsAbsolutePath: true},
+		StripCommandPath: true,
+		Test: policy.RewriteTestSpec{
+			{In: "/bin/ls", Out: "ls"},
+			{Pass: "ls"},
 		},
-	}
-
-	issues := ValidateRules(rules)
-	if len(issues) == 0 {
-		t.Fatal("expected issues")
-	}
-	if !strings.Contains(issues[0], "not supported") {
+	}})
+	if len(issues) != 0 {
 		t.Fatalf("issues = %v", issues)
 	}
-}
-
-func TestValidateRulesRejectsUnsupportedWrapper(t *testing.T) {
-	rules := []policy.RuleSpec{
-		{
-			ID: "bad-wrapper",
-			Matcher: policy.MatchSpec{
-				Command: "git",
-			},
-			Rewrite: policy.RewriteSpec{
-				UnwrapWrapper: policy.UnwrapWrapperSpec{
-					Wrappers: []string{"sudo"},
-				},
-			},
-		},
-	}
-
-	issues := ValidateRules(rules)
-	if len(issues) == 0 {
-		t.Fatal("expected issues")
-	}
-	if !strings.Contains(issues[0], "wrapper") {
-		t.Fatalf("issues = %v", issues)
-	}
-}
-
-func boolPtr(v bool) *bool {
-	return &v
 }

@@ -1,7 +1,7 @@
 ---
 title: "Product Concept: Invocation Policy Proxy"
 status: proposed
-date: 2026-04-19
+date: 2026-04-22
 ---
 
 # Product Concept
@@ -10,9 +10,10 @@ date: 2026-04-19
 
 This document defines the target product concept for `cmdproxy`.
 
-`cmdproxy` is not primarily a command blocker. It is a local policy proxy that
-ensures approved CLIs are invoked in organization-approved ways before a
-downstream permission system evaluates the request.
+`cmdproxy` is a local policy proxy that:
+
+1. rewrites commands into policy-approved canonical forms
+2. evaluates permissions on those rewritten commands
 
 ## 2. Problem
 
@@ -23,23 +24,24 @@ Typical failures look like:
 
 1. the right CLI invoked with the wrong credential shape
 2. the right CLI invoked with an unsafe flag or wrapper
-3. the right CLI invoked in a way that defeats the caller's permission intent
+3. the right CLI invoked in a way that defeats the intended permission policy
 4. a shell wrapper causing the true command shape to become opaque
 
-Permission systems and sandboxes often operate too low in the stack to express
-these rules clearly. They can tell that `aws`, `git`, or `kubectl` ran, but not
+Runtime permission systems often sit too low in the stack to express these
+rules clearly. They can tell that `aws`, `git`, or `kubectl` ran, but not
 whether the invocation respected the team's calling conventions.
 
 ## 3. Product Thesis
 
-`cmdproxy` should preserve permission intent by normalizing or rejecting CLI
-invocations before they reach the caller's final allow / ask / deny layer.
+`cmdproxy` should own both command canonicalization and permission evaluation.
 
 The key design idea is:
 
-- `CLAUDE.md` or equivalent docs teach the preferred invocation shape
-- `cmdproxy` enforces or normalizes that invocation shape
-- the downstream runtime keeps final permission authority
+- users describe preferred invocation shape in one config file
+- `cmdproxy` rewrites commands into that shape
+- `cmdproxy` then decides `deny`, `ask`, or `allow`
+- hook runners consume that result rather than acting as the primary policy
+  engine
 
 ## 4. Primary Persona
 
@@ -47,20 +49,22 @@ The key design idea is:
 
 - run Claude Code, shell hooks, CI wrappers, or similar systems
 - want consistent invocation conventions for approved CLIs
-- want to reduce accidental permission prompts caused by malformed command shape
+- want flexible local permission policy without depending on tool-specific
+  settings formats
 - need a reviewable local tool rather than ad-hoc shell glue
 
 ## 5. Core Value Proposition
 
 `cmdproxy` should make approved commands conform to policy-approved invocation
-shape so downstream permission systems keep their intended meaning.
+shape and then evaluate permissions on that canonical command.
 
 That value appears in three concrete ways:
 
 1. **Canonicalization**
    Rewrite valid-but-noncanonical invocations into the approved form.
-2. **Intent Preservation**
-   Prevent wrapper and flag usage from weakening caller-side permission rules.
+2. **Permission Evaluation**
+   Decide `deny`, `ask`, or `allow` after rewrite, using matcher power richer
+   than a simple prefix list.
 3. **Reviewability**
    Keep invocation policy declarative, testable, and portable across runtimes.
 
@@ -70,38 +74,29 @@ That value appears in three concrete ways:
 
 - the caller provides a requested invocation, usually as a raw command string
 - `cmdproxy` parses that invocation internally
-- ordered rules apply directives such as `rewrite` or `reject`
-- the resulting invocation is either passed downstream or rejected
+- ordered rewrite steps canonicalize command shape
+- permission buckets are evaluated in order `deny -> ask -> allow`
+- the resulting decision is returned to the caller
 
-The mental model is closer to `nginx` for CLI invocations than to a deny-list
+The mental model is closer to a local policy pipeline than to a deny-list
 filter.
 
-## 7. Directive Model
+## 7. Pipeline Model
 
-The target directive model is:
+The target pipeline model is:
 
 - `rewrite`: transform an invocation into a canonical, policy-approved form
-- `reject`: stop an invocation that must not pass through unchanged
-- implicit `pass`: if nothing matches, forward the original invocation
+- `permission.deny`: block specific rewritten command shapes
+- `permission.ask`: prompt for specific rewritten command shapes
+- `permission.allow`: auto-allow specific rewritten command shapes
+- top-level `test`: assert the full pipeline end-to-end
 
-The primary long-term behavior is `rewrite`, not `reject`.
-
-Initial rewrite primitives should stay narrow and typed. The first useful
-examples are:
-
-- `unwrap_shell_dash_c`
-- `move_flag_to_env`
-- `move_env_to_flag`
-- `unwrap_wrapper`
-
-These primitives are intended as policy-preserving canonicalization, not as
-free-form command templating.
+The primary long-term behavior is still `rewrite`, but it is now paired with a
+first-class permission phase.
 
 ## 8. Non-goals
 
-1. Replacing downstream permission engines with a full authorization system
-2. Acting as a general shell interpreter or full shell AST executor
-3. Providing arbitrary command macros or free-form text transformation
-4. Hosting policy centrally as a network control plane
-5. Solving every low-level escape path that should instead be handled by
-   sandboxing or runtime permissions
+1. Acting as a general shell interpreter or full shell AST executor
+2. Providing arbitrary command macros or free-form text transformation
+3. Hosting policy centrally as a network control plane
+4. Replacing sandboxing or runtime isolation controls

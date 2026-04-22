@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,11 +12,11 @@ import (
 	"strings"
 
 	"github.com/tasuku43/cmdproxy/internal/buildinfo"
-	"github.com/tasuku43/cmdproxy/internal/claude"
 	"github.com/tasuku43/cmdproxy/internal/config"
 	"github.com/tasuku43/cmdproxy/internal/doctor"
 	"github.com/tasuku43/cmdproxy/internal/domain/policy"
 	"github.com/tasuku43/cmdproxy/internal/input"
+	"github.com/tasuku43/cmdproxy/internal/integration"
 )
 
 const (
@@ -48,8 +49,6 @@ func Run(args []string, streams Streams, env Env) int {
 		return runHook(args[1:], streams, env)
 	case "check":
 		return runCheck(args[1:], streams, env)
-	case "test":
-		return runTest(args[1:], streams, env)
 	case "doctor":
 		return runDoctor(args[1:], streams, env)
 	case "verify":
@@ -77,24 +76,36 @@ func runHook(args []string, streams Streams, env Env) int {
 		return exitAllow
 	}
 	useRTK := false
+	var tool string
 	switch {
-	case len(args) == 1 && args[0] == "claude":
-	case len(args) == 2 && args[0] == "claude" && args[1] == "--rtk":
+	case len(args) == 1:
+		tool = args[0]
+	case len(args) == 2 && args[1] == "--rtk":
+		tool = args[0]
 		useRTK = true
 	default:
 		writeCommandHelp(streams.Stderr, "hook")
 		return exitError
 	}
+	if !integration.Supported(tool) {
+		writeErr(streams.Stderr, "unsupported tool: "+tool)
+		return exitError
+	}
 	raw, err := io.ReadAll(streams.Stdin)
 	if err != nil {
-		return emitClaudeHookError(streams, "runtime_error", err.Error())
+		return emitHookError(tool, streams, "runtime_error", err.Error())
 	}
 
 	req, err := input.Normalize(raw)
 	if err != nil {
-		return emitClaudeHookError(streams, "invalid_input", err.Error())
+		return emitHookError(tool, streams, "invalid_input", err.Error())
 	}
-	return runClaudeHook(req, useRTK, streams, env)
+	switch tool {
+	case integration.ToolClaude:
+		return runClaudeHook(req, useRTK, streams, env)
+	default:
+		return emitHookError(tool, streams, "runtime_error", "unsupported tool")
+	}
 }
 
 func runCheck(args []string, streams Streams, env Env) int {
@@ -111,44 +122,6 @@ func runCheck(args []string, streams Streams, env Env) int {
 	return evaluateRequest(req, format, streams, env)
 }
 
-func runTest(args []string, streams Streams, env Env) int {
-	if wantsHelp(args) {
-		writeCommandHelp(streams.Stdout, "test")
-		return exitAllow
-	}
-	if len(args) != 0 {
-		writeCommandHelp(streams.Stderr, "test")
-		return exitError
-	}
-	loaded := config.LoadEffective(env.Home, env.XDGConfigHome)
-	if len(loaded.Errors) > 0 {
-		for _, msg := range policy.ErrorStrings(loaded.Errors) {
-			writeErr(streams.Stderr, msg)
-		}
-		return exitError
-	}
-
-	report := doctor.Run(loaded, env.Home)
-	for _, check := range report.Checks {
-		if check.ID == "rules.tests-pass" && check.Status == doctor.StatusFail {
-			writeErr(streams.Stderr, check.Message)
-			return exitError
-		}
-	}
-
-	ruleCount := len(loaded.Rules)
-	testCount := 0
-	for _, r := range loaded.Rules {
-		if strings.TrimSpace(r.Reject.Message) != "" {
-			testCount += len(r.Reject.Test.Expect) + len(r.Reject.Test.Pass)
-			continue
-		}
-		testCount += len(r.Rewrite.Test.Expect) + len(r.Rewrite.Test.Pass)
-	}
-	fmt.Fprintf(streams.Stdout, "ok: %d rules, %d tests checked\n", ruleCount, testCount)
-	return exitAllow
-}
-
 func runDoctor(args []string, streams Streams, env Env) int {
 	if wantsHelp(args) {
 		writeCommandHelp(streams.Stdout, "doctor")
@@ -160,7 +133,7 @@ func runDoctor(args []string, streams Streams, env Env) int {
 		return exitError
 	}
 	loaded := config.LoadEffective(env.Home, env.XDGConfigHome)
-	report := doctor.Run(loaded, env.Home)
+	report := doctor.Run(loaded, integration.ToolClaude, env.Cwd, env.Home)
 
 	if format == "json" {
 		enc := json.NewEncoder(streams.Stdout)
@@ -187,32 +160,34 @@ func runVerify(args []string, streams Streams, env Env) int {
 		return exitAllow
 	}
 	format, rest, err := parseCommonFlags(args)
-	if err != nil || len(rest) != 0 {
+	if err != nil || len(rest) != 1 {
 		writeCommandHelp(streams.Stderr, "verify")
 		return exitError
 	}
-	loaded := config.LoadEffective(env.Home, env.XDGConfigHome)
-	report := doctor.Run(loaded, env.Home)
+	tool := rest[0]
+	if !integration.Supported(tool) {
+		writeErr(streams.Stderr, "unsupported tool: "+tool)
+		return exitError
+	}
+	loaded := config.LoadEffectiveForTool(env.Cwd, env.Home, env.XDGConfigHome, tool)
+	report := doctor.Run(loaded, tool, env.Cwd, env.Home)
 	info := buildinfo.Read()
-	ok, reasons := verifyStatus(report, info)
+	ok, reasons := verifyStatus(report, info, tool)
 	artifactBuilt := false
 	if ok {
-		for _, src := range config.ConfigPaths(env.Home, env.XDGConfigHome) {
-			rules, err := config.VerifyFileToAllCaches(src, config.HookCacheDirs(env.Home, env.XDGCacheHome), info.Version)
-			if err != nil {
-				ok = false
-				reasons = append(reasons, err.Error())
-				break
-			}
-			if len(rules) > 0 {
-				artifactBuilt = true
-			}
+		rules, err := config.VerifyEffectiveToAllCaches(env.Cwd, env.Home, env.XDGConfigHome, env.XDGCacheHome, tool, info.Version)
+		if err != nil {
+			ok = false
+			reasons = append(reasons, err.Error())
+		} else if len(rules.Rewrite) > 0 || !policy.IsZeroPermissionSpec(rules.Permission) || len(rules.Test) > 0 {
+			artifactBuilt = true
 		}
 	}
 
 	if format == "json" {
 		payload := map[string]any{
 			"verified":       ok,
+			"tool":           tool,
 			"build_info":     info,
 			"report":         report,
 			"artifact_built": artifactBuilt,
@@ -229,6 +204,7 @@ func runVerify(args []string, streams Streams, env Env) int {
 		}
 	} else {
 		fmt.Fprintf(streams.Stdout, "cmdproxy %s\n", info.Version)
+		fmt.Fprintf(streams.Stdout, "tool: %s\n", tool)
 		if info.VCSRevision != "" {
 			fmt.Fprintf(streams.Stdout, "vcs.revision: %s\n", info.VCSRevision)
 		} else {
@@ -336,7 +312,7 @@ func runVersion(args []string, streams Streams) int {
 	return exitAllow
 }
 
-func verifyStatus(report doctor.Report, info buildinfo.Info) (bool, []string) {
+func verifyStatus(report doctor.Report, info buildinfo.Info, tool string) (bool, []string) {
 	var reasons []string
 
 	for _, check := range report.Checks {
@@ -344,13 +320,13 @@ func verifyStatus(report doctor.Report, info buildinfo.Info) (bool, []string) {
 			reasons = append(reasons, check.ID+": "+check.Message)
 			continue
 		}
-		if check.ID == "install.claude-registered" && check.Status == doctor.StatusWarn && strings.Contains(check.Message, "settings found but") {
+		if tool == integration.ToolClaude && check.ID == "install.claude-registered" && check.Status == doctor.StatusWarn && strings.Contains(check.Message, "settings found but") {
 			reasons = append(reasons, check.ID+": "+check.Message)
 		}
-		if check.ID == "install.claude-hook-path" && check.Status == doctor.StatusWarn {
+		if tool == integration.ToolClaude && check.ID == "install.claude-hook-path" && check.Status == doctor.StatusWarn {
 			reasons = append(reasons, check.ID+": "+check.Message)
 		}
-		if (check.ID == "install.claude-hook-target" || check.ID == "install.claude-hook-binary-match") && check.Status == doctor.StatusWarn {
+		if tool == integration.ToolClaude && (check.ID == "install.claude-hook-target" || check.ID == "install.claude-hook-binary-match") && check.Status == doctor.StatusWarn {
 			reasons = append(reasons, check.ID+": "+check.Message)
 		}
 	}
@@ -370,11 +346,11 @@ func evaluateRequest(req input.ExecRequest, format string, streams Streams, env 
 }
 
 func evaluateDecision(req input.ExecRequest, env Env) (policy.Decision, error) {
-	loaded := config.LoadEffectiveForHook(env.Home, env.XDGConfigHome, env.XDGCacheHome)
+	loaded := config.LoadEffectiveForHookTool(env.Cwd, env.Home, env.XDGConfigHome, env.XDGCacheHome, integration.ToolClaude)
 	if len(loaded.Errors) > 0 {
 		if shouldAttemptImplicitVerify(loaded.Errors) {
-			if err := ensureVerifiedArtifacts(env); err == nil {
-				loaded = config.LoadEffectiveForHook(env.Home, env.XDGConfigHome, env.XDGCacheHome)
+			if err := ensureVerifiedArtifacts(env, integration.ToolClaude); err == nil {
+				loaded = config.LoadEffectiveForHookTool(env.Cwd, env.Home, env.XDGConfigHome, env.XDGCacheHome, integration.ToolClaude)
 			}
 		}
 		if len(loaded.Errors) > 0 {
@@ -382,7 +358,7 @@ func evaluateDecision(req input.ExecRequest, env Env) (policy.Decision, error) {
 		}
 	}
 
-	decision, err := policy.Evaluate(loaded.Rules, req.Command)
+	decision, err := policy.Evaluate(loaded.Pipeline, req.Command)
 	if err != nil {
 		return policy.Decision{}, err
 	}
@@ -401,124 +377,68 @@ func shouldAttemptImplicitVerify(errs []error) bool {
 	return false
 }
 
-func ensureVerifiedArtifacts(env Env) error {
+func ensureVerifiedArtifacts(env Env, tool string) error {
 	info := buildinfo.Read()
-	for _, src := range config.ConfigPaths(env.Home, env.XDGConfigHome) {
-		if _, err := config.VerifyFileToAllCaches(src, config.HookCacheDirs(env.Home, env.XDGCacheHome), info.Version); err != nil {
-			return err
-		}
-	}
-	return nil
+	_, err := config.VerifyEffectiveToAllCaches(env.Cwd, env.Home, env.XDGConfigHome, env.XDGCacheHome, tool, info.Version)
+	return err
 }
 
 func emitDecision(streams Streams, format string, decision policy.Decision) int {
-	if decision.Outcome == "pass" {
-		if format == "json" {
-			_ = json.NewEncoder(streams.Stdout).Encode(map[string]any{
-				"decision": "pass",
-				"command":  decision.Command,
-			})
-		}
-		return exitAllow
-	}
-
-	if decision.Outcome == "rewrite" {
-		if format == "json" {
-			payload := map[string]any{
-				"decision":         "rewrite",
-				"rule_id":          decision.Rule.ID,
-				"command":          decision.Command,
-				"original_command": decision.OriginalCommand,
-				"source":           decision.Rule.Source,
-			}
-			_ = json.NewEncoder(streams.Stdout).Encode(payload)
-		} else {
-			fmt.Fprintln(streams.Stdout, decision.Command)
-		}
-		return exitAllow
-	}
-
 	if format == "json" {
 		payload := map[string]any{
-			"decision": "reject",
-			"rule_id":  decision.Rule.ID,
-			"message":  decision.Rule.RejectMessage(),
-			"command":  decision.Command,
-			"source":   decision.Rule.Source,
+			"decision":         decision.Outcome,
+			"command":          decision.Command,
+			"original_command": decision.OriginalCommand,
+			"message":          decision.Message,
+			"trace":            decision.Trace,
 		}
 		_ = json.NewEncoder(streams.Stdout).Encode(payload)
 	} else {
-		fmt.Fprintf(streams.Stderr, "[%s] %s\n", decision.Rule.ID, decision.Rule.RejectMessage())
+		fmt.Fprintf(streams.Stdout, "%s: %s\n", decision.Outcome, decision.Command)
 	}
-	return exitReject
+	if decision.Outcome == "deny" {
+		return exitReject
+	}
+	return exitAllow
 }
 
 func runClaudeHook(req input.ExecRequest, useRTK bool, streams Streams, env Env) int {
 	decision, err := evaluateDecision(req, env)
 	if err != nil {
-		return emitClaudeHookError(streams, "invalid_config", err.Error())
+		return emitHookError(integration.ToolClaude, streams, "invalid_config", err.Error())
 	}
-
-	verdict := claude.PermissionDefault
-	shouldEmitVerdict := false
-	if decision.Outcome != "reject" {
-		permissionCommand := decision.Command
-		if decision.Outcome == "rewrite" || useRTK {
-			verdict = claude.CheckCommand(permissionCommand, env.Cwd, env.Home)
-			shouldEmitVerdict = true
-		}
-	}
-	if useRTK && decision.Outcome != "reject" {
+	decision = integration.ApplyPermissionBridge(integration.ToolClaude, decision, env.Cwd, env.Home)
+	if useRTK && decision.Outcome != "deny" {
 		decision = applyRTKRewrite(decision)
 	}
 
 	switch decision.Outcome {
-	case "pass":
-		if shouldEmitVerdict && verdict == claude.PermissionDeny {
-			payload := map[string]any{
-				"hookSpecificOutput": map[string]any{
-					"hookEventName":            "PreToolUse",
-					"permissionDecision":       "deny",
-					"permissionDecisionReason": "blocked by Claude Code permission rules",
-				},
-				"cmdproxy": map[string]any{
-					"outcome": "deny",
-				},
-			}
-			_ = json.NewEncoder(streams.Stdout).Encode(payload)
-			return exitAllow
-		}
-		return exitAllow
-	case "rewrite":
-		reason := "cmdproxy rewrite applied"
-		if len(decision.Trace) > 1 {
-			reason = "cmdproxy rewrite chain applied"
-		}
+	case "allow", "ask":
+		reason := "cmdproxy permission evaluated"
 		hookOutput := map[string]any{
 			"hookEventName":            "PreToolUse",
 			"permissionDecisionReason": reason,
-			"updatedInput":             map[string]any{"command": decision.Command},
 		}
-		switch verdict {
-		case claude.PermissionAllow:
+		if decision.Command != req.Command {
+			hookOutput["updatedInput"] = map[string]any{"command": decision.Command}
+		}
+		if decision.Outcome == "allow" {
 			hookOutput["permissionDecision"] = "allow"
-		case claude.PermissionDeny:
-			hookOutput["permissionDecision"] = "deny"
 		}
 		payload := map[string]any{
 			"systemMessage":      buildRewriteSystemMessage(decision),
 			"hookSpecificOutput": hookOutput,
 			"cmdproxy": map[string]any{
-				"outcome": "rewrite",
+				"outcome": decision.Outcome,
 				"trace":   decision.Trace,
 			},
 		}
 		_ = json.NewEncoder(streams.Stdout).Encode(payload)
 		return exitAllow
-	case "reject":
-		reason := decision.Rule.RejectMessage()
-		if len(decision.Trace) > 1 {
-			reason = "cmdproxy reject after rewrite chain"
+	case "deny":
+		reason := decision.Message
+		if strings.TrimSpace(reason) == "" {
+			reason = "cmdproxy denied by policy"
 		}
 		payload := map[string]any{
 			"hookSpecificOutput": map[string]any{
@@ -527,23 +447,23 @@ func runClaudeHook(req input.ExecRequest, useRTK bool, streams Streams, env Env)
 				"permissionDecisionReason": reason,
 			},
 			"cmdproxy": map[string]any{
-				"outcome": "reject",
+				"outcome": "deny",
 				"trace":   decision.Trace,
 			},
 		}
 		_ = json.NewEncoder(streams.Stdout).Encode(payload)
 		return exitAllow
 	default:
-		return emitClaudeHookError(streams, "runtime_error", "unsupported decision outcome")
+		return emitHookError(integration.ToolClaude, streams, "runtime_error", "unsupported decision outcome")
 	}
 }
 
-func emitClaudeHookError(streams Streams, code string, message string) int {
+func emitHookError(tool string, streams Streams, code string, message string) int {
 	payload := map[string]any{
 		"hookSpecificOutput": map[string]any{
 			"hookEventName":            "PreToolUse",
 			"permissionDecision":       "deny",
-			"permissionDecisionReason": "cmdproxy " + code + ": " + message,
+			"permissionDecisionReason": "cmdproxy " + tool + " " + code + ": " + message,
 		},
 	}
 	_ = json.NewEncoder(streams.Stdout).Encode(payload)
@@ -556,21 +476,21 @@ func applyRTKRewrite(decision policy.Decision) policy.Decision {
 		return decision
 	}
 	decision.Trace = append(decision.Trace, policy.TraceStep{
-		RuleID: "rtk",
 		Action: "rewrite",
+		Name:   "rtk",
 		From:   decision.Command,
 		To:     rewritten,
 	})
 	decision.Command = rewritten
-	if decision.Outcome == "pass" {
-		decision.Outcome = "rewrite"
-	}
 	return decision
 }
 
 func runRTKRewrite(command string) (string, bool) {
-	out, err := exec.Command("rtk", "rewrite", command).CombinedOutput()
-	if err != nil && len(out) == 0 {
+	cmd := exec.Command("rtk", "rewrite", command)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
 		return "", false
 	}
 	rewritten := strings.TrimSpace(string(out))
@@ -589,7 +509,7 @@ func buildRewriteSystemMessage(decision policy.Decision) string {
 		if step.Action != "rewrite" {
 			continue
 		}
-		ruleIDs = append(ruleIDs, step.RuleID)
+		ruleIDs = append(ruleIDs, step.Name)
 	}
 	if len(ruleIDs) == 0 {
 		return "cmdproxy: rewrote -> " + decision.Command
@@ -640,20 +560,20 @@ Declarative, testable command policy for AI-agent shell commands.
 
 Typical workflow:
   1. Edit ~/.config/cmdproxy/cmdproxy.yml
-  2. Add directive tests under rewrite.test or reject.test
-  3. Run cmdproxy test
-  4. Use cmdproxy check for spot checks
+  2. Optionally add .cmdproxy/cmdproxy.yaml in the project
+  3. Add rewrite, permission, and E2E tests
+  4. Run cmdproxy verify claude
   5. Let Claude Code call cmdproxy hook claude --rtk from PreToolUse
+  6. Use cmdproxy check for spot checks
 
 Usage:
   cmdproxy <command> [flags]
 
 Commands:
   init     create the user config and print the Claude Code hook snippet
-  test     validate every rule example; this is the main authoring command
   check    evaluate one command string interactively
   doctor   inspect config quality and installation state
-  verify   verify local trust-critical setup and build metadata
+  verify   verify config tests, trust-critical setup, and build metadata
   version  print build and source metadata for the running binary
   hook     Claude Code hook entrypoint
 
@@ -666,9 +586,8 @@ Help:
 
 Examples:
   cmdproxy init
-  cmdproxy test
   cmdproxy check --format json 'git -C repo status'
-  cmdproxy verify --format json
+  cmdproxy verify claude --format json
   cmdproxy version --format json
   cmdproxy hook claude --rtk
   cmdproxy doctor --format json
@@ -689,23 +608,6 @@ Usage:
 Typical use:
   cmdproxy init
 `)
-	case "test":
-		fmt.Fprint(w, `cmdproxy test
-
-Validate every rule in ~/.config/cmdproxy/cmdproxy.yml.
-This is the main command to run after editing rules.
-
-Usage:
-  cmdproxy test
-
-What it checks:
-  - every directive test expect case produces the expected result
-  - every directive test pass case remains pass
-
-Typical use:
-  $EDITOR ~/.config/cmdproxy/cmdproxy.yml
-  cmdproxy test
-`)
 	case "check":
 		fmt.Fprint(w, `cmdproxy check
 
@@ -722,7 +624,7 @@ Examples:
 	case "doctor":
 		fmt.Fprint(w, `cmdproxy doctor
 
-Inspect config validity, rule quality, and Claude Code hook registration.
+Inspect config validity, pipeline quality, and Claude Code hook registration.
 
 Usage:
   cmdproxy doctor [--format json]
@@ -732,25 +634,27 @@ Examples:
   cmdproxy doctor --format json
 `)
 	case "verify":
-		fmt.Fprint(w, `cmdproxy verify
+		fmt.Fprint(w, `cmdproxy verify <tool>
 
 Verify the local trust-critical cmdproxy setup.
 This command is stricter than doctor: it fails when the config is broken, when
-Claude settings point somewhere unexpected, or when build metadata is missing.
+configured tests fail, when the effective global/local tool settings and
+cmdproxy policy disagree with expected E2E outcomes, or when build metadata is
+missing.
 
 Usage:
-  cmdproxy verify [--format json]
+  cmdproxy verify [--format json] <tool>
 
 Examples:
-  cmdproxy verify
-  cmdproxy verify --format json
+  cmdproxy verify claude
+  cmdproxy verify --format json claude
 `)
 	case "hook":
 		fmt.Fprint(w, `cmdproxy hook claude
 
 Claude Code hook entrypoint.
-Reads stdin JSON and returns Claude Code hook JSON for pass, rewrite, reject,
-or error outcomes.
+Reads stdin JSON, evaluates the configured rewrite and permission pipeline, and
+returns Claude Code hook JSON for allow, ask, deny, or error outcomes.
 
 Usage:
   cmdproxy hook claude [--rtk]
@@ -760,7 +664,7 @@ Options:
           the final rewritten command if it changes
 
 Note:
-  You usually do not run this manually. Edit rules and use cmdproxy test or
+  You usually do not run this manually. Edit rules and use cmdproxy verify or
   cmdproxy check instead.
 `)
 	case "version":
@@ -779,44 +683,50 @@ Examples:
 	case "config":
 		fmt.Fprint(w, `cmdproxy help config
 
-Rule files live at ~/.config/cmdproxy/cmdproxy.yml.
+Config files live at:
+  - ~/.config/cmdproxy/cmdproxy.yml
+  - ./.cmdproxy/cmdproxy.yaml (project-local, optional)
 
-Each rule must define:
-  - id
-  - exactly one of pattern or match
-  - exactly one directive: rewrite or reject
-  - directive-local tests under .test.expect and .test.pass
+Top-level sections are:
+  - rewrite: ordered rewrite pipeline
+  - permission: deny / ask / allow buckets
+  - test: end-to-end expect cases
 
-Reject rule example:
-  - id: no-git-dash-c
-    match:
-      command: git
-      args_contains:
-        - "-C"
-    reject:
-      message: "git -C is blocked. Change into the target directory and rerun the command."
-      test:
-        expect:
-          - "git -C repo status"
-        pass:
-          - "git status"
-
-Rewrite rule example:
-  - id: aws-profile-to-env
-    match:
-      command: aws
-      args_prefixes:
-        - "--profile"
-    rewrite:
+Rewrite step example:
+  rewrite:
+    - match:
+        command: aws
+        args_contains:
+          - "--profile"
       move_flag_to_env:
         flag: "--profile"
         env: "AWS_PROFILE"
+      strict: true
+      continue: true
       test:
-        expect:
-          - in: "aws --profile read-only-profile s3 ls"
-            out: "AWS_PROFILE=read-only-profile aws s3 ls"
-        pass:
-          - "AWS_PROFILE=read-only-profile aws s3 ls"
+        - in: "aws --profile read-only-profile s3 ls"
+          out: "AWS_PROFILE=read-only-profile aws s3 ls"
+        - pass: "AWS_PROFILE=read-only-profile aws s3 ls"
+
+Permission rule example:
+  permission:
+    allow:
+      - match:
+          command: aws
+          subcommand: sts
+          env_requires:
+            - "AWS_PROFILE"
+        test:
+          allow:
+            - "AWS_PROFILE=read-only-profile aws sts get-caller-identity"
+          pass:
+            - "AWS_PROFILE=read-only-profile aws s3 ls"
+
+E2E test example:
+  test:
+    - in: "aws --profile read-only-profile sts get-caller-identity"
+      rewritten: "AWS_PROFILE=read-only-profile aws sts get-caller-identity"
+      decision: allow
 
 For matcher fields, run:
   cmdproxy help match
@@ -856,32 +766,30 @@ Supported rewrite primitives:
   - unwrap_wrapper: strip safe wrappers such as env, command, exec, nohup
   - move_flag_to_env: move a flag value into an env assignment
   - move_env_to_flag: move an env assignment into a flag
+  - strip_command_path: convert an absolute-path command token into its basename
   - continue: after a successful rewrite, restart evaluation from the top
 
-Example: unwrap shell -c and continue
-  rewrite:
-    unwrap_shell_dash_c: true
-    continue: true
-    test:
-      expect:
-        - in: "bash -c 'aws --profile read-only-profile s3 ls'"
-          out: "aws --profile read-only-profile s3 ls"
-      pass:
-        - "bash script.sh"
+Each rewrite step is an element in the top-level rewrite array and may add an
+optional match block. If match is omitted, the step is considered for every
+command.
 
-Example: move --profile into AWS_PROFILE
+Example:
   rewrite:
-    move_flag_to_env:
-      flag: "--profile"
-      env: "AWS_PROFILE"
-    test:
-      expect:
+    - match:
+        command: aws
+        args_contains:
+          - "--profile"
+      move_flag_to_env:
+        flag: "--profile"
+        env: "AWS_PROFILE"
+      strict: true
+      continue: true
+      test:
         - in: "aws --profile read-only-profile s3 ls"
           out: "AWS_PROFILE=read-only-profile aws s3 ls"
-      pass:
-        - "AWS_PROFILE=read-only-profile aws s3 ls"
+        - pass: "AWS_PROFILE=read-only-profile aws s3 ls"
 
-Only one rewrite primitive may be set per rule.
+Each step may set exactly one rewrite primitive.
 `)
 	default:
 		writeUsage(w)
@@ -908,17 +816,19 @@ func userConfigBase(home string, xdgConfigHome string) string {
 	return filepath.Join(home, ".config")
 }
 
-const starterConfig = `rules:
-  - id: no-git-dash-c
-    match:
-      command: git
-      args_contains:
-        - "-C"
-    reject:
+const starterConfig = `permission:
+  deny:
+    - match:
+        command: git
+        args_contains:
+          - "-C"
       message: "git -C is blocked. Change into the target directory and rerun the command."
       test:
-        expect:
+        deny:
           - "git -C repos/foo status"
         pass:
           - "git status"
+test:
+  - in: "git -C repos/foo status"
+    decision: deny
 `

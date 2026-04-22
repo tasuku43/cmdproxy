@@ -15,5 +15,5 @@
 - `docs/plans/`: design notes and implementation planning
 
 The repository is in the middle of a redesign from a deny-only guard toward a
-directive-driven invocation policy proxy, so many documents intentionally
+rewrite-plus-permission invocation policy proxy, so many documents intentionally
 describe the target state rather than the exact current implementation.

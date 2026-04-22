@@ -5,11 +5,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/tasuku43/cmdproxy/internal/buildinfo"
 	"github.com/tasuku43/cmdproxy/internal/config"
 	"github.com/tasuku43/cmdproxy/internal/domain/policy"
+	"github.com/tasuku43/cmdproxy/internal/integration"
 )
 
 type Status string
@@ -31,54 +33,50 @@ type Report struct {
 	Checks []Check `json:"checks"`
 }
 
-func Run(loaded config.Loaded, home string) Report {
+func Run(loaded config.Loaded, tool string, cwd string, home string) Report {
 	var checks []Check
 
 	if len(loaded.Errors) == 0 {
 		checks = append(checks,
 			Check{ID: "config.parse", Category: "config", Status: StatusPass, Message: "configuration files parsed"},
 			Check{ID: "config.schema", Category: "config", Status: StatusPass, Message: "configuration schema is valid"},
-			Check{ID: "rules.unique-id", Category: "rules", Status: StatusPass, Message: "rule IDs are unique"},
-			Check{ID: "rules.matcher-validate", Category: "rules", Status: StatusPass, Message: "rule matchers are valid"},
-			Check{ID: "rules.tests-present", Category: "rules", Status: StatusPass, Message: "directive tests are present"},
+			Check{ID: "rewrite.matcher-validate", Category: "rewrite", Status: StatusPass, Message: "rewrite matchers are valid"},
+			Check{ID: "rewrite.tests-present", Category: "rewrite", Status: StatusPass, Message: "rewrite tests are present"},
+			Check{ID: "permission.tests-present", Category: "permission", Status: StatusPass, Message: "permission tests are present"},
+			Check{ID: "test.e2e-present", Category: "test", Status: StatusPass, Message: "end-to-end tests are present"},
 		)
 	} else {
 		msg := strings.Join(policy.ErrorStrings(loaded.Errors), "; ")
 		checks = append(checks,
 			Check{ID: "config.parse", Category: "config", Status: StatusFail, Message: msg},
 			Check{ID: "config.schema", Category: "config", Status: StatusFail, Message: msg},
-			Check{ID: "rules.unique-id", Category: "rules", Status: StatusFail, Message: msg},
-			Check{ID: "rules.matcher-validate", Category: "rules", Status: StatusFail, Message: msg},
-			Check{ID: "rules.tests-present", Category: "rules", Status: StatusFail, Message: msg},
+			Check{ID: "rewrite.matcher-validate", Category: "rewrite", Status: StatusFail, Message: msg},
+			Check{ID: "rewrite.tests-present", Category: "rewrite", Status: StatusFail, Message: msg},
+			Check{ID: "permission.tests-present", Category: "permission", Status: StatusFail, Message: msg},
+			Check{ID: "test.e2e-present", Category: "test", Status: StatusFail, Message: msg},
 		)
 	}
 
 	if len(loaded.Errors) == 0 {
-		if err := testsPass(loaded.Rules); err != nil {
-			checks = append(checks, Check{ID: "rules.tests-pass", Category: "rules", Status: StatusFail, Message: err.Error()})
+		if err := testsPass(loaded.Pipeline, tool, cwd, home); err != nil {
+			checks = append(checks, Check{ID: "tests.pass", Category: "test", Status: StatusFail, Message: err.Error()})
 		} else {
-			checks = append(checks, Check{ID: "rules.tests-pass", Category: "rules", Status: StatusPass, Message: "directive tests match expectations"})
+			checks = append(checks, Check{ID: "tests.pass", Category: "test", Status: StatusPass, Message: "rewrite, permission, and end-to-end tests match expectations"})
 		}
 	} else {
-		checks = append(checks, Check{ID: "rules.tests-pass", Category: "rules", Status: StatusFail, Message: "skipped because configuration is invalid"})
+		checks = append(checks, Check{ID: "tests.pass", Category: "test", Status: StatusFail, Message: "skipped because configuration is invalid"})
 	}
 
-	if ids := relaxedRuleIDs(loaded.Rules); len(ids) > 0 {
-		checks = append(checks, Check{ID: "rules.relaxed-contracts", Category: "rules", Status: StatusWarn, Message: "relaxed rewrite contracts enabled: " + strings.Join(ids, ", ")})
+	if ids := relaxedRewriteNames(loaded.Pipeline); len(ids) > 0 {
+		checks = append(checks, Check{ID: "rewrite.relaxed-contracts", Category: "rewrite", Status: StatusWarn, Message: "relaxed rewrite contracts enabled: " + strings.Join(ids, ", ")})
 	} else {
-		checks = append(checks, Check{ID: "rules.relaxed-contracts", Category: "rules", Status: StatusPass, Message: "all rewrite contracts use strict validation"})
+		checks = append(checks, Check{ID: "rewrite.relaxed-contracts", Category: "rewrite", Status: StatusPass, Message: "all rewrite contracts use strict validation"})
 	}
 
-	if warning := broadnessWarning(loaded.Rules); warning != "" {
-		checks = append(checks, Check{ID: "rules.pattern-broadness", Category: "diagnostics", Status: StatusWarn, Message: warning})
+	if warning := broadnessWarning(loaded.Pipeline); warning != "" {
+		checks = append(checks, Check{ID: "rewrite.pattern-broadness", Category: "diagnostics", Status: StatusWarn, Message: warning})
 	} else {
-		checks = append(checks, Check{ID: "rules.pattern-broadness", Category: "diagnostics", Status: StatusPass, Message: "patterns are not obviously broad"})
-	}
-
-	if warning := shadowingWarning(loaded.Rules); warning != "" {
-		checks = append(checks, Check{ID: "rules.shadowing", Category: "diagnostics", Status: StatusWarn, Message: warning})
-	} else {
-		checks = append(checks, Check{ID: "rules.shadowing", Category: "diagnostics", Status: StatusPass, Message: "no obvious shadowing detected"})
+		checks = append(checks, Check{ID: "rewrite.pattern-broadness", Category: "diagnostics", Status: StatusPass, Message: "rewrite matches are not obviously broad"})
 	}
 
 	if path, err := exec.LookPath("cmdproxy"); err == nil {
@@ -104,38 +102,18 @@ func Run(loaded config.Loaded, home string) Report {
 		checks = append(checks, Check{ID: "install.binary-build-info", Category: "install", Status: StatusWarn, Message: "build metadata missing; prefer binaries built with VCS info embedded"})
 	}
 
-	claudeSettings := filepath.Join(home, ".claude", "settings.json")
-	if _, err := os.Stat(claudeSettings); err == nil {
-		data, readErr := os.ReadFile(claudeSettings)
-		if readErr == nil && strings.Contains(string(data), "cmdproxy hook claude") && strings.Contains(string(data), "\"matcher\": \"Bash\"") {
-			checks = append(checks, Check{ID: "install.claude-registered", Category: "install", Status: StatusPass, Message: "Claude Code hook registration detected"})
-			hookCommand, absolutePath := extractClaudeHookCommand(string(data))
-			if absolutePath {
-				checks = append(checks, Check{ID: "install.claude-hook-path", Category: "install", Status: StatusPass, Message: "Claude Code hook appears to use an absolute cmdproxy path"})
-				if path, ok := hookBinaryPath(hookCommand); ok {
-					if stat, statErr := os.Stat(path); statErr != nil {
-						checks = append(checks, Check{ID: "install.claude-hook-target", Category: "install", Status: StatusWarn, Message: "Claude Code hook target does not exist: " + path})
-					} else if stat.Mode()&0o111 == 0 {
-						checks = append(checks, Check{ID: "install.claude-hook-target", Category: "install", Status: StatusWarn, Message: "Claude Code hook target is not executable: " + path})
-					} else {
-						checks = append(checks, Check{ID: "install.claude-hook-target", Category: "install", Status: StatusPass, Message: "Claude Code hook target exists and is executable: " + path})
-						if exe, exeErr := os.Executable(); exeErr == nil {
-							if sameExecutable(exe, path) {
-								checks = append(checks, Check{ID: "install.claude-hook-binary-match", Category: "install", Status: StatusPass, Message: "Claude Code hook target matches the running cmdproxy binary"})
-							} else {
-								checks = append(checks, Check{ID: "install.claude-hook-binary-match", Category: "install", Status: StatusWarn, Message: "Claude Code hook targets a different cmdproxy binary than the one being verified"})
-							}
-						}
-					}
-				}
+	if tool == integration.ToolClaude {
+		claudeSettings := filepath.Join(home, ".claude", "settings.json")
+		if _, err := os.Stat(claudeSettings); err == nil {
+			data, readErr := os.ReadFile(claudeSettings)
+			if readErr == nil && strings.Contains(string(data), "cmdproxy hook claude") && strings.Contains(string(data), "\"matcher\": \"Bash\"") {
+				checks = append(checks, Check{ID: "install.claude-registered", Category: "install", Status: StatusPass, Message: "Claude Code hook registration detected"})
 			} else {
-				checks = append(checks, Check{ID: "install.claude-hook-path", Category: "install", Status: StatusWarn, Message: "Claude Code hook uses PATH lookup; prefer an absolute cmdproxy path"})
+				checks = append(checks, Check{ID: "install.claude-registered", Category: "install", Status: StatusWarn, Message: "Claude Code settings found but cmdproxy hook claude not detected"})
 			}
 		} else {
-			checks = append(checks, Check{ID: "install.claude-registered", Category: "install", Status: StatusWarn, Message: "Claude Code settings found but cmdproxy hook claude not detected"})
+			checks = append(checks, Check{ID: "install.claude-registered", Category: "install", Status: StatusWarn, Message: "Claude Code settings.json not found"})
 		}
-	} else {
-		checks = append(checks, Check{ID: "install.claude-registered", Category: "install", Status: StatusWarn, Message: "Claude Code settings.json not found"})
 	}
 
 	return Report{Checks: checks}
@@ -148,6 +126,125 @@ func HasFailures(report Report) bool {
 		}
 	}
 	return false
+}
+
+func testsPass(p policy.Pipeline, tool string, cwd string, home string) error {
+	for i, step := range p.Rewrite {
+		for _, ex := range step.Test {
+			if strings.TrimSpace(ex.Pass) != "" {
+				if rewritten, ok := policyTestApplyRewrite(step, ex.Pass); ok && rewritten != "" {
+					return &exampleError{Scope: "rewrite", Name: stepName(step, i), Kind: "pass", Example: ex.Pass}
+				}
+				continue
+			}
+			rewritten, ok := policyTestApplyRewrite(step, ex.In)
+			if !ok || rewritten != ex.Out {
+				return &exampleError{Scope: "rewrite", Name: stepName(step, i), Kind: "expect", Example: ex.In}
+			}
+		}
+	}
+
+	checkPermission := func(scope string, rules []policy.PermissionRuleSpec, effect string) error {
+		for i, rule := range rules {
+			var expect []string
+			switch effect {
+			case "deny":
+				expect = rule.Test.Deny
+			case "ask":
+				expect = rule.Test.Ask
+			case "allow":
+				expect = rule.Test.Allow
+			}
+			for _, ex := range expect {
+				if !policy.PermissionRuleMatches(rule, ex) {
+					return &exampleError{Scope: scope, Name: scopeName(scope, i), Kind: "expect", Example: ex}
+				}
+			}
+			for _, ex := range rule.Test.Pass {
+				if policy.PermissionRuleMatches(rule, ex) {
+					return &exampleError{Scope: scope, Name: scopeName(scope, i), Kind: "pass", Example: ex}
+				}
+			}
+		}
+		return nil
+	}
+	if err := checkPermission("permission.deny", p.Permission.Deny, "deny"); err != nil {
+		return err
+	}
+	if err := checkPermission("permission.ask", p.Permission.Ask, "ask"); err != nil {
+		return err
+	}
+	if err := checkPermission("permission.allow", p.Permission.Allow, "allow"); err != nil {
+		return err
+	}
+
+	for i, ex := range p.Test {
+		decision, err := policy.Evaluate(p, ex.In)
+		if err != nil {
+			return err
+		}
+		decision = integration.ApplyPermissionBridge(tool, decision, cwd, home)
+		if decision.Outcome != ex.Decision {
+			return &exampleError{Scope: "test", Name: scopeName("e2e", i), Kind: "decision", Example: ex.In}
+		}
+		if strings.TrimSpace(ex.Rewritten) != "" && decision.Command != ex.Rewritten {
+			return &exampleError{Scope: "test", Name: scopeName("e2e", i), Kind: "rewritten", Example: ex.In}
+		}
+	}
+	return nil
+}
+
+func policyTestApplyRewrite(step policy.RewriteStepSpec, command string) (string, bool) {
+	if !policy.RewriteStepMatches(step, command) {
+		return "", false
+	}
+	return policy.ApplyRewriteStepForTest(step, command)
+}
+
+func broadnessWarning(p policy.Pipeline) string {
+	for i, step := range p.Rewrite {
+		if policy.IsZeroMatchSpec(step.Match) && strings.TrimSpace(step.Pattern) == "" && len(step.Patterns) == 0 {
+			return "rewrite[" + scopeName("global", i) + "] applies to all commands"
+		}
+	}
+	return ""
+}
+
+func relaxedRewriteNames(p policy.Pipeline) []string {
+	var ids []string
+	for i, step := range p.Rewrite {
+		if !policy.RewriteStrict(step) {
+			ids = append(ids, stepName(step, i))
+		}
+	}
+	return ids
+}
+
+type exampleError struct {
+	Scope   string
+	Name    string
+	Kind    string
+	Example string
+}
+
+func (e *exampleError) Error() string {
+	return e.Scope + " " + e.Name + " has failing " + e.Kind + " example: " + e.Example
+}
+
+func scopeName(prefix string, idx int) string {
+	return prefix + "[" + fmtInt(idx) + "]"
+}
+
+func stepName(step policy.RewriteStepSpec, idx int) string {
+	name := policy.RewriteStepName(step)
+	if name == "" {
+		return scopeName("rewrite", idx)
+	}
+	return name
+}
+
+func fmtInt(v int) string {
+	return strconv.Itoa(v)
 }
 
 func extractClaudeHookCommand(raw string) (string, bool) {
@@ -178,133 +275,4 @@ func findHookCommand(node any) string {
 		}
 	}
 	return ""
-}
-
-func hookBinaryPath(command string) (string, bool) {
-	fields := strings.Fields(command)
-	if len(fields) == 0 {
-		return "", false
-	}
-	if strings.HasPrefix(fields[0], "/") {
-		return fields[0], true
-	}
-	return "", false
-}
-
-func sameExecutable(a, b string) bool {
-	left, err := filepath.EvalSymlinks(a)
-	if err != nil {
-		left = a
-	}
-	right, err := filepath.EvalSymlinks(b)
-	if err != nil {
-		right = b
-	}
-	return left == right
-}
-
-func testsPass(rules []policy.Rule) error {
-	for _, r := range rules {
-		if strings.TrimSpace(r.Reject.Message) != "" {
-			for _, ex := range r.Reject.Test.Expect {
-				decision, err := policy.Evaluate([]policy.Rule{r}, ex)
-				if err != nil {
-					return err
-				}
-				if decision.Outcome != "reject" {
-					return &exampleError{RuleID: r.ID, Kind: "reject", Example: ex}
-				}
-			}
-			for _, ex := range r.Reject.Test.Pass {
-				decision, err := policy.Evaluate([]policy.Rule{r}, ex)
-				if err != nil {
-					return err
-				}
-				if decision.Outcome != "pass" {
-					return &exampleError{RuleID: r.ID, Kind: "pass", Example: ex}
-				}
-			}
-			continue
-		}
-		for _, ex := range r.Rewrite.Test.Expect {
-			decision, err := policy.Evaluate([]policy.Rule{r}, ex.In)
-			if err != nil {
-				return err
-			}
-			if decision.Outcome != "rewrite" || decision.Command != ex.Out {
-				return &exampleError{RuleID: r.ID, Kind: "rewrite", Example: ex.In}
-			}
-		}
-		for _, ex := range r.Rewrite.Test.Pass {
-			decision, err := policy.Evaluate([]policy.Rule{r}, ex)
-			if err != nil {
-				return err
-			}
-			if decision.Outcome != "pass" {
-				return &exampleError{RuleID: r.ID, Kind: "pass", Example: ex}
-			}
-		}
-	}
-	return nil
-}
-
-type exampleError struct {
-	RuleID  string
-	Kind    string
-	Example string
-}
-
-func (e *exampleError) Error() string {
-	return "rule " + e.RuleID + " has failing " + e.Kind + " example: " + e.Example
-}
-
-func broadnessWarning(rules []policy.Rule) string {
-	for _, r := range rules {
-		if r.Pattern == "" {
-			continue
-		}
-		if r.Pattern == ".*" || r.Pattern == "^.*$" || r.Pattern == ".+" || r.Pattern == "^.+$" {
-			return "rule " + r.ID + " pattern is extremely broad"
-		}
-	}
-	return ""
-}
-
-func shadowingWarning(rules []policy.Rule) string {
-	for i := 0; i < len(rules); i++ {
-		for j := i + 1; j < len(rules); j++ {
-			if strings.TrimSpace(rules[j].Reject.Message) != "" {
-				for _, ex := range rules[j].Reject.Test.Expect {
-					matched, err := rules[i].Match(ex)
-					if err != nil {
-						continue
-					}
-					if matched {
-						return "rule " + rules[i].ID + " likely shadows later rule " + rules[j].ID
-					}
-				}
-				continue
-			}
-			for _, ex := range rules[j].Rewrite.Test.Expect {
-				matched, err := rules[i].Match(ex.In)
-				if err != nil {
-					continue
-				}
-				if matched {
-					return "rule " + rules[i].ID + " likely shadows later rule " + rules[j].ID
-				}
-			}
-		}
-	}
-	return ""
-}
-
-func relaxedRuleIDs(rules []policy.Rule) []string {
-	var ids []string
-	for _, rule := range rules {
-		if !policy.IsZeroRewriteSpec(rule.Rewrite) && !policy.RewriteStrict(rule.Rewrite) {
-			ids = append(ids, rule.ID)
-		}
-	}
-	return ids
 }

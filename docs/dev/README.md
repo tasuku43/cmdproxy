@@ -13,5 +13,5 @@ architecture.
 ## Focus
 
 - concept: what `cmdproxy` is becoming
-- spec: the target directive-driven contracts
+- spec: the target rewrite-plus-permission pipeline contracts
 - code: the transitional implementation that will move toward those contracts

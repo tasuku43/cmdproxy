@@ -1,72 +1,110 @@
 ---
-title: "Rule Schema"
+title: "Pipeline Schema"
 status: proposed
-date: 2026-04-19
+date: 2026-04-22
 ---
 
-# Rule Schema
+# Pipeline Schema
 
 ## 1. Scope
 
-This document defines the directive-based YAML schema for `cmdproxy`.
+This document defines the current YAML schema for `cmdproxy`.
 
 ## 2. Top-Level Shape
 
-The current target configuration shape is:
+The configuration file contains three top-level sections:
 
 ```yaml
-rules:
-  - id: aws-profile-to-env
-    match:
+rewrite:
+  - match:
       command: aws
       args_contains:
         - "--profile"
-    rewrite:
-      move_flag_to_env:
-        flag: "--profile"
-        env: "AWS_PROFILE"
-      continue: true
+    move_flag_to_env:
+      flag: "--profile"
+      env: "AWS_PROFILE"
+    continue: true
+    strict: true
+    test:
+      - in: "aws --profile prod s3 ls"
+        out: "AWS_PROFILE=prod aws s3 ls"
+      - pass: "AWS_PROFILE=prod aws s3 ls"
+
+permission:
+  deny:
+    - match:
+        env_requires:
+          - "AWS_PROFILE"
+        args_contains:
+          - "--delete"
+      message: "delete is blocked"
       test:
-        expect:
-          - in: "aws --profile prod s3 ls"
-            out: "AWS_PROFILE=prod aws s3 ls"
+        deny:
+          - "AWS_PROFILE=prod aws s3 rm s3://example --delete"
+        pass:
+          - "AWS_PROFILE=prod aws sts get-caller-identity"
+
+  ask:
+    - match:
+        command: aws
+        subcommand: s3
+      message: "s3 operations require confirmation"
+      test:
+        ask:
+          - "AWS_PROFILE=prod aws s3 ls"
+        pass:
+          - "AWS_PROFILE=prod aws sts get-caller-identity"
+
+  allow:
+    - match:
+        command: aws
+        subcommand: sts
+        env_requires:
+          - "AWS_PROFILE"
+      test:
+        allow:
+          - "AWS_PROFILE=prod aws sts get-caller-identity"
         pass:
           - "AWS_PROFILE=prod aws s3 ls"
 
-  - id: no-shell-dash-c
-    match:
-      command_in: ["bash", "sh", "zsh", "dash", "ksh"]
-      args_contains: ["-c"]
-    reject:
-      message: "shell -c must not pass through unchanged."
-      test:
-        expect:
-          - "bash -c 'git status && git diff'"
-        pass:
-          - "bash script.sh"
+test:
+  - in: "aws --profile prod sts get-caller-identity"
+    rewritten: "AWS_PROFILE=prod aws sts get-caller-identity"
+    decision: allow
 ```
-
-## 3. Top-Level Fields
-
-- `rules`: required non-empty array of rule objects
 
 Unknown top-level keys are invalid.
 
-## 4. Rule Fields
+## 3. Rewrite Section
 
-Each rule object must contain:
+`rewrite` is an ordered array of rewrite steps.
 
-- `id`: required string
-- exactly one of `match` or `pattern`
-- exactly one of `rewrite` or `reject`
+Each rewrite step may contain:
 
-Unknown rule-level keys are invalid.
+- optional selector: exactly one of `match`, `pattern`, or `patterns`
+- exactly one rewrite primitive
+- optional `continue`
+- optional `strict`
+- required `test`
 
-## 5. Matcher Fields
+Currently implemented rewrite primitives:
 
-### `match`
+- `move_flag_to_env`
+- `move_env_to_flag`
+- `unwrap_shell_dash_c`
+- `unwrap_wrapper`
+- `strip_command_path`
 
-`match` is the preferred matcher model.
+### Rewrite selector
+
+Each rewrite step may define one selector:
+
+- `match`
+- `pattern`
+- `patterns`
+
+The selector is optional for rewrite steps. If omitted, the step is considered
+for every command.
 
 Supported fields:
 
@@ -79,105 +117,117 @@ Supported fields:
 - `env_requires`
 - `env_missing`
 
-The matcher operates on `cmdproxy`'s internal normalized invocation model.
+- `pattern` matches the raw command string using one RE2 expression
+- `patterns` matches the raw command string when any RE2 expression matches
+- `pattern` and `patterns` are alternatives to structured `match`
 
-### `pattern`
-
-`pattern` remains available as an escape hatch for invocation shapes that are
-not yet well represented by structured matchers.
-
-- Must compile as Go RE2
-- Matches against the raw command string
-- Should be used sparingly where structured matching is insufficient
-
-## 6. Directive Fields
-
-### `rewrite`
-
-`rewrite` contains exactly one typed rewrite primitive plus a required `test`
-section.
-
-Currently implemented primitives:
-
-- `move_flag_to_env`
-- `move_env_to_flag`
-- `unwrap_shell_dash_c`
-- `unwrap_wrapper`
-- `strip_command_path`
-
-`rewrite` may also set:
-
-- `continue`: optional boolean, restart evaluation from the beginning after a
-  successful rewrite
-- `strict`: optional boolean, defaults to `true`
-  - `strict: true` uses only product-guaranteed built-in contracts
-  - `strict: false` allows relaxed built-in contracts such as
-    `kubectl --kubeconfig <-> KUBECONFIG`
-
-Free-form string templates are out of scope.
-
-### `reject`
-
-`reject` contains:
-
-- `message`: required string
-- `test`: required object
-
-## 7. Directive Tests
-
-Directive tests are mandatory and live under the directive itself.
-
-### `rewrite.test`
+### Rewrite `test`
 
 ```yaml
-rewrite:
-  move_flag_to_env:
-    flag: "--profile"
-    env: "AWS_PROFILE"
-  strict: true
-  continue: true
-  test:
-    expect:
-      - in: "aws --profile prod s3 ls"
-        out: "AWS_PROFILE=prod aws s3 ls"
-    pass:
-      - "AWS_PROFILE=prod aws s3 ls"
+test:
+  - in: "aws --profile prod s3 ls"
+    out: "AWS_PROFILE=prod aws s3 ls"
+  - pass: "AWS_PROFILE=prod aws s3 ls"
 ```
 
-- `expect`: required non-empty array of `{in, out}`
-- `pass`: required non-empty string array
+- each case is either `{in, out}` or `{pass}`
+- `pass` is sugar for `in == out`
 
-### `reject.test`
+## 4. Permission Section
+
+`permission` contains three effect buckets:
+
+- `deny`
+- `ask`
+- `allow`
+
+Each bucket contains an array of permission rules.
+
+Each permission rule may contain:
+
+- required selector: exactly one of `match`, `pattern`, or `patterns`
+- optional `message`
+- required `test`
+
+### Permission rule example
 
 ```yaml
-reject:
-  message: "shell -c must not pass through unchanged."
-  test:
-    expect:
-      - "bash -c 'git status && git diff'"
-    pass:
-      - "bash script.sh"
+allow:
+  - match:
+      command: aws
+      subcommand: sts
+      env_requires:
+        - "AWS_PROFILE"
+    test:
+      expect:
+        - "AWS_PROFILE=prod aws sts get-caller-identity"
+      pass:
+        - "AWS_PROFILE=prod aws s3 ls"
 ```
 
-- `expect`: required non-empty string array
+Regular-expression selectors are also allowed:
+
+```yaml
+deny:
+  - patterns:
+      - '^\s*git\s+diff\s+.*\.\.\.'
+      - '^\s*cd\s+[^&;|]+\s*(&&|;|\|)'
+    message: "blocked by command-shape policy"
+    test:
+      deny:
+        - "git diff main...HEAD"
+      pass:
+        - "git diff HEAD~1"
+```
+
+### Permission `test`
+
+```yaml
+test:
+  allow:
+    - "AWS_PROFILE=prod aws sts get-caller-identity"
+  pass:
+    - "AWS_PROFILE=prod aws s3 ls"
+```
+
+- `allow`, `ask`, or `deny`: exactly one effect key depending on the bucket
 - `pass`: required non-empty string array
 
-## 8. Validation Model
+## 5. Top-Level E2E Test
+
+`test` at the top level is for end-to-end expectations after the rewrite phase
+and the permission phase have both completed.
+
+```yaml
+test:
+  - in: "aws --profile prod sts get-caller-identity"
+    rewritten: "AWS_PROFILE=prod aws sts get-caller-identity"
+    decision: allow
+```
+
+- `test`: required non-empty array
+- each case requires `in`
+- each case requires `decision`
+- `rewritten` is optional but recommended
+
+Top-level `test.pass` is not part of the schema.
+
+## 6. Validation Model
 
 Validation is strict and aggregate.
 
-- parsing should report all discovered schema issues in one run
-- invalid matcher combinations are validation errors
-- invalid directive payloads are validation errors
+- invalid matcher payloads are validation errors
+- invalid rewrite payloads are validation errors
+- invalid permission payloads are validation errors
 - unsupported built-in rewrite contracts are validation errors
-- missing tests are validation errors
-- empty or ambiguous rules are validation errors
+- missing local tests are validation errors
+- missing top-level E2E tests are validation errors
 
-## 9. Out Of Scope
+## 7. Out Of Scope
 
 The following remain out of scope for the current model:
 
 - arbitrary shell templating
 - user-defined rewrite plugins
-- implicit multi-step rewrite pipelines within one rule
 - remote includes or hosted policy packs
+- tool-specific settings as the primary permission source of truth

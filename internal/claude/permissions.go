@@ -29,6 +29,14 @@ func CheckCommand(cmd string, cwd string, home string) PermissionVerdict {
 	return checkCommandWithRules(cmd, denyRules, askRules, allowRules)
 }
 
+func SettingsPaths(cwd string, home string) []string {
+	return settingsPaths(cwd, home)
+}
+
+func ProjectRoot(cwd string) string {
+	return findProjectRoot(cwd)
+}
+
 func checkCommandWithRules(cmd string, denyRules []string, askRules []string, allowRules []string) PermissionVerdict {
 	segments := splitCompoundCommand(cmd)
 	anyAsk := false
@@ -126,6 +134,9 @@ func findProjectRoot(cwd string) string {
 	}
 	for {
 		if _, err := os.Stat(filepath.Join(dir, claudeDir)); err == nil {
+			return dir
+		}
+		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
 			return dir
 		}
 		parent := filepath.Dir(dir)

@@ -1,16 +1,17 @@
 ---
 title: "cmdproxy hook"
 status: proposed
-date: 2026-04-20
+date: 2026-04-23
 ---
 
 # cmdproxy hook
 
 ## Purpose
 
-`cmdproxy hook claude` is the Claude Code hook entrypoint. It reads the
-Claude Code `PreToolUse` Bash payload from stdin, applies directive-driven
-policy evaluation, and emits Claude Code hook JSON on stdout.
+`cmdproxy hook <tool>` is the tool-specific hook entrypoint. In the current
+implementation, `claude` is the supported tool. It reads the tool hook payload
+from stdin, applies the configured rewrite and permission pipeline, and emits
+tool-specific hook JSON on stdout.
 
 ## Input Sources
 
@@ -23,50 +24,64 @@ caller.
 
 ## Runtime Behavior
 
-The target flow is:
+The current flow is:
 
 1. Read stdin fully
 2. Parse Claude Code hook JSON
 3. Normalize the Bash command into an invocation request
-4. Load the verified artifact for the effective config
-5. Parse the invocation internally
-6. Evaluate rules using first-match directive semantics, including
-   `rewrite.continue`
-7. Emit Claude Code hook JSON:
-   - no output for `pass`
-   - `updatedInput` for `rewrite`
-   - deny decision for `reject`
-   - deny decision for `error`
+4. Resolve global and project-local `cmdproxy` policy for the tool
+5. Resolve global and project-local tool settings for the tool
+6. Load the verified artifact for the effective merged state
+7. Evaluate the rewrite pipeline
+8. Evaluate `cmdproxy` permissions on the rewritten command
+9. Evaluate tool-native permissions for migration and coexistence
+10. Combine both permission sources with:
+   - deny if either side denies
+   - allow if either side allows
+   - ask otherwise
+11. Emit tool hook JSON:
+   - `allow`: `permissionDecision: "allow"`
+   - `ask`: no `permissionDecision`, so Claude prompts
+   - `deny`: `permissionDecision: "deny"`
+   - `error`: deny response
 
 ## Implemented Rewrite Support
 
 The current implementation already supports rewrite outcomes for:
 
-- `rewrite.unwrap_shell_dash_c`
-- `rewrite.move_flag_to_env`
-- `rewrite.move_env_to_flag`
-- `rewrite.unwrap_wrapper`
-- `rewrite.strip_command_path`
+- `move_flag_to_env`
+- `move_env_to_flag`
+- `unwrap_shell_dash_c`
+- `unwrap_wrapper`
+- `strip_command_path`
 
 If a rewrite primitive matches but cannot safely rewrite the invocation,
-evaluation continues and the original command may still pass unless a later
-`reject` rule matches.
+evaluation continues with the current command.
 
-## Claude Permission Carryover
+## Permission Coexistence
+
+`cmdproxy` and tool-native settings coexist during evaluation.
+
+`cmdproxy` is responsible for:
+
+- rewrite
+- flexible additional permission rules
+- end-to-end policy tests
+
+Tool-native settings remain part of the effective runtime verdict during
+evaluation and verification.
+
+## RTK Integration
 
 When `cmdproxy hook claude --rtk` is used, the runtime order is:
 
-1. evaluate `cmdproxy`
-2. if needed, rewrite into the post-`cmdproxy` command
-3. evaluate Claude permissions against that post-`cmdproxy` command
-4. apply the final `rtk` rewrite
-5. emit the final `updatedInput.command`
+1. evaluate `cmdproxy` rewrite pipeline
+2. evaluate `cmdproxy` permission pipeline
+3. evaluate Claude settings permission
+4. combine both verdicts
+5. if not denied, apply the final `rtk` rewrite
+6. emit the final `updatedInput.command`
 
-This preserves permission intent even when external Bash hooks are not executed
-serially.
-
-## Notes
-
-- `check` remains the local interactive command for inspecting one command
-  string at a time
-- downstream permission systems remain the final execution authority
+This keeps permission decisions stable even when external Bash hooks are not
+executed serially, and it ensures permission checks happen before `rtk`
+rewrites the visible command.

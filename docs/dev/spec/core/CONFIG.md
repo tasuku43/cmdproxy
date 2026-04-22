@@ -12,13 +12,24 @@ This document defines where `cmdproxy` looks for configuration in v1.
 
 ## 2. Supported Locations
 
-v1 supports one primary configuration file:
+`cmdproxy` loads pure policy from two optional layers:
 
-1. User-wide: `$XDG_CONFIG_HOME/cmdproxy/cmdproxy.yml`, or
-   `~/.config/cmdproxy/cmdproxy.yml` by default
+1. User-wide:
+   - `$XDG_CONFIG_HOME/cmdproxy/cmdproxy.yml`, or
+   - `~/.config/cmdproxy/cmdproxy.yml` by default
+2. Project-local:
+   - `<project-root>/.cmdproxy/cmdproxy.yml`
+   - `<project-root>/.cmdproxy/cmdproxy.yaml`
 
-The file is optional. If it does not exist, evaluation proceeds with an empty
-rule set.
+The effective policy is the merge of:
+
+- global `cmdproxy` policy
+- project-local `cmdproxy` policy
+
+Project root resolution is tool-aware and is delegated to `cmdproxy hook <tool>`
+and `cmdproxy verify <tool>`.
+
+Missing files are allowed and treated as absent layers.
 
 ## 3. ID Collision Policy
 
@@ -39,9 +50,8 @@ silently falling back to partial policy enforcement.
 
 ## 5. Future Extensions
 
-These are post-v1 concerns:
+These are still post-v1 concerns:
 
-- project-local policy files
 - `include:` directives
 - rule packs
 - explicit override semantics

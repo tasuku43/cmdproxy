@@ -1,17 +1,20 @@
 ---
 title: "cmdproxy specs"
 status: proposed
-date: 2026-04-19
+date: 2026-04-22
 ---
 
 # cmdproxy specs
 
-This directory contains the proposed implementation contracts for the next
+This directory contains the proposed implementation contracts for the current
 `cmdproxy` model.
 
-The repository currently contains an earlier deny-only implementation. The
-documents in this directory are being rewritten to define the target
-directive-driven architecture.
+The repository is moving from a directive-oriented redesign into a pipeline
+model with:
+
+1. rewrite
+2. permission
+3. end-to-end testing
 
 ## Metadata rules
 
@@ -26,12 +29,12 @@ directive-driven architecture.
 
 ## Target priorities
 
-The next `cmdproxy` contract prioritizes:
+The current `cmdproxy` contract prioritizes:
 
 1. Invocation canonicalization before permission evaluation
-2. A directive model based on `rewrite` and `reject`
+2. `cmdproxy`-owned permission decisions
 3. Simple caller input, rich internal normalization
-4. Deterministic first-match rule application
+4. Deterministic rewrite ordering and deterministic permission bucket ordering
 5. Reviewable, testable policy authoring
 
 ## Index
@@ -39,16 +42,15 @@ The next `cmdproxy` contract prioritizes:
 - Core
   - `core/COMPATIBILITY.md`: versioning and compatibility stance
   - `core/INPUT_MODEL.md`: supported stdin payloads and normalized invocation model
-  - `core/RULE_SCHEMA.md`: directive-based YAML schema
+  - `core/RULE_SCHEMA.md`: YAML schema for `rewrite`, `permission`, and `test`
   - `core/CONFIG.md`: config locations and invalid-state handling
-  - `core/EVALUATION.md`: parse, match, directive application, and pass-through behavior
-  - `core/OUTPUT_CONTRACT.md`: output contract for pass, rewrite, reject, and error
+  - `core/EVALUATION.md`: rewrite phase plus permission phase
+  - `core/OUTPUT_CONTRACT.md`: output contract for allow, ask, deny, and error
 - Commands
   - `commands/hook.md`: Claude Code hook entrypoint and hook-specific output contract
   - `commands/check.md`: interactive single-command evaluation
   - `commands/init.md`: setup and starter config behavior
-  - `commands/test.md`: rule example verification behavior
-  - `commands/doctor.md`: setup and rule health diagnostics
+  - `commands/doctor.md`: setup and pipeline health diagnostics
   - `commands/verify.md`: trust-oriented local verification
   - `commands/version.md`: binary build metadata and provenance visibility
 

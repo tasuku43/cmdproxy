@@ -73,22 +73,25 @@ func BenchmarkEvaluateRequestWithLargeConfig(b *testing.B) {
 
 func benchmarkConfig(ruleCount, examplesPerRule int) string {
 	var buf bytes.Buffer
-	buf.WriteString("rules:\n")
+	buf.WriteString("permission:\n")
+	buf.WriteString("  deny:\n")
 	for i := 0; i < ruleCount; i++ {
-		fmt.Fprintf(&buf, "  - id: bench-rule-%d\n", i)
 		if i == ruleCount-1 {
-			buf.WriteString("    pattern: '^\\s*git\\s+-C\\b'\n")
+			buf.WriteString("    - match:\n")
+			buf.WriteString("        command: git\n")
+			buf.WriteString("        args_contains:\n")
+			buf.WriteString("          - \"-C\"\n")
 		} else {
-			fmt.Fprintf(&buf, "    pattern: '^command-%d\\b'\n", i)
+			buf.WriteString("    - match:\n")
+			fmt.Fprintf(&buf, "        command: command-%d\n", i)
 		}
-		buf.WriteString("    reject:\n")
 		if i == ruleCount-1 {
 			buf.WriteString("      message: \"git -C is blocked. cd into the repo first.\"\n")
 		} else {
 			fmt.Fprintf(&buf, "      message: \"command-%d is blocked. use a safer alternative instead.\"\n", i)
 		}
 		buf.WriteString("      test:\n")
-		buf.WriteString("        expect:\n")
+		buf.WriteString("        deny:\n")
 		for j := 0; j < examplesPerRule; j++ {
 			if i == ruleCount-1 && j == 0 {
 				buf.WriteString("          - \"git -C repos/foo status\"\n")
@@ -101,6 +104,9 @@ func benchmarkConfig(ruleCount, examplesPerRule int) string {
 			fmt.Fprintf(&buf, "          - \"safe-command-%d-%d\"\n", i, j)
 		}
 	}
+	buf.WriteString("test:\n")
+	buf.WriteString("  - in: \"git -C repos/foo status\"\n")
+	buf.WriteString("    decision: deny\n")
 	return buf.String()
 }
 

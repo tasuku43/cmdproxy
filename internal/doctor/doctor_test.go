@@ -1,93 +1,54 @@
 package doctor
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/tasuku43/cmdproxy/internal/config"
 	"github.com/tasuku43/cmdproxy/internal/domain/policy"
 )
 
-func TestExtractClaudeHookCommandFindsAbsoluteCommand(t *testing.T) {
-	raw := `{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          { "type": "command", "command": "/tmp/cmdproxy hook claude --rtk" }
-        ]
-      }
-    ]
-  }
-}`
-	command, absolute := extractClaudeHookCommand(raw)
-	if command != "/tmp/cmdproxy hook claude --rtk" {
-		t.Fatalf("command = %q", command)
-	}
-	if !absolute {
-		t.Fatalf("expected absolute path detection")
-	}
-}
-
-func TestRunWarnsWhenClaudeHookTargetIsMissing(t *testing.T) {
-	home := t.TempDir()
-	settingsDir := filepath.Join(home, ".claude")
-	if err := os.MkdirAll(settingsDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	settings := `{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          { "type": "command", "command": "/tmp/does-not-exist-cmdproxy hook claude" }
-        ]
-      }
-    ]
-  }
-}`
-	if err := os.WriteFile(filepath.Join(settingsDir, "settings.json"), []byte(settings), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	report := Run(config.Loaded{}, home)
-	if !hasCheck(report, "install.claude-hook-target", StatusWarn) {
-		t.Fatalf("report = %+v", report)
-	}
-}
-
-func TestRunWarnsWhenRelaxedContractsAreEnabled(t *testing.T) {
-	report := Run(config.Loaded{
-		Rules: []policy.Rule{
-			policy.NewRule(policy.RuleSpec{
-				ID: "kubectl-kubeconfig-to-env",
-				Matcher: policy.MatchSpec{
-					Command: "kubectl",
+func TestRunWarnsOnRelaxedRewriteContracts(t *testing.T) {
+	strict := false
+	loaded := config.Loaded{
+		Pipeline: policy.NewPipeline(policy.PipelineSpec{
+			Rewrite: []policy.RewriteStepSpec{{
+				Match: policy.MatchSpec{Command: "kubectl"},
+				MoveFlagToEnv: policy.MoveFlagToEnvSpec{
+					Flag: "--kubeconfig",
+					Env:  "KUBECONFIG",
 				},
-				Rewrite: policy.RewriteSpec{
-					MoveFlagToEnv: policy.MoveFlagToEnvSpec{
-						Flag: "--kubeconfig",
-						Env:  "KUBECONFIG",
-					},
-					Strict: boolPtr(false),
-					Test: policy.RewriteTestSpec{
-						Expect: []policy.RewriteExpectCase{{In: "kubectl --kubeconfig /tmp/dev get pods", Out: "KUBECONFIG=/tmp/dev kubectl get pods"}},
-						Pass:   []string{"KUBECONFIG=/tmp/dev kubectl get pods"},
-					},
+				Strict: &strict,
+				Test: policy.RewriteTestSpec{
+					{In: "kubectl --kubeconfig /tmp/dev get pods", Out: "KUBECONFIG=/tmp/dev kubectl get pods"},
+					{Pass: "KUBECONFIG=/tmp/dev kubectl get pods"},
 				},
-			}, policy.Source{Layer: config.LayerUser, Path: "/tmp/cmdproxy.yml"}),
-		},
-	}, t.TempDir())
-	if !hasCheck(report, "rules.relaxed-contracts", StatusWarn) {
-		t.Fatalf("report = %+v", report)
+			}},
+			Test: policy.PipelineTestSpec{{In: "kubectl --kubeconfig /tmp/dev get pods", Decision: "ask"}},
+		}, policy.Source{}),
+	}
+
+	report := Run(loaded, "claude", t.TempDir(), t.TempDir())
+	if !hasCheck(report, "rewrite.relaxed-contracts", StatusWarn) {
+		t.Fatalf("checks = %+v", report.Checks)
 	}
 }
 
-func boolPtr(v bool) *bool {
-	return &v
+func TestRunPassesWhenPipelineTestsMatch(t *testing.T) {
+	loaded := config.Loaded{
+		Pipeline: policy.NewPipeline(policy.PipelineSpec{
+			Permission: policy.PermissionSpec{
+				Allow: []policy.PermissionRuleSpec{{
+					Match: policy.MatchSpec{Command: "git", Subcommand: "status"},
+					Test:  policy.PermissionTestSpec{Allow: []string{"git status"}, Pass: []string{"git diff"}},
+				}},
+			},
+			Test: policy.PipelineTestSpec{{In: "git status", Decision: "allow"}},
+		}, policy.Source{}),
+	}
+	report := Run(loaded, "claude", t.TempDir(), t.TempDir())
+	if !hasCheck(report, "tests.pass", StatusPass) {
+		t.Fatalf("checks = %+v", report.Checks)
+	}
 }
 
 func hasCheck(report Report, id string, status Status) bool {

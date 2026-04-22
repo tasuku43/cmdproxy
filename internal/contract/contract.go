@@ -60,46 +60,50 @@ func (r mapRegistry) Lookup(command string) (Contract, bool) {
 	return ctr, ok
 }
 
-func ValidateRules(rules []policy.RuleSpec) []string {
+func ValidateRewrites(steps []policy.RewriteStepSpec) []string {
 	var issues []string
 	reg := DefaultRegistry()
-	for i, rule := range rules {
-		prefix := fmt.Sprintf("rules[%d]", i)
-		issues = append(issues, validateRule(prefix, rule, reg)...)
+	for i, step := range steps {
+		prefix := fmt.Sprintf("rewrite[%d]", i)
+		issues = append(issues, validateRewriteStep(prefix, step, reg)...)
 	}
 	return issues
 }
 
-func validateRule(prefix string, rule policy.RuleSpec, reg Registry) []string {
-	if policy.IsZeroRewriteSpec(rule.Rewrite) {
+func validateRewriteStep(prefix string, step policy.RewriteStepSpec, reg Registry) []string {
+	if policy.IsZeroUnwrapWrapperSpec(step.UnwrapWrapper) &&
+		policy.IsZeroMoveFlagToEnvSpec(step.MoveFlagToEnv) &&
+		policy.IsZeroMoveEnvToFlagSpec(step.MoveEnvToFlag) &&
+		!step.UnwrapShellDashC &&
+		!step.StripCommandPath {
 		return nil
 	}
-	if rule.Rewrite.StripCommandPath {
+	if step.StripCommandPath {
 		return nil
 	}
 
-	command := strings.TrimSpace(rule.Matcher.Command)
+	command := strings.TrimSpace(step.Match.Command)
 	if command == "" {
 		switch {
-		case rule.Rewrite.UnwrapShellDashC:
+		case step.UnwrapShellDashC:
 			command = "shell"
-		case !policy.IsZeroUnwrapWrapperSpec(rule.Rewrite.UnwrapWrapper):
+		case !policy.IsZeroUnwrapWrapperSpec(step.UnwrapWrapper):
 			command = "wrapper"
 		}
 	}
 
 	if command == "" {
-		return []string{prefix + ".rewrite requires match.command for contract-validated rewrite primitives"}
+		return []string{prefix + " requires match.command for contract-validated rewrite primitives"}
 	}
 
 	ctr, ok := reg.Lookup(command)
 	if !ok {
 		return []string{fmt.Sprintf("%s.match.command %q is not supported by built-in rewrite contracts", prefix, command)}
 	}
-	return validateRewrite(prefix+".rewrite", ctr, rule.Rewrite)
+	return validateRewrite(prefix, ctr, step)
 }
 
-func validateRewrite(prefix string, ctr Contract, rewrite policy.RewriteSpec) []string {
+func validateRewrite(prefix string, ctr Contract, rewrite policy.RewriteStepSpec) []string {
 	var issues []string
 	strict := policy.RewriteStrict(rewrite)
 	switch {

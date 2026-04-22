@@ -1,10 +1,13 @@
 # Start Here
 
-`cmdproxy` is a local CLI that sits in front of command execution and enforces
-policy-approved invocation shape.
+`cmdproxy` is a local CLI that sits in front of command execution and evaluates
+command policy in two phases:
 
-Its main job is to normalize command shape so downstream permission systems
-evaluate the invocation you intended, not a drifted wrapper-heavy form.
+1. rewrite the command into its canonical form
+2. evaluate permissions on the rewritten command
+
+Its config file is now the source of truth for both rewrite behavior and shell
+permission behavior.
 
 ## Quick Start
 
@@ -30,7 +33,7 @@ cmdproxy check aws --profile read-only-profile s3 ls
 cmdproxy check bash -c 'git status'
 ```
 
-5. Register `cmdproxy hook claude` in your hook runner
+5. Register `cmdproxy hook claude --rtk` in Claude Code
 
 ## Verifying an Installed Binary
 
@@ -64,19 +67,24 @@ For Claude Code, add `cmdproxy hook claude --rtk` as a `PreToolUse` Bash hook.
 }
 ```
 
-`cmdproxy hook claude --rtk` does not depend on Bash hook ordering. It rewrites
-with `cmdproxy`, evaluates Claude permissions against that rewritten command,
-then applies the final `rtk` rewrite before returning `updatedInput`.
+`cmdproxy hook claude --rtk` evaluates `cmdproxy` policy first. It returns:
 
-## Current Rule Model
+- `allow`: auto-allow immediately
+- `ask`: let Claude prompt
+- `deny`: block immediately
 
-- rules use `match` or `pattern`
-- rules use one directive: `rewrite` or `reject`
-- rewrite rules may opt into `strict: false` for relaxed built-in contracts
-- tests live under the directive
-- `rewrite.test.expect` uses `in` / `out`
-- `reject.test.expect` uses string inputs
-- both directive kinds use `test.pass`
+If `rtk` rewriting is enabled, that final rewrite is applied after `cmdproxy`
+has already decided the permission outcome.
+
+## Current Config Model
+
+- top-level keys are `rewrite`, `permission`, `test`
+- `rewrite` is an ordered array of rewrite steps
+- each rewrite step may have an optional `match`
+- `permission` is split into `deny`, `ask`, `allow`
+- permission buckets are evaluated in the order `deny -> ask -> allow`
+- rewrite steps and permission rules can each have local tests
+- top-level `test.expect` is for end-to-end behavior
 
 If you are contributing to the implementation, start from
 `docs/dev/README.md` instead.

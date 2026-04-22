@@ -1,7 +1,7 @@
 ---
 title: "Output Contract"
 status: proposed
-date: 2026-04-19
+date: 2026-04-22
 ---
 
 # Output Contract
@@ -11,69 +11,66 @@ date: 2026-04-19
 This document defines the target output contract for the main hook entrypoint of
 `cmdproxy`.
 
-The command name is `hook claude`, and the contract below is for the
-directive-driven model.
+The command name is `hook claude`, and the contract below is for the current
+rewrite-plus-permission model.
 
 ## 2. Runtime Outcomes
 
 The target runtime outcomes are:
 
-- `pass`: original invocation forwarded unchanged
-- `rewrite`: transformed invocation forwarded
-- `reject`: invocation blocked
+- `allow`: invocation may proceed automatically
+- `ask`: invocation should prompt the user
+- `deny`: invocation is blocked
 - `error`: invalid input, invalid config, or internal failure
 
 ## 3. Default Output Mode
 
 The default human-readable mode should remain concise.
 
-- `pass`: normally no output
-- `rewrite`: optional concise trace or no output, depending on caller needs
-- `reject`: explanation to `stderr`
+- `allow`: optional concise trace or no output
+- `ask`: optional concise trace or no output
+- `deny`: explanation to `stderr`
 - `error`: explanation to `stderr`
 
 ## 4. Structured Output Mode
 
-The structured output mode should expose the directive result explicitly.
+The structured output mode should expose the final pipeline result explicitly.
 
 Target JSON shape:
 
-### Pass payload
+### Allow payload
 
 ```json
 {
-  "decision": "pass",
-  "command": "git status"
+  "decision": "allow",
+  "command": "AWS_PROFILE=prod aws sts get-caller-identity",
+  "original_command": "aws --profile prod sts get-caller-identity",
+  "message": "",
+  "trace": []
 }
 ```
 
-### Rewrite payload
+### Ask payload
 
 ```json
 {
-  "decision": "rewrite",
-  "rule_id": "aws-profile-to-env",
+  "decision": "ask",
   "command": "AWS_PROFILE=prod aws s3 ls",
   "original_command": "aws --profile prod s3 ls",
-  "source": {
-    "layer": "user",
-    "path": "/home/alice/.config/cmdproxy/cmdproxy.yml"
-  }
+  "message": "s3 operations require confirmation",
+  "trace": []
 }
 ```
 
-### Reject payload
+### Deny payload
 
 ```json
 {
-  "decision": "reject",
-  "rule_id": "no-shell-dash-c",
-  "message": "shell -c must not pass through unchanged.",
-  "command": "bash -c 'git status && git diff'",
-  "source": {
-    "layer": "user",
-    "path": "/home/alice/.config/cmdproxy/cmdproxy.yml"
-  }
+  "decision": "deny",
+  "command": "AWS_PROFILE=prod aws s3 rm s3://example --delete",
+  "original_command": "aws --profile prod s3 rm s3://example --delete",
+  "message": "delete is blocked",
+  "trace": []
 }
 ```
 
@@ -91,28 +88,22 @@ Target JSON shape:
 
 ## 5. Exit Codes
 
-The target exit-code model should distinguish runtime errors from policy
-results, but it should not force `rewrite` to look like a hard deny.
+The current mapping is:
 
-The currently implemented mapping is:
-
-- `pass`: exit `0`
-- `rewrite`: exit `0`
-- `reject`: exit `2`
+- `allow`: exit `0`
+- `ask`: exit `0`
+- `deny`: exit `2`
 - `error`: exit `1`
 
-The longer-term semantics remain:
+The important distinction is:
 
-- success path for `pass`
-- success path for `rewrite`
-- distinct non-success path for `reject`
+- success path for `allow`
+- success path for `ask`
+- distinct non-success path for `deny`
 - distinct non-success path for `error`
-
-If caller integrations constrain this shape, the wrapper contract may need an
-adapter-specific encoding.
 
 ## 6. Integration Note
 
-The central design goal is that downstream systems such as Claude Code can
-evaluate permissions against the canonicalized invocation, not only against the
-original malformed one.
+The central design goal is that `cmdproxy` itself becomes the primary
+permission authority for shell commands, after the rewrite pipeline has already
+produced the canonical command shape.

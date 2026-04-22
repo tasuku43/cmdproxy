@@ -11,22 +11,16 @@ import (
 	"github.com/tasuku43/cmdproxy/internal/domain/invocation"
 )
 
-var ruleIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
-
-type RuleSpec struct {
-	ID      string      `yaml:"id"`
-	Pattern string      `yaml:"pattern"`
-	Matcher MatchSpec   `yaml:"match"`
-	Reject  RejectSpec  `yaml:"reject"`
-	Rewrite RewriteSpec `yaml:"rewrite"`
+type PipelineSpec struct {
+	Rewrite    []RewriteStepSpec `yaml:"rewrite" json:"rewrite,omitempty"`
+	Permission PermissionSpec    `yaml:"permission" json:"permission,omitempty"`
+	Test       PipelineTestSpec  `yaml:"test" json:"test,omitempty"`
 }
 
-type RejectSpec struct {
-	Message string         `yaml:"message" json:"message,omitempty"`
-	Test    RejectTestSpec `yaml:"test" json:"test,omitempty"`
-}
-
-type RewriteSpec struct {
+type RewriteStepSpec struct {
+	Match            MatchSpec         `yaml:"match" json:"match,omitempty"`
+	Pattern          string            `yaml:"pattern" json:"pattern,omitempty"`
+	Patterns         []string          `yaml:"patterns" json:"patterns,omitempty"`
 	UnwrapShellDashC bool              `yaml:"unwrap_shell_dash_c" json:"unwrap_shell_dash_c,omitempty"`
 	UnwrapWrapper    UnwrapWrapperSpec `yaml:"unwrap_wrapper" json:"unwrap_wrapper,omitempty"`
 	MoveFlagToEnv    MoveFlagToEnvSpec `yaml:"move_flag_to_env" json:"move_flag_to_env,omitempty"`
@@ -35,6 +29,35 @@ type RewriteSpec struct {
 	Strict           *bool             `yaml:"strict" json:"strict,omitempty"`
 	Continue         bool              `yaml:"continue" json:"continue,omitempty"`
 	Test             RewriteTestSpec   `yaml:"test" json:"test,omitempty"`
+}
+
+type PermissionSpec struct {
+	Deny  []PermissionRuleSpec `yaml:"deny" json:"deny,omitempty"`
+	Ask   []PermissionRuleSpec `yaml:"ask" json:"ask,omitempty"`
+	Allow []PermissionRuleSpec `yaml:"allow" json:"allow,omitempty"`
+}
+
+type PermissionRuleSpec struct {
+	Match    MatchSpec          `yaml:"match" json:"match,omitempty"`
+	Pattern  string             `yaml:"pattern" json:"pattern,omitempty"`
+	Patterns []string           `yaml:"patterns" json:"patterns,omitempty"`
+	Message  string             `yaml:"message" json:"message,omitempty"`
+	Test     PermissionTestSpec `yaml:"test" json:"test,omitempty"`
+}
+
+type PermissionTestSpec struct {
+	Allow []string `yaml:"allow" json:"allow,omitempty"`
+	Ask   []string `yaml:"ask" json:"ask,omitempty"`
+	Deny  []string `yaml:"deny" json:"deny,omitempty"`
+	Pass  []string `yaml:"pass" json:"pass,omitempty"`
+}
+
+type PipelineTestSpec []PipelineExpectCase
+
+type PipelineExpectCase struct {
+	In        string `yaml:"in" json:"in,omitempty"`
+	Rewritten string `yaml:"rewritten" json:"rewritten,omitempty"`
+	Decision  string `yaml:"decision" json:"decision,omitempty"`
 }
 
 type MoveFlagToEnvSpec struct {
@@ -51,19 +74,12 @@ type UnwrapWrapperSpec struct {
 	Wrappers []string `yaml:"wrappers" json:"wrappers,omitempty"`
 }
 
-type RejectTestSpec struct {
-	Expect []string `yaml:"expect" json:"expect,omitempty"`
-	Pass   []string `yaml:"pass" json:"pass,omitempty"`
-}
+type RewriteTestSpec []RewriteTestCase
 
-type RewriteTestSpec struct {
-	Expect []RewriteExpectCase `yaml:"expect" json:"expect,omitempty"`
-	Pass   []string            `yaml:"pass" json:"pass,omitempty"`
-}
-
-type RewriteExpectCase struct {
-	In  string `yaml:"in" json:"in,omitempty"`
-	Out string `yaml:"out" json:"out,omitempty"`
+type RewriteTestCase struct {
+	In   string `yaml:"in" json:"in,omitempty"`
+	Out  string `yaml:"out" json:"out,omitempty"`
+	Pass string `yaml:"pass" json:"pass,omitempty"`
 }
 
 type MatchSpec struct {
@@ -82,10 +98,9 @@ type Source struct {
 	Path  string `json:"path"`
 }
 
-type Rule struct {
-	RuleSpec
+type Pipeline struct {
+	PipelineSpec
 	Source Source `json:"source"`
-	re     *regexp.Regexp
 }
 
 type ValidationError struct {
@@ -98,15 +113,16 @@ func (e *ValidationError) Error() string {
 
 type Decision struct {
 	Outcome         string
-	Rule            *Rule
 	Command         string
 	OriginalCommand string
+	Message         string
 	Trace           []TraceStep
 }
 
 type TraceStep struct {
-	RuleID   string `json:"rule_id"`
 	Action   string `json:"action"`
+	Name     string `json:"name,omitempty"`
+	Effect   string `json:"effect,omitempty"`
 	From     string `json:"from,omitempty"`
 	To       string `json:"to,omitempty"`
 	Message  string `json:"message,omitempty"`
@@ -114,86 +130,142 @@ type TraceStep struct {
 	Continue bool   `json:"continue,omitempty"`
 }
 
-const maxRewritePasses = 4
-
-func NewRule(spec RuleSpec, src Source) Rule {
-	r := Rule{RuleSpec: spec, Source: src}
-	if strings.TrimSpace(spec.Pattern) != "" {
-		r.re, _ = regexp.Compile(spec.Pattern)
-	}
-	return r
+func NewPipeline(spec PipelineSpec, src Source) Pipeline {
+	return Pipeline{PipelineSpec: spec, Source: src}
 }
 
-func Evaluate(rules []Rule, command string) (Decision, error) {
+func Evaluate(p Pipeline, command string) (Decision, error) {
 	current := command
-	var lastRewriteRule *Rule
 	trace := []TraceStep{}
-	for pass := 0; pass < maxRewritePasses; pass++ {
-		restarted := false
-		for i := range rules {
-			matched, err := rules[i].Match(current)
-			if err != nil {
-				return Decision{}, err
-			}
-			if !matched {
-				continue
-			}
-			if !IsZeroRewriteSpec(rules[i].Rewrite) {
-				rewritten, ok := rules[i].RewriteCommand(current)
-				if !ok {
-					continue
-				}
-				step := TraceStep{
-					RuleID:   rules[i].ID,
-					Action:   "rewrite",
-					From:     current,
-					To:       rewritten,
-					Relaxed:  !RewriteStrict(rules[i].Rewrite),
-					Continue: rules[i].Rewrite.Continue,
-				}
-				trace = append(trace, step)
-				if rules[i].Rewrite.Continue {
-					if rewritten == current {
-						return Decision{}, fmt.Errorf("rewrite rule %s produced no-op continue", rules[i].ID)
-					}
-					lastRewriteRule = &rules[i]
-					current = rewritten
-					restarted = true
-					break
-				}
-				return Decision{Outcome: "rewrite", Rule: &rules[i], Command: rewritten, OriginalCommand: command, Trace: trace}, nil
-			}
-			trace = append(trace, TraceStep{
-				RuleID:  rules[i].ID,
-				Action:  "reject",
-				From:    current,
-				Message: rules[i].RejectMessage(),
-			})
-			return Decision{Outcome: "reject", Rule: &rules[i], Command: current, OriginalCommand: command, Trace: trace}, nil
-		}
-		if restarted {
+
+	for _, step := range p.Rewrite {
+		if !RewriteStepMatches(step, current) {
 			continue
 		}
-		if current != command {
-			return Decision{Outcome: "rewrite", Rule: lastRewriteRule, Command: current, OriginalCommand: command, Trace: trace}, nil
+		rewritten, ok := applyRewriteStep(step, current)
+		if !ok {
+			continue
 		}
-		return Decision{Outcome: "pass", Command: current, OriginalCommand: command, Trace: trace}, nil
+		trace = append(trace, TraceStep{
+			Action:   "rewrite",
+			Name:     rewritePrimitiveName(step),
+			From:     current,
+			To:       rewritten,
+			Relaxed:  !RewriteStrict(step),
+			Continue: step.Continue,
+		})
+		current = rewritten
+		if !step.Continue {
+			break
+		}
 	}
-	return Decision{}, fmt.Errorf("rewrite evaluation exceeded %d passes", maxRewritePasses)
+
+	if rule, ok := firstPermissionMatch(p.Permission.Deny, current); ok {
+		trace = append(trace, TraceStep{Action: "permission", Effect: "deny", Message: rule.Message})
+		return Decision{Outcome: "deny", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
+	}
+	if rule, ok := firstPermissionMatch(p.Permission.Ask, current); ok {
+		trace = append(trace, TraceStep{Action: "permission", Effect: "ask", Message: rule.Message})
+		return Decision{Outcome: "ask", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
+	}
+	if rule, ok := firstPermissionMatch(p.Permission.Allow, current); ok {
+		trace = append(trace, TraceStep{Action: "permission", Effect: "allow", Message: rule.Message})
+		return Decision{Outcome: "allow", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
+	}
+
+	trace = append(trace, TraceStep{Action: "permission", Effect: "ask", Name: "default"})
+	return Decision{Outcome: "ask", Command: current, OriginalCommand: command, Trace: trace}, nil
 }
 
-func (r Rule) Match(command string) (bool, error) {
-	if !IsZeroMatchSpec(r.Matcher) {
-		return r.Matcher.matches(invocation.Parse(command)), nil
+func firstPermissionMatch(rules []PermissionRuleSpec, command string) (PermissionRuleSpec, bool) {
+	for _, rule := range rules {
+		if PermissionRuleMatches(rule, command) {
+			return rule, true
+		}
 	}
-	if r.re != nil {
-		return r.re.MatchString(command), nil
+	return PermissionRuleSpec{}, false
+}
+
+func applyRewriteStep(step RewriteStepSpec, command string) (string, bool) {
+	if step.UnwrapShellDashC {
+		return directive.UnwrapShellDashC(command)
 	}
-	compiled, err := regexp.Compile(r.Pattern)
+	if !IsZeroUnwrapWrapperSpec(step.UnwrapWrapper) {
+		return directive.UnwrapWrapper(command, step.UnwrapWrapper.Wrappers)
+	}
+	if !IsZeroMoveFlagToEnvSpec(step.MoveFlagToEnv) {
+		return directive.MoveFlagToEnv(command, step.MoveFlagToEnv.Flag, step.MoveFlagToEnv.Env)
+	}
+	if !IsZeroMoveEnvToFlagSpec(step.MoveEnvToFlag) {
+		return directive.MoveEnvToFlag(command, step.MoveEnvToFlag.Env, step.MoveEnvToFlag.Flag)
+	}
+	if step.StripCommandPath {
+		return directive.StripCommandPath(command)
+	}
+	return "", false
+}
+
+func ApplyRewriteStepForTest(step RewriteStepSpec, command string) (string, bool) {
+	return applyRewriteStep(step, command)
+}
+
+func RewriteStepName(step RewriteStepSpec) string {
+	return rewritePrimitiveName(step)
+}
+
+func (m MatchSpec) MatchMatches(command string) bool {
+	return m.matches(invocation.Parse(command))
+}
+
+func RewriteStepMatches(step RewriteStepSpec, command string) bool {
+	return selectorMatches(command, step.Match, step.Pattern, step.Patterns)
+}
+
+func PermissionRuleMatches(rule PermissionRuleSpec, command string) bool {
+	return selectorMatches(command, rule.Match, rule.Pattern, rule.Patterns)
+}
+
+func selectorMatches(command string, match MatchSpec, pattern string, patterns []string) bool {
+	switch {
+	case !IsZeroMatchSpec(match):
+		return match.MatchMatches(command)
+	case strings.TrimSpace(pattern) != "":
+		return patternMatches(command, pattern)
+	case len(patterns) > 0:
+		for _, p := range patterns {
+			if patternMatches(command, p) {
+				return true
+			}
+		}
+		return false
+	default:
+		return true
+	}
+}
+
+func patternMatches(command string, pattern string) bool {
+	re, err := regexp.Compile(pattern)
 	if err != nil {
-		return false, err
+		return false
 	}
-	return compiled.MatchString(command), nil
+	return re.MatchString(command)
+}
+
+func rewritePrimitiveName(step RewriteStepSpec) string {
+	switch {
+	case step.UnwrapShellDashC:
+		return "unwrap_shell_dash_c"
+	case !IsZeroUnwrapWrapperSpec(step.UnwrapWrapper):
+		return "unwrap_wrapper"
+	case !IsZeroMoveFlagToEnvSpec(step.MoveFlagToEnv):
+		return "move_flag_to_env"
+	case !IsZeroMoveEnvToFlagSpec(step.MoveEnvToFlag):
+		return "move_env_to_flag"
+	case step.StripCommandPath:
+		return "strip_command_path"
+	default:
+		return "rewrite"
+	}
 }
 
 func (m MatchSpec) matches(parsed invocation.Parsed) bool {
@@ -235,89 +307,105 @@ func (m MatchSpec) matches(parsed invocation.Parsed) bool {
 	return true
 }
 
-func ValidateRuleMatcher(prefix string, pattern string, match MatchSpec) []string {
+func ValidatePipeline(spec PipelineSpec) []string {
 	var issues []string
-	hasPattern := strings.TrimSpace(pattern) != ""
-	hasMatch := !IsZeroMatchSpec(match)
-	switch {
-	case hasPattern && hasMatch:
-		issues = append(issues, prefix+" must not set both pattern and match")
-	case !hasPattern && !hasMatch:
-		issues = append(issues, prefix+" must set exactly one of pattern or match")
-	case hasPattern:
-		if _, err := regexp.Compile(pattern); err != nil {
-			issues = append(issues, prefix+".pattern failed to compile: "+err.Error())
-		}
-	case hasMatch:
-		issues = append(issues, ValidateMatchSpec(prefix+".match", match)...)
+	if len(spec.Rewrite) == 0 && IsZeroPermissionSpec(spec.Permission) {
+		issues = append(issues, "must set at least one rewrite or permission entry")
 	}
+	for i, step := range spec.Rewrite {
+		prefix := fmt.Sprintf("rewrite[%d]", i)
+		issues = append(issues, ValidateRewriteStep(prefix, step)...)
+	}
+	for i, rule := range spec.Permission.Deny {
+		issues = append(issues, ValidatePermissionRule(fmt.Sprintf("permission.deny[%d]", i), rule, "deny")...)
+	}
+	for i, rule := range spec.Permission.Ask {
+		issues = append(issues, ValidatePermissionRule(fmt.Sprintf("permission.ask[%d]", i), rule, "ask")...)
+	}
+	for i, rule := range spec.Permission.Allow {
+		issues = append(issues, ValidatePermissionRule(fmt.Sprintf("permission.allow[%d]", i), rule, "allow")...)
+	}
+	issues = append(issues, ValidatePipelineTest("test", spec.Test)...)
 	return issues
 }
 
-func ValidateDirective(prefix string, reject RejectSpec, rewrite RewriteSpec) []string {
-	hasReject := strings.TrimSpace(reject.Message) != ""
-	hasRewrite := !IsZeroRewriteSpec(rewrite)
-	switch {
-	case countDirectiveKinds(hasReject, hasRewrite) > 1:
-		return []string{prefix + " must set exactly one directive kind"}
-	case countDirectiveKinds(hasReject, hasRewrite) == 0:
-		return []string{prefix + " must set one directive"}
-	case hasRewrite:
-		return ValidateRewrite(prefix+".rewrite", rewrite)
-	case hasReject:
-		return ValidateReject(prefix+".reject", reject)
-	default:
-		return nil
-	}
-}
-
-func ValidateRewrite(prefix string, rewrite RewriteSpec) []string {
+func ValidateRewriteStep(prefix string, step RewriteStepSpec) []string {
 	var issues []string
+	issues = append(issues, ValidateSelector(prefix, step.Match, step.Pattern, step.Patterns, false)...)
 	primitiveCount := 0
-	if rewrite.UnwrapShellDashC {
+	if step.UnwrapShellDashC {
 		primitiveCount++
 	}
-	if !IsZeroUnwrapWrapperSpec(rewrite.UnwrapWrapper) {
+	if !IsZeroUnwrapWrapperSpec(step.UnwrapWrapper) {
 		primitiveCount++
-		issues = append(issues, validateNonEmptyStrings(prefix+".unwrap_wrapper.wrappers", rewrite.UnwrapWrapper.Wrappers)...)
+		issues = append(issues, validateNonEmptyStrings(prefix+".unwrap_wrapper.wrappers", step.UnwrapWrapper.Wrappers)...)
 	}
-	if !IsZeroMoveFlagToEnvSpec(rewrite.MoveFlagToEnv) {
+	if !IsZeroMoveFlagToEnvSpec(step.MoveFlagToEnv) {
 		primitiveCount++
-		if strings.TrimSpace(rewrite.MoveFlagToEnv.Flag) == "" {
+		if strings.TrimSpace(step.MoveFlagToEnv.Flag) == "" {
 			issues = append(issues, prefix+".move_flag_to_env.flag must be non-empty")
 		}
-		if strings.TrimSpace(rewrite.MoveFlagToEnv.Env) == "" {
+		if strings.TrimSpace(step.MoveFlagToEnv.Env) == "" {
 			issues = append(issues, prefix+".move_flag_to_env.env must be non-empty")
 		}
 	}
-	if !IsZeroMoveEnvToFlagSpec(rewrite.MoveEnvToFlag) {
+	if !IsZeroMoveEnvToFlagSpec(step.MoveEnvToFlag) {
 		primitiveCount++
-		if strings.TrimSpace(rewrite.MoveEnvToFlag.Env) == "" {
+		if strings.TrimSpace(step.MoveEnvToFlag.Env) == "" {
 			issues = append(issues, prefix+".move_env_to_flag.env must be non-empty")
 		}
-		if strings.TrimSpace(rewrite.MoveEnvToFlag.Flag) == "" {
+		if strings.TrimSpace(step.MoveEnvToFlag.Flag) == "" {
 			issues = append(issues, prefix+".move_env_to_flag.flag must be non-empty")
 		}
 	}
-	if rewrite.StripCommandPath {
+	if step.StripCommandPath {
 		primitiveCount++
 	}
 	switch {
 	case primitiveCount == 0:
-		issues = append(issues, prefix+" must not be empty")
+		issues = append(issues, prefix+" must set exactly one rewrite primitive")
 	case primitiveCount > 1:
 		issues = append(issues, prefix+" must set exactly one rewrite primitive")
 	}
-	issues = append(issues, ValidateRewriteTest(prefix+".test", rewrite.Test)...)
+	issues = append(issues, ValidateRewriteTest(prefix+".test", step.Test)...)
 	return issues
 }
 
-func ValidateReject(prefix string, reject RejectSpec) []string {
+func ValidatePermissionRule(prefix string, rule PermissionRuleSpec, effect string) []string {
 	var issues []string
-	if strings.TrimSpace(reject.Message) == "" {
-		issues = append(issues, prefix+".message must be non-empty")
+	issues = append(issues, ValidateSelector(prefix, rule.Match, rule.Pattern, rule.Patterns, true)...)
+	issues = append(issues, ValidatePermissionTest(prefix+".test", rule.Test, effect)...)
+	return issues
+}
+
+func ValidateSelector(prefix string, match MatchSpec, pattern string, patterns []string, required bool) []string {
+	var issues []string
+	count := 0
+	if !IsZeroMatchSpec(match) {
+		count++
+		issues = append(issues, ValidateMatchSpec(prefix+".match", match)...)
 	}
-	issues = append(issues, ValidateRejectTest(prefix+".test", reject.Test)...)
+	if strings.TrimSpace(pattern) != "" {
+		count++
+		if _, err := regexp.Compile(pattern); err != nil {
+			issues = append(issues, prefix+".pattern must compile: "+err.Error())
+		}
+	}
+	if len(patterns) > 0 {
+		count++
+		issues = append(issues, validateNonEmptyStrings(prefix+".patterns", patterns)...)
+		for i, p := range patterns {
+			if _, err := regexp.Compile(p); err != nil {
+				issues = append(issues, fmt.Sprintf("%s.patterns[%d] must compile: %s", prefix, i, err.Error()))
+			}
+		}
+	}
+	if required && count == 0 {
+		issues = append(issues, prefix+" must set one of match, pattern, or patterns")
+	}
+	if count > 1 {
+		issues = append(issues, prefix+" may set only one of match, pattern, or patterns")
+	}
 	return issues
 }
 
@@ -340,35 +428,80 @@ func ValidateMatchSpec(prefix string, match MatchSpec) []string {
 	return issues
 }
 
-func ValidateRules(rules []RuleSpec) []string {
+func ValidateRewriteTest(prefix string, test RewriteTestSpec) []string {
 	var issues []string
-	seen := map[string]struct{}{}
-	for i, r := range rules {
-		prefix := fmt.Sprintf("rules[%d]", i)
-		if !ruleIDPattern.MatchString(r.ID) {
-			issues = append(issues, prefix+".id must match [a-z0-9][a-z0-9-]*")
+	if len(test) == 0 {
+		issues = append(issues, prefix+" must be non-empty")
+	}
+	for i, c := range test {
+		hasPass := strings.TrimSpace(c.Pass) != ""
+		hasIn := strings.TrimSpace(c.In) != ""
+		hasOut := strings.TrimSpace(c.Out) != ""
+		switch {
+		case hasPass && (hasIn || hasOut):
+			issues = append(issues, fmt.Sprintf("%s[%d] must use either pass or in/out", prefix, i))
+		case hasPass:
+			continue
+		case hasIn && hasOut:
+			continue
+		default:
+			issues = append(issues, fmt.Sprintf("%s[%d] must set pass or both in and out", prefix, i))
 		}
-		if _, ok := seen[r.ID]; ok && r.ID != "" {
-			issues = append(issues, prefix+".id duplicates another rule in the same file")
-		}
-		seen[r.ID] = struct{}{}
-		issues = append(issues, ValidateRuleMatcher(prefix, r.Pattern, r.Matcher)...)
-		issues = append(issues, ValidateDirective(prefix, r.Reject, r.Rewrite)...)
 	}
 	return issues
 }
 
-func ValidateDuplicateIDs(rules []Rule) []error {
-	seen := map[string]Source{}
-	var errs []error
-	for _, r := range rules {
-		if prev, ok := seen[r.ID]; ok {
-			errs = append(errs, fmt.Errorf("duplicate rule id %q across %s and %s", r.ID, prev.Path, r.Source.Path))
-			continue
+func ValidatePermissionTest(prefix string, test PermissionTestSpec, effect string) []string {
+	var issues []string
+	switch effect {
+	case "allow":
+		if len(test.Allow) == 0 {
+			issues = append(issues, prefix+".allow must be non-empty")
 		}
-		seen[r.ID] = r.Source
+		issues = append(issues, validateNonEmptyStrings(prefix+".allow", test.Allow)...)
+		if len(test.Ask) > 0 || len(test.Deny) > 0 {
+			issues = append(issues, prefix+" may only use allow and pass")
+		}
+	case "ask":
+		if len(test.Ask) == 0 {
+			issues = append(issues, prefix+".ask must be non-empty")
+		}
+		issues = append(issues, validateNonEmptyStrings(prefix+".ask", test.Ask)...)
+		if len(test.Allow) > 0 || len(test.Deny) > 0 {
+			issues = append(issues, prefix+" may only use ask and pass")
+		}
+	case "deny":
+		if len(test.Deny) == 0 {
+			issues = append(issues, prefix+".deny must be non-empty")
+		}
+		issues = append(issues, validateNonEmptyStrings(prefix+".deny", test.Deny)...)
+		if len(test.Allow) > 0 || len(test.Ask) > 0 {
+			issues = append(issues, prefix+" may only use deny and pass")
+		}
 	}
-	return errs
+	issues = append(issues, validateNonEmptyStrings(prefix+".pass", test.Pass)...)
+	if len(test.Pass) == 0 {
+		issues = append(issues, prefix+".pass must be non-empty")
+	}
+	return issues
+}
+
+func ValidatePipelineTest(prefix string, test PipelineTestSpec) []string {
+	var issues []string
+	if len(test) == 0 {
+		issues = append(issues, prefix+" must be non-empty")
+	}
+	for i, c := range test {
+		if strings.TrimSpace(c.In) == "" {
+			issues = append(issues, fmt.Sprintf("%s[%d].in must be non-empty", prefix, i))
+		}
+		switch c.Decision {
+		case "allow", "ask", "deny":
+		default:
+			issues = append(issues, fmt.Sprintf("%s[%d].decision must be one of allow, ask, deny", prefix, i))
+		}
+	}
+	return issues
 }
 
 func ErrorStrings(errs []error) []string {
@@ -388,27 +521,8 @@ func ErrorStrings(errs []error) []string {
 	return parts
 }
 
-func (r Rule) RejectMessage() string {
-	return r.Reject.Message
-}
-
-func (r Rule) RewriteCommand(command string) (string, bool) {
-	if r.Rewrite.UnwrapShellDashC {
-		return directive.UnwrapShellDashC(command)
-	}
-	if !IsZeroUnwrapWrapperSpec(r.Rewrite.UnwrapWrapper) {
-		return directive.UnwrapWrapper(command, r.Rewrite.UnwrapWrapper.Wrappers)
-	}
-	if !IsZeroMoveFlagToEnvSpec(r.Rewrite.MoveFlagToEnv) {
-		return directive.MoveFlagToEnv(command, r.Rewrite.MoveFlagToEnv.Flag, r.Rewrite.MoveFlagToEnv.Env)
-	}
-	if !IsZeroMoveEnvToFlagSpec(r.Rewrite.MoveEnvToFlag) {
-		return directive.MoveEnvToFlag(command, r.Rewrite.MoveEnvToFlag.Env, r.Rewrite.MoveEnvToFlag.Flag)
-	}
-	if r.Rewrite.StripCommandPath {
-		return directive.StripCommandPath(command)
-	}
-	return "", false
+func IsZeroPermissionSpec(spec PermissionSpec) bool {
+	return len(spec.Deny) == 0 && len(spec.Ask) == 0 && len(spec.Allow) == 0
 }
 
 func IsZeroMatchSpec(match MatchSpec) bool {
@@ -420,21 +534,6 @@ func IsZeroMatchSpec(match MatchSpec) bool {
 		len(match.ArgsPrefixes) == 0 &&
 		len(match.EnvRequires) == 0 &&
 		len(match.EnvMissing) == 0
-}
-
-func IsZeroRewriteSpec(rewrite RewriteSpec) bool {
-	return !rewrite.UnwrapShellDashC &&
-		IsZeroUnwrapWrapperSpec(rewrite.UnwrapWrapper) &&
-		IsZeroMoveFlagToEnvSpec(rewrite.MoveFlagToEnv) &&
-		IsZeroMoveEnvToFlagSpec(rewrite.MoveEnvToFlag) &&
-		!rewrite.StripCommandPath
-}
-
-func RewriteStrict(rewrite RewriteSpec) bool {
-	if rewrite.Strict == nil {
-		return true
-	}
-	return *rewrite.Strict
 }
 
 func IsZeroMoveFlagToEnvSpec(spec MoveFlagToEnvSpec) bool {
@@ -449,48 +548,11 @@ func IsZeroUnwrapWrapperSpec(spec UnwrapWrapperSpec) bool {
 	return len(spec.Wrappers) == 0
 }
 
-func countDirectiveKinds(hasReject bool, hasRewrite bool) int {
-	n := 0
-	if hasReject {
-		n++
+func RewriteStrict(step RewriteStepSpec) bool {
+	if step.Strict == nil {
+		return true
 	}
-	if hasRewrite {
-		n++
-	}
-	return n
-}
-
-func ValidateRejectTest(prefix string, test RejectTestSpec) []string {
-	var issues []string
-	if len(test.Expect) == 0 {
-		issues = append(issues, prefix+".expect must be non-empty")
-	}
-	if len(test.Pass) == 0 {
-		issues = append(issues, prefix+".pass must be non-empty")
-	}
-	issues = append(issues, validateNonEmptyStrings(prefix+".expect", test.Expect)...)
-	issues = append(issues, validateNonEmptyStrings(prefix+".pass", test.Pass)...)
-	return issues
-}
-
-func ValidateRewriteTest(prefix string, test RewriteTestSpec) []string {
-	var issues []string
-	if len(test.Expect) == 0 {
-		issues = append(issues, prefix+".expect must be non-empty")
-	}
-	if len(test.Pass) == 0 {
-		issues = append(issues, prefix+".pass must be non-empty")
-	}
-	for i, c := range test.Expect {
-		if strings.TrimSpace(c.In) == "" {
-			issues = append(issues, fmt.Sprintf("%s.expect[%d].in must be non-empty", prefix, i))
-		}
-		if strings.TrimSpace(c.Out) == "" {
-			issues = append(issues, fmt.Sprintf("%s.expect[%d].out must be non-empty", prefix, i))
-		}
-	}
-	issues = append(issues, validateNonEmptyStrings(prefix+".pass", test.Pass)...)
-	return issues
+	return *step.Strict
 }
 
 func validateNonEmptyStrings(prefix string, values []string) []string {

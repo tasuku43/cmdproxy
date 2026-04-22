@@ -1,37 +1,42 @@
 ---
 title: "cmdproxy verify"
 status: proposed
-date: 2026-04-20
+date: 2026-04-23
 ---
 
 # cmdproxy verify
 
 ## Purpose
 
-`cmdproxy verify` is a stricter trust-oriented check than `cmdproxy doctor`.
+`cmdproxy verify <tool>` is a stricter trust-oriented check than `cmdproxy doctor`.
 
 It exists to answer a narrower question:
 
-**Can the current local `cmdproxy` setup be reasonably trusted as part of the
-execution path?**
+**Can the current local `cmdproxy` setup for this tool be reasonably trusted as
+part of the execution path?**
 
 ## Behavior
 
-`cmdproxy verify` should:
+`cmdproxy verify <tool>` should:
 
+- resolve and merge global and project-local `cmdproxy` policy
+- resolve global and project-local settings for the target tool
 - run the same config and rule validation used by `doctor`
-- compile and write verified hook artifacts for every configured policy file
+- run rewrite tests, permission rule tests, and top-level E2E tests against the
+  effective merged state
+- compile and write a tool-specific verified hook artifact
 - require build metadata to be visible in the current binary
-- fail if Claude Code settings exist but do not point at `cmdproxy hook claude`
-- fail if Claude Code settings use `cmdproxy hook claude` via PATH lookup
+- for Claude, fail if Claude Code settings exist but do not point at
+  `cmdproxy hook claude`
+- for Claude, fail if Claude Code settings use `cmdproxy hook claude` via PATH lookup
   rather than an absolute binary path
-- fail if an absolute Claude Code hook target does not exist or is not
+- for Claude, fail if an absolute Claude Code hook target does not exist or is not
   executable
-- fail if Claude Code points at a different `cmdproxy` binary than the one
+- for Claude, fail if Claude Code points at a different `cmdproxy` binary than the one
   currently being verified
 
-It should not require Claude Code to be installed. If no Claude settings file is
-present, that condition should remain informational rather than fatal.
+It should not require the target tool to be installed. If no tool settings file
+is present, that condition should remain informational rather than fatal.
 
 ## Output
 
@@ -40,6 +45,7 @@ present, that condition should remain informational rather than fatal.
 The default output should include:
 
 - the running version
+- the target tool
 - the visible VCS revision or an explicit missing marker
 - the underlying doctor-style checks
 - a final verified true/false result
@@ -50,6 +56,7 @@ The default output should include:
 `cmdproxy verify --format json` should expose:
 
 - `verified`
+- `tool`
 - `build_info`
 - `report`
 - `failures`
@@ -66,7 +73,7 @@ promote a smaller set of trust-critical conditions into failures.
 
 ## Hook Relationship
 
-`cmdproxy hook claude` reads only verified artifacts at runtime.
+`cmdproxy hook <tool>` reads only verified artifacts at runtime.
 
 - If a verified artifact exists and matches the current config hash, the hook uses it
 - If the config changed and no verified artifact is available, the hook should try an implicit verify once
