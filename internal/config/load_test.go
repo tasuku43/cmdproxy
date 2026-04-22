@@ -24,11 +24,9 @@ func TestLoadEffectiveUsesUserConfig(t *testing.T) {
       flag: "--profile"
       env: "AWS_PROFILE"
     test:
-      expect:
-        - in: "aws --profile dev sts get-caller-identity"
-          out: "AWS_PROFILE=dev aws sts get-caller-identity"
-      pass:
-        - "AWS_PROFILE=dev aws sts get-caller-identity"
+      - in: "aws --profile dev sts get-caller-identity"
+        out: "AWS_PROFILE=dev aws sts get-caller-identity"
+      - pass: "AWS_PROFILE=dev aws sts get-caller-identity"
 permission:
   allow:
     - match:
@@ -36,15 +34,14 @@ permission:
         subcommand: sts
         env_requires: ["AWS_PROFILE"]
       test:
-        expect:
+        allow:
           - "AWS_PROFILE=dev aws sts get-caller-identity"
         pass:
           - "AWS_PROFILE=dev aws s3 ls"
 test:
-  expect:
-    - in: "aws --profile dev sts get-caller-identity"
-      rewritten: "AWS_PROFILE=dev aws sts get-caller-identity"
-      decision: allow
+  - in: "aws --profile dev sts get-caller-identity"
+    rewritten: "AWS_PROFILE=dev aws sts get-caller-identity"
+    decision: allow
 `
 	if err := os.WriteFile(userPath, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
@@ -68,25 +65,22 @@ func TestLoadFileForEvalIfPresentSupportsStripCommandPath(t *testing.T) {
       command_is_absolute_path: true
     strip_command_path: true
     test:
-      expect:
-        - in: "/bin/ls -R foo"
-          out: "ls -R foo"
-      pass:
-        - "ls -R foo"
+      - in: "/bin/ls -R foo"
+        out: "ls -R foo"
+      - pass: "ls -R foo"
 permission:
   allow:
     - match:
         command: ls
       test:
-        expect:
+        allow:
           - "ls -R foo"
         pass:
           - "pwd"
 test:
-  expect:
-    - in: "/bin/ls -R foo"
-      rewritten: "ls -R foo"
-      decision: allow
+  - in: "/bin/ls -R foo"
+    rewritten: "ls -R foo"
+    decision: allow
 `
 	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
@@ -115,14 +109,13 @@ func TestVerifyFileWritesVerifiedArtifactAndHookLoadsIt(t *testing.T) {
         command: git
         subcommand: status
       test:
-        expect:
+        allow:
           - "git status"
         pass:
           - "git diff"
 test:
-  expect:
-    - in: "git status"
-      decision: allow
+  - in: "git status"
+    decision: allow
 `
 	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
@@ -175,12 +168,11 @@ func TestLoadVerifiedFileForHookFailsWhenArtifactMissing(t *testing.T) {
     - match:
         command: git
       test:
-        expect: ["git status"]
+        allow: ["git status"]
         pass: ["pwd"]
 test:
-  expect:
-    - in: "git status"
-      decision: allow
+  - in: "git status"
+    decision: allow
 `
 	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
@@ -202,15 +194,12 @@ func TestLoadFileIfPresentRejectsUnsupportedBuiltInRewriteContract(t *testing.T)
       flag: "--profile"
       env: "HOGE"
     test:
-      expect:
-        - in: "aws --profile dev sts get-caller-identity"
-          out: "HOGE=dev aws sts get-caller-identity"
-      pass:
-        - "aws sts get-caller-identity"
+      - in: "aws --profile dev sts get-caller-identity"
+        out: "HOGE=dev aws sts get-caller-identity"
+      - pass: "aws sts get-caller-identity"
 test:
-  expect:
-    - in: "aws --profile dev sts get-caller-identity"
-      decision: ask
+  - in: "aws --profile dev sts get-caller-identity"
+    decision: ask
 `
 	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		t.Fatal(err)

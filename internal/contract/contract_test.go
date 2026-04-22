@@ -15,8 +15,8 @@ func TestValidateRewritesAcceptsStrictAWSMappings(t *testing.T) {
 			Env:  "AWS_PROFILE",
 		},
 		Test: policy.RewriteTestSpec{
-			Expect: []policy.RewriteExpectCase{{In: "aws --profile dev sts get-caller-identity", Out: "AWS_PROFILE=dev aws sts get-caller-identity"}},
-			Pass:   []string{"AWS_PROFILE=dev aws sts get-caller-identity"},
+			{In: "aws --profile dev sts get-caller-identity", Out: "AWS_PROFILE=dev aws sts get-caller-identity"},
+			{Pass: "AWS_PROFILE=dev aws sts get-caller-identity"},
 		},
 	}})
 	if len(issues) != 0 {
@@ -32,8 +32,8 @@ func TestValidateRewritesRejectsUnknownEnvMapping(t *testing.T) {
 			Env:  "HOGE",
 		},
 		Test: policy.RewriteTestSpec{
-			Expect: []policy.RewriteExpectCase{{In: "aws --profile dev sts get-caller-identity", Out: "HOGE=dev aws sts get-caller-identity"}},
-			Pass:   []string{"aws sts get-caller-identity"},
+			{In: "aws --profile dev sts get-caller-identity", Out: "HOGE=dev aws sts get-caller-identity"},
+			{Pass: "aws sts get-caller-identity"},
 		},
 	}})
 	if len(issues) == 0 || !strings.Contains(issues[0], "AWS_PROFILE") {
@@ -51,8 +51,8 @@ func TestValidateRewritesAllowsRelaxedKubectlMapping(t *testing.T) {
 		},
 		Strict: &strict,
 		Test: policy.RewriteTestSpec{
-			Expect: []policy.RewriteExpectCase{{In: "kubectl --kubeconfig /tmp/dev get pods", Out: "KUBECONFIG=/tmp/dev kubectl get pods"}},
-			Pass:   []string{"KUBECONFIG=/tmp/dev kubectl get pods"},
+			{In: "kubectl --kubeconfig /tmp/dev get pods", Out: "KUBECONFIG=/tmp/dev kubectl get pods"},
+			{Pass: "KUBECONFIG=/tmp/dev kubectl get pods"},
 		},
 	}})
 	if len(issues) != 0 {
@@ -65,8 +65,8 @@ func TestValidateRewritesSkipsStripCommandPathContract(t *testing.T) {
 		Match:            policy.MatchSpec{CommandIsAbsolutePath: true},
 		StripCommandPath: true,
 		Test: policy.RewriteTestSpec{
-			Expect: []policy.RewriteExpectCase{{In: "/bin/ls", Out: "ls"}},
-			Pass:   []string{"ls"},
+			{In: "/bin/ls", Out: "ls"},
+			{Pass: "ls"},
 		},
 	}})
 	if len(issues) != 0 {

@@ -97,22 +97,18 @@ rewrite:
     strict: true
     continue: true
     test:
-      expect:
-        - in: "aws --profile read-only-profile sts get-caller-identity"
-          out: "AWS_PROFILE=read-only-profile aws sts get-caller-identity"
-      pass:
-        - "AWS_PROFILE=read-only-profile aws sts get-caller-identity"
+      - in: "aws --profile read-only-profile sts get-caller-identity"
+        out: "AWS_PROFILE=read-only-profile aws sts get-caller-identity"
+      - pass: "AWS_PROFILE=read-only-profile aws sts get-caller-identity"
 
   - match:
       command_is_absolute_path: true
     strip_command_path: true
     continue: true
     test:
-      expect:
-        - in: "/bin/ls -R foo"
-          out: "ls -R foo"
-      pass:
-        - "ls -R foo"
+      - in: "/bin/ls -R foo"
+        out: "ls -R foo"
+      - pass: "ls -R foo"
 
 permission:
   deny:
@@ -123,7 +119,7 @@ permission:
           - "--delete"
       message: "delete is blocked"
       test:
-        expect:
+        deny:
           - "AWS_PROFILE=read-only-profile aws s3 rm s3://example --delete"
         pass:
           - "AWS_PROFILE=read-only-profile aws sts get-caller-identity"
@@ -134,7 +130,7 @@ permission:
         subcommand: s3
       message: "s3 operations require confirmation"
       test:
-        expect:
+        ask:
           - "AWS_PROFILE=read-only-profile aws s3 ls"
         pass:
           - "AWS_PROFILE=read-only-profile aws sts get-caller-identity"
@@ -146,19 +142,18 @@ permission:
         env_requires:
           - "AWS_PROFILE"
       test:
-        expect:
+        allow:
           - "AWS_PROFILE=read-only-profile aws sts get-caller-identity"
         pass:
           - "AWS_PROFILE=read-only-profile aws s3 ls"
 
 test:
-  expect:
-    - in: "aws --profile read-only-profile sts get-caller-identity"
-      rewritten: "AWS_PROFILE=read-only-profile aws sts get-caller-identity"
-      decision: allow
-    - in: "aws --profile read-only-profile s3 ls"
-      rewritten: "AWS_PROFILE=read-only-profile aws s3 ls"
-      decision: ask
+  - in: "aws --profile read-only-profile sts get-caller-identity"
+    rewritten: "AWS_PROFILE=read-only-profile aws sts get-caller-identity"
+    decision: allow
+  - in: "aws --profile read-only-profile s3 ls"
+    rewritten: "AWS_PROFILE=read-only-profile aws s3 ls"
+    decision: ask
 ```
 
 ## Design Direction

@@ -23,11 +23,9 @@ func TestRunHookClaudeAllowReturnsAllowAndUpdatedInput(t *testing.T) {
       flag: "--profile"
       env: "AWS_PROFILE"
     test:
-      expect:
-        - in: "aws --profile dev sts get-caller-identity"
-          out: "AWS_PROFILE=dev aws sts get-caller-identity"
-      pass:
-        - "AWS_PROFILE=dev aws sts get-caller-identity"
+      - in: "aws --profile dev sts get-caller-identity"
+        out: "AWS_PROFILE=dev aws sts get-caller-identity"
+      - pass: "AWS_PROFILE=dev aws sts get-caller-identity"
 permission:
   allow:
     - match:
@@ -35,15 +33,14 @@ permission:
         subcommand: sts
         env_requires: ["AWS_PROFILE"]
       test:
-        expect:
+        allow:
           - "AWS_PROFILE=dev aws sts get-caller-identity"
         pass:
           - "AWS_PROFILE=dev aws s3 ls"
 test:
-  expect:
-    - in: "aws --profile dev sts get-caller-identity"
-      rewritten: "AWS_PROFILE=dev aws sts get-caller-identity"
-      decision: allow
+  - in: "aws --profile dev sts get-caller-identity"
+    rewritten: "AWS_PROFILE=dev aws sts get-caller-identity"
+    decision: allow
 `)
 
 	var stdout, stderr bytes.Buffer
@@ -78,14 +75,13 @@ func TestRunHookClaudeAskOmitsPermissionDecision(t *testing.T) {
         command: aws
         subcommand: s3
       test:
-        expect:
+        ask:
           - "aws s3 ls"
         pass:
           - "aws sts get-caller-identity"
 test:
-  expect:
-    - in: "aws s3 ls"
-      decision: ask
+  - in: "aws s3 ls"
+    decision: ask
 `)
 
 	var stdout, stderr bytes.Buffer
@@ -116,14 +112,13 @@ func TestRunHookClaudeDenyReturnsDeny(t *testing.T) {
         command: rm
       message: "rm blocked"
       test:
-        expect:
+        deny:
           - "rm -rf /tmp/x"
         pass:
           - "pwd"
 test:
-  expect:
-    - in: "rm -rf /tmp/x"
-      decision: deny
+  - in: "rm -rf /tmp/x"
+    decision: deny
 `)
 
 	var stdout, stderr bytes.Buffer
@@ -154,26 +149,23 @@ func TestRunHookClaudeImplicitlyVerifiesWhenArtifactMissing(t *testing.T) {
       args_contains: ["-c"]
     unwrap_shell_dash_c: true
     test:
-      expect:
-        - in: "bash -c 'git status'"
-          out: "git status"
-      pass:
-        - "bash script.sh"
+      - in: "bash -c 'git status'"
+        out: "git status"
+      - pass: "bash script.sh"
 permission:
   allow:
     - match:
         command: git
         subcommand: status
       test:
-        expect:
+        allow:
           - "git status"
         pass:
           - "git diff"
 test:
-  expect:
-    - in: "bash -c 'git status'"
-      rewritten: "git status"
-      decision: allow
+  - in: "bash -c 'git status'"
+    rewritten: "git status"
+    decision: allow
 `)
 
 	var stdout, stderr bytes.Buffer
@@ -199,14 +191,13 @@ func TestRunTest(t *testing.T) {
         command: git
         subcommand: status
       test:
-        expect:
+        allow:
           - "git status"
         pass:
           - "git diff"
 test:
-  expect:
-    - in: "git status"
-      decision: allow
+  - in: "git status"
+    decision: allow
 `)
 
 	var stdout, stderr bytes.Buffer

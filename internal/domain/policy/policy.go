@@ -41,13 +41,13 @@ type PermissionRuleSpec struct {
 }
 
 type PermissionTestSpec struct {
-	Expect []string `yaml:"expect" json:"expect,omitempty"`
-	Pass   []string `yaml:"pass" json:"pass,omitempty"`
+	Allow []string `yaml:"allow" json:"allow,omitempty"`
+	Ask   []string `yaml:"ask" json:"ask,omitempty"`
+	Deny  []string `yaml:"deny" json:"deny,omitempty"`
+	Pass  []string `yaml:"pass" json:"pass,omitempty"`
 }
 
-type PipelineTestSpec struct {
-	Expect []PipelineExpectCase `yaml:"expect" json:"expect,omitempty"`
-}
+type PipelineTestSpec []PipelineExpectCase
 
 type PipelineExpectCase struct {
 	In        string `yaml:"in" json:"in,omitempty"`
@@ -69,14 +69,12 @@ type UnwrapWrapperSpec struct {
 	Wrappers []string `yaml:"wrappers" json:"wrappers,omitempty"`
 }
 
-type RewriteTestSpec struct {
-	Expect []RewriteExpectCase `yaml:"expect" json:"expect,omitempty"`
-	Pass   []string            `yaml:"pass" json:"pass,omitempty"`
-}
+type RewriteTestSpec []RewriteTestCase
 
-type RewriteExpectCase struct {
-	In  string `yaml:"in" json:"in,omitempty"`
-	Out string `yaml:"out" json:"out,omitempty"`
+type RewriteTestCase struct {
+	In   string `yaml:"in" json:"in,omitempty"`
+	Out  string `yaml:"out" json:"out,omitempty"`
+	Pass string `yaml:"pass" json:"pass,omitempty"`
 }
 
 type MatchSpec struct {
@@ -281,13 +279,13 @@ func ValidatePipeline(spec PipelineSpec) []string {
 		issues = append(issues, ValidateRewriteStep(prefix, step)...)
 	}
 	for i, rule := range spec.Permission.Deny {
-		issues = append(issues, ValidatePermissionRule(fmt.Sprintf("permission.deny[%d]", i), rule)...)
+		issues = append(issues, ValidatePermissionRule(fmt.Sprintf("permission.deny[%d]", i), rule, "deny")...)
 	}
 	for i, rule := range spec.Permission.Ask {
-		issues = append(issues, ValidatePermissionRule(fmt.Sprintf("permission.ask[%d]", i), rule)...)
+		issues = append(issues, ValidatePermissionRule(fmt.Sprintf("permission.ask[%d]", i), rule, "ask")...)
 	}
 	for i, rule := range spec.Permission.Allow {
-		issues = append(issues, ValidatePermissionRule(fmt.Sprintf("permission.allow[%d]", i), rule)...)
+		issues = append(issues, ValidatePermissionRule(fmt.Sprintf("permission.allow[%d]", i), rule, "allow")...)
 	}
 	issues = append(issues, ValidatePipelineTest("test", spec.Test)...)
 	return issues
@@ -337,10 +335,10 @@ func ValidateRewriteStep(prefix string, step RewriteStepSpec) []string {
 	return issues
 }
 
-func ValidatePermissionRule(prefix string, rule PermissionRuleSpec) []string {
+func ValidatePermissionRule(prefix string, rule PermissionRuleSpec, effect string) []string {
 	var issues []string
 	issues = append(issues, ValidateMatchSpec(prefix+".match", rule.Match)...)
-	issues = append(issues, ValidatePermissionTest(prefix+".test", rule.Test)...)
+	issues = append(issues, ValidatePermissionTest(prefix+".test", rule.Test, effect)...)
 	return issues
 }
 
@@ -365,50 +363,75 @@ func ValidateMatchSpec(prefix string, match MatchSpec) []string {
 
 func ValidateRewriteTest(prefix string, test RewriteTestSpec) []string {
 	var issues []string
-	if len(test.Expect) == 0 {
-		issues = append(issues, prefix+".expect must be non-empty")
+	if len(test) == 0 {
+		issues = append(issues, prefix+" must be non-empty")
 	}
-	if len(test.Pass) == 0 {
-		issues = append(issues, prefix+".pass must be non-empty")
-	}
-	for i, c := range test.Expect {
-		if strings.TrimSpace(c.In) == "" {
-			issues = append(issues, fmt.Sprintf("%s.expect[%d].in must be non-empty", prefix, i))
+	for i, c := range test {
+		hasPass := strings.TrimSpace(c.Pass) != ""
+		hasIn := strings.TrimSpace(c.In) != ""
+		hasOut := strings.TrimSpace(c.Out) != ""
+		switch {
+		case hasPass && (hasIn || hasOut):
+			issues = append(issues, fmt.Sprintf("%s[%d] must use either pass or in/out", prefix, i))
+		case hasPass:
+			continue
+		case hasIn && hasOut:
+			continue
+		default:
+			issues = append(issues, fmt.Sprintf("%s[%d] must set pass or both in and out", prefix, i))
 		}
-		if strings.TrimSpace(c.Out) == "" {
-			issues = append(issues, fmt.Sprintf("%s.expect[%d].out must be non-empty", prefix, i))
-		}
 	}
-	issues = append(issues, validateNonEmptyStrings(prefix+".pass", test.Pass)...)
 	return issues
 }
 
-func ValidatePermissionTest(prefix string, test PermissionTestSpec) []string {
+func ValidatePermissionTest(prefix string, test PermissionTestSpec, effect string) []string {
 	var issues []string
-	if len(test.Expect) == 0 {
-		issues = append(issues, prefix+".expect must be non-empty")
+	switch effect {
+	case "allow":
+		if len(test.Allow) == 0 {
+			issues = append(issues, prefix+".allow must be non-empty")
+		}
+		issues = append(issues, validateNonEmptyStrings(prefix+".allow", test.Allow)...)
+		if len(test.Ask) > 0 || len(test.Deny) > 0 {
+			issues = append(issues, prefix+" may only use allow and pass")
+		}
+	case "ask":
+		if len(test.Ask) == 0 {
+			issues = append(issues, prefix+".ask must be non-empty")
+		}
+		issues = append(issues, validateNonEmptyStrings(prefix+".ask", test.Ask)...)
+		if len(test.Allow) > 0 || len(test.Deny) > 0 {
+			issues = append(issues, prefix+" may only use ask and pass")
+		}
+	case "deny":
+		if len(test.Deny) == 0 {
+			issues = append(issues, prefix+".deny must be non-empty")
+		}
+		issues = append(issues, validateNonEmptyStrings(prefix+".deny", test.Deny)...)
+		if len(test.Allow) > 0 || len(test.Ask) > 0 {
+			issues = append(issues, prefix+" may only use deny and pass")
+		}
 	}
+	issues = append(issues, validateNonEmptyStrings(prefix+".pass", test.Pass)...)
 	if len(test.Pass) == 0 {
 		issues = append(issues, prefix+".pass must be non-empty")
 	}
-	issues = append(issues, validateNonEmptyStrings(prefix+".expect", test.Expect)...)
-	issues = append(issues, validateNonEmptyStrings(prefix+".pass", test.Pass)...)
 	return issues
 }
 
 func ValidatePipelineTest(prefix string, test PipelineTestSpec) []string {
 	var issues []string
-	if len(test.Expect) == 0 {
-		issues = append(issues, prefix+".expect must be non-empty")
+	if len(test) == 0 {
+		issues = append(issues, prefix+" must be non-empty")
 	}
-	for i, c := range test.Expect {
+	for i, c := range test {
 		if strings.TrimSpace(c.In) == "" {
-			issues = append(issues, fmt.Sprintf("%s.expect[%d].in must be non-empty", prefix, i))
+			issues = append(issues, fmt.Sprintf("%s[%d].in must be non-empty", prefix, i))
 		}
 		switch c.Decision {
 		case "allow", "ask", "deny":
 		default:
-			issues = append(issues, fmt.Sprintf("%s.expect[%d].decision must be one of allow, ask, deny", prefix, i))
+			issues = append(issues, fmt.Sprintf("%s[%d].decision must be one of allow, ask, deny", prefix, i))
 		}
 	}
 	return issues

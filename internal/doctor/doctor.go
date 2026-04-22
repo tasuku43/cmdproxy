@@ -127,22 +127,32 @@ func HasFailures(report Report) bool {
 
 func testsPass(p policy.Pipeline) error {
 	for i, step := range p.Rewrite {
-		for _, ex := range step.Test.Expect {
+		for _, ex := range step.Test {
+			if strings.TrimSpace(ex.Pass) != "" {
+				if rewritten, ok := policyTestApplyRewrite(step, ex.Pass); ok && rewritten != "" {
+					return &exampleError{Scope: "rewrite", Name: stepName(step, i), Kind: "pass", Example: ex.Pass}
+				}
+				continue
+			}
 			rewritten, ok := policyTestApplyRewrite(step, ex.In)
 			if !ok || rewritten != ex.Out {
 				return &exampleError{Scope: "rewrite", Name: stepName(step, i), Kind: "expect", Example: ex.In}
 			}
 		}
-		for _, ex := range step.Test.Pass {
-			if rewritten, ok := policyTestApplyRewrite(step, ex); ok && rewritten != "" {
-				return &exampleError{Scope: "rewrite", Name: stepName(step, i), Kind: "pass", Example: ex}
-			}
-		}
 	}
 
-	checkPermission := func(scope string, rules []policy.PermissionRuleSpec) error {
+	checkPermission := func(scope string, rules []policy.PermissionRuleSpec, effect string) error {
 		for i, rule := range rules {
-			for _, ex := range rule.Test.Expect {
+			var expect []string
+			switch effect {
+			case "deny":
+				expect = rule.Test.Deny
+			case "ask":
+				expect = rule.Test.Ask
+			case "allow":
+				expect = rule.Test.Allow
+			}
+			for _, ex := range expect {
 				if !rule.Match.MatchMatches(ex) {
 					return &exampleError{Scope: scope, Name: scopeName(scope, i), Kind: "expect", Example: ex}
 				}
@@ -155,17 +165,17 @@ func testsPass(p policy.Pipeline) error {
 		}
 		return nil
 	}
-	if err := checkPermission("permission.deny", p.Permission.Deny); err != nil {
+	if err := checkPermission("permission.deny", p.Permission.Deny, "deny"); err != nil {
 		return err
 	}
-	if err := checkPermission("permission.ask", p.Permission.Ask); err != nil {
+	if err := checkPermission("permission.ask", p.Permission.Ask, "ask"); err != nil {
 		return err
 	}
-	if err := checkPermission("permission.allow", p.Permission.Allow); err != nil {
+	if err := checkPermission("permission.allow", p.Permission.Allow, "allow"); err != nil {
 		return err
 	}
 
-	for i, ex := range p.Test.Expect {
+	for i, ex := range p.Test {
 		decision, err := policy.Evaluate(p, ex.In)
 		if err != nil {
 			return err

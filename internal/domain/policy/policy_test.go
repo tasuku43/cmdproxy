@@ -11,26 +11,24 @@ func TestEvaluateRewriteThenAllow(t *testing.T) {
 				Env:  "AWS_PROFILE",
 			},
 			Test: RewriteTestSpec{
-				Expect: []RewriteExpectCase{{In: "aws --profile read-only sts get-caller-identity", Out: "AWS_PROFILE=read-only aws sts get-caller-identity"}},
-				Pass:   []string{"AWS_PROFILE=read-only aws sts get-caller-identity"},
+				{In: "aws --profile read-only sts get-caller-identity", Out: "AWS_PROFILE=read-only aws sts get-caller-identity"},
+				{Pass: "AWS_PROFILE=read-only aws sts get-caller-identity"},
 			},
 		}},
 		Permission: PermissionSpec{
 			Allow: []PermissionRuleSpec{{
 				Match: MatchSpec{Command: "aws", Subcommand: "sts", EnvRequires: []string{"AWS_PROFILE"}},
 				Test: PermissionTestSpec{
-					Expect: []string{"AWS_PROFILE=read-only aws sts get-caller-identity"},
-					Pass:   []string{"AWS_PROFILE=read-only aws s3 ls"},
+					Allow: []string{"AWS_PROFILE=read-only aws sts get-caller-identity"},
+					Pass:  []string{"AWS_PROFILE=read-only aws s3 ls"},
 				},
 			}},
 		},
-		Test: PipelineTestSpec{
-			Expect: []PipelineExpectCase{{
-				In:        "aws --profile read-only sts get-caller-identity",
-				Rewritten: "AWS_PROFILE=read-only aws sts get-caller-identity",
-				Decision:  "allow",
-			}},
-		},
+		Test: PipelineTestSpec{{
+			In:        "aws --profile read-only sts get-caller-identity",
+			Rewritten: "AWS_PROFILE=read-only aws sts get-caller-identity",
+			Decision:  "allow",
+		}},
 	}, Source{})
 
 	got, err := Evaluate(p, "aws --profile read-only sts get-caller-identity")
@@ -47,18 +45,18 @@ func TestEvaluatePermissionPriorityDenyAskAllow(t *testing.T) {
 		Permission: PermissionSpec{
 			Deny: []PermissionRuleSpec{{
 				Match: MatchSpec{Command: "aws", ArgsContains: []string{"--delete"}},
-				Test:  PermissionTestSpec{Expect: []string{"aws s3 rm --delete"}, Pass: []string{"aws s3 ls"}},
+				Test:  PermissionTestSpec{Deny: []string{"aws s3 rm --delete"}, Pass: []string{"aws s3 ls"}},
 			}},
 			Ask: []PermissionRuleSpec{{
 				Match: MatchSpec{Command: "aws", Subcommand: "s3"},
-				Test:  PermissionTestSpec{Expect: []string{"aws s3 ls"}, Pass: []string{"aws sts get-caller-identity"}},
+				Test:  PermissionTestSpec{Ask: []string{"aws s3 ls"}, Pass: []string{"aws sts get-caller-identity"}},
 			}},
 			Allow: []PermissionRuleSpec{{
 				Match: MatchSpec{Command: "aws", Subcommand: "sts"},
-				Test:  PermissionTestSpec{Expect: []string{"aws sts get-caller-identity"}, Pass: []string{"aws s3 ls"}},
+				Test:  PermissionTestSpec{Allow: []string{"aws sts get-caller-identity"}, Pass: []string{"aws s3 ls"}},
 			}},
 		},
-		Test: PipelineTestSpec{Expect: []PipelineExpectCase{{In: "aws sts get-caller-identity", Decision: "allow"}}},
+		Test: PipelineTestSpec{{In: "aws sts get-caller-identity", Decision: "allow"}},
 	}, Source{})
 
 	got, err := Evaluate(p, "aws s3 rm --delete")
@@ -89,8 +87,8 @@ func TestValidatePipelineRequiresE2ETest(t *testing.T) {
 		Rewrite: []RewriteStepSpec{{
 			UnwrapShellDashC: true,
 			Test: RewriteTestSpec{
-				Expect: []RewriteExpectCase{{In: "bash -c 'git status'", Out: "git status"}},
-				Pass:   []string{"bash script.sh"},
+				{In: "bash -c 'git status'", Out: "git status"},
+				{Pass: "bash script.sh"},
 			},
 		}},
 	})

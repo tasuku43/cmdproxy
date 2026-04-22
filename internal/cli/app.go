@@ -139,18 +139,18 @@ func runTest(args []string, streams Streams, env Env) int {
 	permissionCount := len(loaded.Pipeline.Permission.Deny) + len(loaded.Pipeline.Permission.Ask) + len(loaded.Pipeline.Permission.Allow)
 	testCount := 0
 	for _, step := range loaded.Pipeline.Rewrite {
-		testCount += len(step.Test.Expect) + len(step.Test.Pass)
+		testCount += len(step.Test)
 	}
 	for _, rule := range loaded.Pipeline.Permission.Deny {
-		testCount += len(rule.Test.Expect) + len(rule.Test.Pass)
+		testCount += len(rule.Test.Deny) + len(rule.Test.Pass)
 	}
 	for _, rule := range loaded.Pipeline.Permission.Ask {
-		testCount += len(rule.Test.Expect) + len(rule.Test.Pass)
+		testCount += len(rule.Test.Ask) + len(rule.Test.Pass)
 	}
 	for _, rule := range loaded.Pipeline.Permission.Allow {
-		testCount += len(rule.Test.Expect) + len(rule.Test.Pass)
+		testCount += len(rule.Test.Allow) + len(rule.Test.Pass)
 	}
-	testCount += len(loaded.Pipeline.Test.Expect)
+	testCount += len(loaded.Pipeline.Test)
 	fmt.Fprintf(streams.Stdout, "ok: %d rewrite steps, %d permission rules, %d tests checked\n", rewriteCount, permissionCount, testCount)
 	return exitAllow
 }
@@ -210,7 +210,7 @@ func runVerify(args []string, streams Streams, env Env) int {
 				reasons = append(reasons, err.Error())
 				break
 			}
-			if len(rules.Rewrite) > 0 || !policy.IsZeroPermissionSpec(rules.Permission) || len(rules.Test.Expect) > 0 {
+			if len(rules.Rewrite) > 0 || !policy.IsZeroPermissionSpec(rules.Permission) || len(rules.Test) > 0 {
 				artifactBuilt = true
 			}
 		}
@@ -749,11 +749,9 @@ Rewrite step example:
       strict: true
       continue: true
       test:
-        expect:
-          - in: "aws --profile read-only-profile s3 ls"
-            out: "AWS_PROFILE=read-only-profile aws s3 ls"
-        pass:
-          - "AWS_PROFILE=read-only-profile aws s3 ls"
+        - in: "aws --profile read-only-profile s3 ls"
+          out: "AWS_PROFILE=read-only-profile aws s3 ls"
+        - pass: "AWS_PROFILE=read-only-profile aws s3 ls"
 
 Permission rule example:
   permission:
@@ -764,17 +762,16 @@ Permission rule example:
           env_requires:
             - "AWS_PROFILE"
         test:
-          expect:
+          allow:
             - "AWS_PROFILE=read-only-profile aws sts get-caller-identity"
           pass:
             - "AWS_PROFILE=read-only-profile aws s3 ls"
 
 E2E test example:
   test:
-    expect:
-      - in: "aws --profile read-only-profile sts get-caller-identity"
-        rewritten: "AWS_PROFILE=read-only-profile aws sts get-caller-identity"
-        decision: allow
+    - in: "aws --profile read-only-profile sts get-caller-identity"
+      rewritten: "AWS_PROFILE=read-only-profile aws sts get-caller-identity"
+      decision: allow
 
 For matcher fields, run:
   cmdproxy help match
@@ -833,11 +830,9 @@ Example:
       strict: true
       continue: true
       test:
-        expect:
-          - in: "aws --profile read-only-profile s3 ls"
-            out: "AWS_PROFILE=read-only-profile aws s3 ls"
-        pass:
-          - "AWS_PROFILE=read-only-profile aws s3 ls"
+        - in: "aws --profile read-only-profile s3 ls"
+          out: "AWS_PROFILE=read-only-profile aws s3 ls"
+        - pass: "AWS_PROFILE=read-only-profile aws s3 ls"
 
 Each step may set exactly one rewrite primitive.
 `)
@@ -874,12 +869,11 @@ const starterConfig = `permission:
           - "-C"
       message: "git -C is blocked. Change into the target directory and rerun the command."
       test:
-        expect:
+        deny:
           - "git -C repos/foo status"
         pass:
           - "git status"
 test:
-  expect:
-    - in: "git -C repos/foo status"
-      decision: deny
+  - in: "git -C repos/foo status"
+    decision: deny
 `

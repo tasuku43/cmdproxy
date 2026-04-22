@@ -19,11 +19,11 @@ func TestRunWarnsOnRelaxedRewriteContracts(t *testing.T) {
 				},
 				Strict: &strict,
 				Test: policy.RewriteTestSpec{
-					Expect: []policy.RewriteExpectCase{{In: "kubectl --kubeconfig /tmp/dev get pods", Out: "KUBECONFIG=/tmp/dev kubectl get pods"}},
-					Pass:   []string{"KUBECONFIG=/tmp/dev kubectl get pods"},
+					{In: "kubectl --kubeconfig /tmp/dev get pods", Out: "KUBECONFIG=/tmp/dev kubectl get pods"},
+					{Pass: "KUBECONFIG=/tmp/dev kubectl get pods"},
 				},
 			}},
-			Test: policy.PipelineTestSpec{Expect: []policy.PipelineExpectCase{{In: "kubectl --kubeconfig /tmp/dev get pods", Decision: "ask"}}},
+			Test: policy.PipelineTestSpec{{In: "kubectl --kubeconfig /tmp/dev get pods", Decision: "ask"}},
 		}, policy.Source{}),
 	}
 
@@ -39,10 +39,10 @@ func TestRunPassesWhenPipelineTestsMatch(t *testing.T) {
 			Permission: policy.PermissionSpec{
 				Allow: []policy.PermissionRuleSpec{{
 					Match: policy.MatchSpec{Command: "git", Subcommand: "status"},
-					Test:  policy.PermissionTestSpec{Expect: []string{"git status"}, Pass: []string{"git diff"}},
+					Test:  policy.PermissionTestSpec{Allow: []string{"git status"}, Pass: []string{"git diff"}},
 				}},
 			},
-			Test: policy.PipelineTestSpec{Expect: []policy.PipelineExpectCase{{In: "git status", Decision: "allow"}}},
+			Test: policy.PipelineTestSpec{{In: "git status", Decision: "allow"}},
 		}, policy.Source{}),
 	}
 	report := Run(loaded, t.TempDir())

@@ -334,5 +334,5 @@ func readConfigFile(src Source) (string, error) {
 }
 
 func isZeroPipeline(spec policy.PipelineSpec) bool {
-	return len(spec.Rewrite) == 0 && policy.IsZeroPermissionSpec(spec.Permission) && len(spec.Test.Expect) == 0
+	return len(spec.Rewrite) == 0 && policy.IsZeroPermissionSpec(spec.Permission) && len(spec.Test) == 0
 }

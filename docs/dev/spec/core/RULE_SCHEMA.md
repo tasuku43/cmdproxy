@@ -26,11 +26,9 @@ rewrite:
     continue: true
     strict: true
     test:
-      expect:
-        - in: "aws --profile prod s3 ls"
-          out: "AWS_PROFILE=prod aws s3 ls"
-      pass:
-        - "AWS_PROFILE=prod aws s3 ls"
+      - in: "aws --profile prod s3 ls"
+        out: "AWS_PROFILE=prod aws s3 ls"
+      - pass: "AWS_PROFILE=prod aws s3 ls"
 
 permission:
   deny:
@@ -41,7 +39,7 @@ permission:
           - "--delete"
       message: "delete is blocked"
       test:
-        expect:
+        deny:
           - "AWS_PROFILE=prod aws s3 rm s3://example --delete"
         pass:
           - "AWS_PROFILE=prod aws sts get-caller-identity"
@@ -52,7 +50,7 @@ permission:
         subcommand: s3
       message: "s3 operations require confirmation"
       test:
-        expect:
+        ask:
           - "AWS_PROFILE=prod aws s3 ls"
         pass:
           - "AWS_PROFILE=prod aws sts get-caller-identity"
@@ -64,16 +62,15 @@ permission:
         env_requires:
           - "AWS_PROFILE"
       test:
-        expect:
+        allow:
           - "AWS_PROFILE=prod aws sts get-caller-identity"
         pass:
           - "AWS_PROFILE=prod aws s3 ls"
 
 test:
-  expect:
-    - in: "aws --profile prod sts get-caller-identity"
-      rewritten: "AWS_PROFILE=prod aws sts get-caller-identity"
-      decision: allow
+  - in: "aws --profile prod sts get-caller-identity"
+    rewritten: "AWS_PROFILE=prod aws sts get-caller-identity"
+    decision: allow
 ```
 
 Unknown top-level keys are invalid.
@@ -120,15 +117,13 @@ Supported fields:
 
 ```yaml
 test:
-  expect:
-    - in: "aws --profile prod s3 ls"
-      out: "AWS_PROFILE=prod aws s3 ls"
-  pass:
-    - "AWS_PROFILE=prod aws s3 ls"
+  - in: "aws --profile prod s3 ls"
+    out: "AWS_PROFILE=prod aws s3 ls"
+  - pass: "AWS_PROFILE=prod aws s3 ls"
 ```
 
-- `expect`: required non-empty array of `{in, out}`
-- `pass`: required non-empty string array
+- each case is either `{in, out}` or `{pass}`
+- `pass` is sugar for `in == out`
 
 ## 4. Permission Section
 
@@ -166,13 +161,13 @@ allow:
 
 ```yaml
 test:
-  expect:
+  allow:
     - "AWS_PROFILE=prod aws sts get-caller-identity"
   pass:
     - "AWS_PROFILE=prod aws s3 ls"
 ```
 
-- `expect`: required non-empty string array
+- `allow`, `ask`, or `deny`: exactly one effect key depending on the bucket
 - `pass`: required non-empty string array
 
 ## 5. Top-Level E2E Test
@@ -182,13 +177,12 @@ and the permission phase have both completed.
 
 ```yaml
 test:
-  expect:
-    - in: "aws --profile prod sts get-caller-identity"
-      rewritten: "AWS_PROFILE=prod aws sts get-caller-identity"
-      decision: allow
+  - in: "aws --profile prod sts get-caller-identity"
+    rewritten: "AWS_PROFILE=prod aws sts get-caller-identity"
+    decision: allow
 ```
 
-- `expect`: required non-empty array
+- `test`: required non-empty array
 - each case requires `in`
 - each case requires `decision`
 - `rewritten` is optional but recommended
