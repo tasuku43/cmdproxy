@@ -33,7 +33,7 @@ cc-bash-proxy check aws --profile read-only-profile s3 ls
 cc-bash-proxy check bash -c 'git status'
 ```
 
-5. Register `cc-bash-proxy hook --rtk` in Claude Code
+5. Register `cc-bash-proxy hook` in Claude Code
 
 ## Verifying an Installed Binary
 
@@ -56,25 +56,34 @@ cc-bash-proxy verify --format json
 
 ## Claude Code
 
-For Claude Code, add `cc-bash-proxy hook --rtk` as a `PreToolUse` Bash hook.
+For Claude Code, add `cc-bash-proxy hook` as a `PreToolUse` Bash hook.
 
 ```json
 {
   "matcher": "Bash",
   "hooks": [
-    { "type": "command", "command": "cc-bash-proxy hook --rtk" }
+    { "type": "command", "command": "cc-bash-proxy hook" }
   ]
 }
 ```
 
-`cc-bash-proxy hook --rtk` evaluates `cc-bash-proxy` policy first. It returns:
+`cc-bash-proxy hook` evaluates `cc-bash-proxy` policy first. It returns:
 
 - `allow`: auto-allow immediately
 - `ask`: let Claude prompt
 - `deny`: block immediately
 
-If `rtk` rewriting is enabled, that final rewrite is applied after `cc-bash-proxy`
-has already decided the permission outcome.
+If you also use `rtk`, prefer `cc-bash-proxy hook --rtk` instead of registering
+multiple Bash hooks. Claude Code hook commands are not guaranteed to run
+serially, so separate hook entries can cause rename behavior to happen after a
+different permission decision than the one you intended to show the user.
+
+`cc-bash-proxy hook --rtk` keeps the order stable:
+
+1. evaluate `cc-bash-proxy` rewrite
+2. evaluate `cc-bash-proxy` permission
+3. merge with Claude settings
+4. only then apply the final `rtk` rewrite
 
 ## Current Config Model
 
