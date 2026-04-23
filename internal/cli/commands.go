@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/tasuku43/cc-bash-proxy/internal/app"
-	"github.com/tasuku43/cc-bash-proxy/internal/doctor"
+	"github.com/tasuku43/cc-bash-proxy/internal/app/doctoring"
 )
 
 func runHook(args []string, streams Streams, env Env) int {
@@ -64,7 +64,7 @@ func runDoctor(args []string, streams Streams, env Env) int {
 		}
 	}
 
-	if doctor.HasFailures(result.Report) {
+	if doctoring.HasFailures(result.Report) {
 		return exitError
 	}
 	return exitAllow
@@ -175,6 +175,6 @@ func writeIndentedJSON(w io.Writer, payload any) error {
 	return enc.Encode(payload)
 }
 
-func writeDoctorCheck(w io.Writer, check doctor.Check) {
+func writeDoctorCheck(w io.Writer, check doctoring.Check) {
 	writeLine(w, "["+strings.ToUpper(string(check.Status))+"] "+check.ID+": "+check.Message)
 }

@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/tasuku43/cc-bash-proxy/internal/app"
-	"github.com/tasuku43/cc-bash-proxy/internal/buildinfo"
-	"github.com/tasuku43/cc-bash-proxy/internal/config"
-	"github.com/tasuku43/cc-bash-proxy/internal/doctor"
+	"github.com/tasuku43/cc-bash-proxy/internal/app/doctoring"
+	"github.com/tasuku43/cc-bash-proxy/internal/infra/buildinfo"
+	configrepo "github.com/tasuku43/cc-bash-proxy/internal/infra/config"
 )
 
 type hookPayload struct {
@@ -634,17 +634,17 @@ test:
 	if code != 0 {
 		t.Fatalf("code = %d stderr=%s", code, stderr.String())
 	}
-	entries, err := os.ReadDir(config.HookCacheDir(home, ""))
+	entries, err := os.ReadDir(configrepo.HookCacheDir(home, ""))
 	if err != nil || len(entries) == 0 {
 		t.Fatalf("expected implicit verify artifact, err=%v entries=%v", err, entries)
 	}
 }
 
 func TestVerifyStatus(t *testing.T) {
-	report := doctor.Report{
-		Checks: []doctor.Check{
-			{ID: "config.parse", Status: doctor.StatusPass},
-			{ID: "tests.pass", Status: doctor.StatusPass},
+	report := doctoring.Report{
+		Checks: []doctoring.Check{
+			{ID: "config.parse", Status: doctoring.StatusPass},
+			{ID: "tests.pass", Status: doctoring.StatusPass},
 		},
 	}
 	ok, reasons := app.VerifyStatus(report, buildinfo.Info{Version: "dev", Module: "github.com/tasuku43/cc-bash-proxy", VCSRevision: "abc123"}, "claude")

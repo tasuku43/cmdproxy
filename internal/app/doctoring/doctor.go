@@ -1,4 +1,4 @@
-package doctor
+package doctoring
 
 import (
 	"encoding/json"
@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tasuku43/cc-bash-proxy/internal/buildinfo"
-	"github.com/tasuku43/cc-bash-proxy/internal/config"
+	"github.com/tasuku43/cc-bash-proxy/internal/adapter/claude"
 	"github.com/tasuku43/cc-bash-proxy/internal/domain/policy"
-	"github.com/tasuku43/cc-bash-proxy/internal/integration"
+	"github.com/tasuku43/cc-bash-proxy/internal/infra/buildinfo"
+	configrepo "github.com/tasuku43/cc-bash-proxy/internal/infra/config"
 )
 
 type Status string
@@ -33,7 +33,7 @@ type Report struct {
 	Checks []Check `json:"checks"`
 }
 
-func Run(loaded config.Loaded, tool string, cwd string, home string) Report {
+func Run(loaded configrepo.Loaded, tool string, cwd string, home string) Report {
 	var checks []Check
 
 	if len(loaded.Errors) == 0 {
@@ -102,7 +102,7 @@ func Run(loaded config.Loaded, tool string, cwd string, home string) Report {
 		checks = append(checks, Check{ID: "install.binary-build-info", Category: "install", Status: StatusWarn, Message: "build metadata missing; prefer binaries built with VCS info embedded"})
 	}
 
-	if tool == integration.ToolClaude {
+	if tool == claude.Tool {
 		claudeSettings := filepath.Join(home, ".claude", "settings.json")
 		if _, err := os.Stat(claudeSettings); err == nil {
 			data, readErr := os.ReadFile(claudeSettings)
@@ -183,7 +183,7 @@ func testsPass(p policy.Pipeline, tool string, cwd string, home string) error {
 		if err != nil {
 			return err
 		}
-		decision = integration.ApplyPermissionBridge(tool, decision, cwd, home)
+		decision = claude.ApplyPermissionBridge(tool, decision, cwd, home)
 		if decision.Outcome != ex.Decision {
 			return &exampleError{Scope: "test", Name: scopeName("e2e", i), Kind: "decision", Example: ex.In}
 		}

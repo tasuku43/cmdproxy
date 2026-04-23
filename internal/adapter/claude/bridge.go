@@ -1,54 +1,35 @@
-package integration
+package claude
 
 import (
 	"strings"
 
-	"github.com/tasuku43/cc-bash-proxy/internal/claude"
 	"github.com/tasuku43/cc-bash-proxy/internal/domain/policy"
 )
 
-const ToolClaude = "claude"
+const Tool = "claude"
 
 func Supported(tool string) bool {
 	switch strings.TrimSpace(tool) {
-	case ToolClaude:
+	case Tool:
 		return true
 	default:
 		return false
 	}
 }
 
-func SettingsPaths(tool string, cwd string, home string) []string {
-	switch strings.TrimSpace(tool) {
-	case ToolClaude:
-		return claude.SettingsPaths(cwd, home)
-	default:
-		return nil
-	}
-}
-
-func ProjectRoot(tool string, cwd string) string {
-	switch strings.TrimSpace(tool) {
-	case ToolClaude:
-		return claude.ProjectRoot(cwd)
-	default:
-		return ""
-	}
-}
-
 func ApplyPermissionBridge(tool string, decision policy.Decision, cwd string, home string) policy.Decision {
 	switch strings.TrimSpace(tool) {
-	case ToolClaude:
-		return applyClaudePermissionBridge(decision, cwd, home)
+	case Tool:
+		return applyPermissionBridge(decision, cwd, home)
 	default:
 		return decision
 	}
 }
 
-func applyClaudePermissionBridge(decision policy.Decision, cwd string, home string) policy.Decision {
-	verdict := claude.CheckCommand(decision.Command, cwd, home)
+func applyPermissionBridge(decision policy.Decision, cwd string, home string) policy.Decision {
+	verdict := CheckCommand(decision.Command, cwd, home)
 	switch verdict {
-	case claude.PermissionDeny:
+	case PermissionDeny:
 		decision.Trace = append(decision.Trace, policy.TraceStep{
 			Action:  "permission",
 			Name:    "claude_settings",
@@ -59,7 +40,7 @@ func applyClaudePermissionBridge(decision policy.Decision, cwd string, home stri
 			decision.Message = "blocked by Claude settings migration rule"
 		}
 		decision.Outcome = "deny"
-	case claude.PermissionAllow:
+	case PermissionAllow:
 		if decision.Outcome == "deny" {
 			return decision
 		}
@@ -70,7 +51,7 @@ func applyClaudePermissionBridge(decision policy.Decision, cwd string, home stri
 			Message: "Claude settings allow matched during migration",
 		})
 		decision.Outcome = "allow"
-	case claude.PermissionAsk:
+	case PermissionAsk:
 		if decision.Outcome == "deny" {
 			return decision
 		}
@@ -81,7 +62,7 @@ func applyClaudePermissionBridge(decision policy.Decision, cwd string, home stri
 			Message: "Claude settings explicitly require confirmation during migration",
 		})
 		decision.Outcome = "ask"
-	case claude.PermissionDefault:
+	case PermissionDefault:
 		decision.Trace = append(decision.Trace, policy.TraceStep{
 			Action:  "permission",
 			Name:    "claude_settings",
