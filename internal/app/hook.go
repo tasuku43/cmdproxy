@@ -5,25 +5,25 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/tasuku43/cc-bash-proxy/internal/buildinfo"
-	"github.com/tasuku43/cc-bash-proxy/internal/config"
+	"github.com/tasuku43/cc-bash-proxy/internal/adapter/claude"
+	"github.com/tasuku43/cc-bash-proxy/internal/adapter/hookinput"
 	"github.com/tasuku43/cc-bash-proxy/internal/domain/policy"
 	"github.com/tasuku43/cc-bash-proxy/internal/infra"
-	"github.com/tasuku43/cc-bash-proxy/internal/input"
-	"github.com/tasuku43/cc-bash-proxy/internal/integration"
+	"github.com/tasuku43/cc-bash-proxy/internal/infra/buildinfo"
+	configrepo "github.com/tasuku43/cc-bash-proxy/internal/infra/config"
 )
 
 func RunHook(raw []byte, useRTK bool, env Env) HookResult {
-	req, err := input.Normalize(raw)
+	req, err := hookinput.Normalize(raw)
 	if err != nil {
-		return HookResult{Payload: hookErrorPayload(integration.ToolClaude, "invalid_input", err.Error())}
+		return HookResult{Payload: hookErrorPayload(claude.Tool, "invalid_input", err.Error())}
 	}
 
 	decision, err := evaluateDecision(req, env)
 	if err != nil {
-		return HookResult{Payload: hookErrorPayload(integration.ToolClaude, "invalid_config", err.Error())}
+		return HookResult{Payload: hookErrorPayload(claude.Tool, "invalid_config", err.Error())}
 	}
-	decision = integration.ApplyPermissionBridge(integration.ToolClaude, decision, env.Cwd, env.Home)
+	decision = claude.ApplyPermissionBridge(claude.Tool, decision, env.Cwd, env.Home)
 	if useRTK && decision.Outcome != "deny" {
 		decision = applyRTKRewrite(decision)
 	}
@@ -31,12 +31,12 @@ func RunHook(raw []byte, useRTK bool, env Env) HookResult {
 	return HookResult{Payload: hookPayload(decision, req.Command)}
 }
 
-func evaluateDecision(req input.ExecRequest, env Env) (policy.Decision, error) {
-	loaded := config.LoadEffectiveForHookTool(env.Cwd, env.Home, env.XDGConfigHome, env.XDGCacheHome, integration.ToolClaude)
+func evaluateDecision(req hookinput.ExecRequest, env Env) (policy.Decision, error) {
+	loaded := configrepo.LoadEffectiveForHookTool(env.Cwd, env.Home, env.XDGConfigHome, env.XDGCacheHome, claude.Tool)
 	if len(loaded.Errors) > 0 {
 		if shouldAttemptImplicitVerify(loaded.Errors) {
-			if err := ensureVerifiedArtifacts(env, integration.ToolClaude); err == nil {
-				loaded = config.LoadEffectiveForHookTool(env.Cwd, env.Home, env.XDGConfigHome, env.XDGCacheHome, integration.ToolClaude)
+			if err := ensureVerifiedArtifacts(env, claude.Tool); err == nil {
+				loaded = configrepo.LoadEffectiveForHookTool(env.Cwd, env.Home, env.XDGConfigHome, env.XDGCacheHome, claude.Tool)
 			}
 		}
 		if len(loaded.Errors) > 0 {
@@ -61,7 +61,7 @@ func shouldAttemptImplicitVerify(errs []error) bool {
 
 func ensureVerifiedArtifacts(env Env, tool string) error {
 	info := buildinfo.Read()
-	_, err := config.VerifyEffectiveToAllCaches(env.Cwd, env.Home, env.XDGConfigHome, env.XDGCacheHome, tool, info.Version)
+	_, err := configrepo.VerifyEffectiveToAllCaches(env.Cwd, env.Home, env.XDGConfigHome, env.XDGCacheHome, tool, info.Version)
 	return err
 }
 
@@ -103,7 +103,7 @@ func hookPayload(decision policy.Decision, originalCommand string) map[string]an
 			},
 		}
 	default:
-		return hookErrorPayload(integration.ToolClaude, "runtime_error", "unsupported decision outcome")
+		return hookErrorPayload(claude.Tool, "runtime_error", "unsupported decision outcome")
 	}
 }
 

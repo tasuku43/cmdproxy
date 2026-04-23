@@ -10,7 +10,7 @@ import (
 )
 
 func TestLayerDirectoriesExist(t *testing.T) {
-	for _, dir := range []string{"../config", "../domain", "../cli", "../app", "../infra", "../domain/directive"} {
+	for _, dir := range []string{"../../adapter", "../../app", "../../cli", "../../domain", "../../infra", "../../dev", "../../domain/directive"} {
 		if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
 			t.Fatalf("layer dir missing: %s", dir)
 		}
@@ -18,23 +18,27 @@ func TestLayerDirectoriesExist(t *testing.T) {
 }
 
 func TestDomainDoesNotImportCLI(t *testing.T) {
-	assertNoForbiddenImport(t, "../domain", []string{"/internal/cli"})
+	assertNoForbiddenImport(t, "../../domain", []string{"/internal/cli"})
 }
 
 func TestConfigDoesNotImportCLI(t *testing.T) {
-	assertNoForbiddenImport(t, "../config", []string{"/internal/cli"})
+	assertNoForbiddenImport(t, "../../infra/config", []string{"/internal/cli"})
 }
 
 func TestDomainDoesNotImportApp(t *testing.T) {
-	assertNoForbiddenImport(t, "../domain", []string{"/internal/app"})
+	assertNoForbiddenImport(t, "../../domain", []string{"/internal/app"})
 }
 
 func TestAppDoesNotImportCLI(t *testing.T) {
-	assertNoForbiddenImport(t, "../app", []string{"/internal/cli"})
+	assertNoForbiddenImport(t, "../../app", []string{"/internal/cli"})
 }
 
 func TestInfraDoesNotImportCLIOrApp(t *testing.T) {
-	assertNoForbiddenImport(t, "../infra", []string{"/internal/cli", "/internal/app"})
+	assertNoForbiddenImport(t, "../../infra", []string{"/internal/cli", "/internal/app"})
+}
+
+func TestAdapterDoesNotImportCLIOrApp(t *testing.T) {
+	assertNoForbiddenImport(t, "../../adapter", []string{"/internal/cli", "/internal/app"})
 }
 
 func assertNoForbiddenImport(t *testing.T, dir string, forbidden []string) {

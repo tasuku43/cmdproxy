@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tasuku43/cc-bash-proxy/internal/contract"
+	"github.com/tasuku43/cc-bash-proxy/internal/adapter/claude"
+	"github.com/tasuku43/cc-bash-proxy/internal/adapter/policyconfig"
 	"github.com/tasuku43/cc-bash-proxy/internal/domain/policy"
-	"github.com/tasuku43/cc-bash-proxy/internal/integration"
 	"gopkg.in/yaml.v3"
 )
 
@@ -64,7 +64,7 @@ type EffectiveInputs struct {
 
 func ResolveEffectiveInputs(cwd string, home string, xdgConfigHome string, tool string) EffectiveInputs {
 	configSources := configSources(cwd, home, xdgConfigHome, tool)
-	settingsPaths := existingPaths(integration.SettingsPaths(tool, cwd, home))
+	settingsPaths := existingPaths(settingsPaths(tool, cwd, home))
 	fingerprint := effectiveFingerprint(tool, configSources, settingsPaths)
 	return EffectiveInputs{
 		Tool:          tool,
@@ -352,7 +352,7 @@ func decodeFile(src Source, data string) (File, error) {
 func validateFile(file File) []string {
 	var issues []string
 	issues = append(issues, policy.ValidatePipeline(file)...)
-	issues = append(issues, contract.ValidateRewrites(file.Rewrite)...)
+	issues = append(issues, policyconfig.ValidateRewrites(file.Rewrite)...)
 	return issues
 }
 
@@ -515,7 +515,7 @@ func configSources(cwd string, home string, xdgConfigHome string, tool string) [
 		sources = append(sources, Source{Layer: LayerUser, Path: path})
 		break
 	}
-	if root := integration.ProjectRoot(tool, cwd); root != "" {
+	if root := projectRoot(tool, cwd); root != "" {
 		for _, path := range resolveProjectConfigCandidates(root) {
 			if path == "" {
 				continue
@@ -525,6 +525,20 @@ func configSources(cwd string, home string, xdgConfigHome string, tool string) [
 		}
 	}
 	return sources
+}
+
+func settingsPaths(tool string, cwd string, home string) []string {
+	if tool == claude.Tool {
+		return claude.SettingsPaths(cwd, home)
+	}
+	return nil
+}
+
+func projectRoot(tool string, cwd string) string {
+	if tool == claude.Tool {
+		return claude.ProjectRoot(cwd)
+	}
+	return ""
 }
 
 func resolveUserConfigCandidates(home string, xdgConfigHome string) []string {

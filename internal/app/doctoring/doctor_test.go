@@ -1,15 +1,15 @@
-package doctor
+package doctoring
 
 import (
 	"testing"
 
-	"github.com/tasuku43/cc-bash-proxy/internal/config"
 	"github.com/tasuku43/cc-bash-proxy/internal/domain/policy"
+	configrepo "github.com/tasuku43/cc-bash-proxy/internal/infra/config"
 )
 
 func TestRunWarnsOnRelaxedRewriteContracts(t *testing.T) {
 	strict := false
-	loaded := config.Loaded{
+	loaded := configrepo.Loaded{
 		Pipeline: policy.NewPipeline(policy.PipelineSpec{
 			Rewrite: []policy.RewriteStepSpec{{
 				Match: policy.MatchSpec{Command: "kubectl"},
@@ -34,7 +34,7 @@ func TestRunWarnsOnRelaxedRewriteContracts(t *testing.T) {
 }
 
 func TestRunPassesWhenPipelineTestsMatch(t *testing.T) {
-	loaded := config.Loaded{
+	loaded := configrepo.Loaded{
 		Pipeline: policy.NewPipeline(policy.PipelineSpec{
 			Permission: policy.PermissionSpec{
 				Allow: []policy.PermissionRuleSpec{{

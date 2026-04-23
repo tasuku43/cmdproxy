@@ -1,8 +1,8 @@
 package app
 
 import (
-	"github.com/tasuku43/cc-bash-proxy/internal/buildinfo"
-	"github.com/tasuku43/cc-bash-proxy/internal/doctor"
+	"github.com/tasuku43/cc-bash-proxy/internal/app/doctoring"
+	"github.com/tasuku43/cc-bash-proxy/internal/infra/buildinfo"
 )
 
 type Env struct {
@@ -17,13 +17,13 @@ type HookResult struct {
 }
 
 type DoctorResult struct {
-	Report doctor.Report
+	Report doctoring.Report
 }
 
 type VerifyResult struct {
 	Tool          string
 	BuildInfo     buildinfo.Info
-	Report        doctor.Report
+	Report        doctoring.Report
 	Verified      bool
 	ArtifactBuilt bool
 	ArtifactCache []string
