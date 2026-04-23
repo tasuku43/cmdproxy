@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/tasuku43/cc-bash-proxy/internal/app"
 	"github.com/tasuku43/cc-bash-proxy/internal/buildinfo"
 	"github.com/tasuku43/cc-bash-proxy/internal/config"
 	"github.com/tasuku43/cc-bash-proxy/internal/doctor"
@@ -646,7 +647,7 @@ func TestVerifyStatus(t *testing.T) {
 			{ID: "tests.pass", Status: doctor.StatusPass},
 		},
 	}
-	ok, reasons := verifyStatus(report, buildinfo.Info{Version: "dev", Module: "github.com/tasuku43/cc-bash-proxy", VCSRevision: "abc123"}, "claude")
+	ok, reasons := app.VerifyStatus(report, buildinfo.Info{Version: "dev", Module: "github.com/tasuku43/cc-bash-proxy", VCSRevision: "abc123"}, "claude")
 	if !ok || len(reasons) != 0 {
 		t.Fatalf("ok=%v reasons=%v", ok, reasons)
 	}

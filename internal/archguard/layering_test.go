@@ -10,7 +10,7 @@ import (
 )
 
 func TestLayerDirectoriesExist(t *testing.T) {
-	for _, dir := range []string{"../config", "../domain", "../cli", "../domain/directive"} {
+	for _, dir := range []string{"../config", "../domain", "../cli", "../app", "../infra", "../domain/directive"} {
 		if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
 			t.Fatalf("layer dir missing: %s", dir)
 		}
@@ -23,6 +23,18 @@ func TestDomainDoesNotImportCLI(t *testing.T) {
 
 func TestConfigDoesNotImportCLI(t *testing.T) {
 	assertNoForbiddenImport(t, "../config", []string{"/internal/cli"})
+}
+
+func TestDomainDoesNotImportApp(t *testing.T) {
+	assertNoForbiddenImport(t, "../domain", []string{"/internal/app"})
+}
+
+func TestAppDoesNotImportCLI(t *testing.T) {
+	assertNoForbiddenImport(t, "../app", []string{"/internal/cli"})
+}
+
+func TestInfraDoesNotImportCLIOrApp(t *testing.T) {
+	assertNoForbiddenImport(t, "../infra", []string{"/internal/cli", "/internal/app"})
 }
 
 func assertNoForbiddenImport(t *testing.T, dir string, forbidden []string) {
