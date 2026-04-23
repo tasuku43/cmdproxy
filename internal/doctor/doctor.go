@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tasuku43/cmdproxy/internal/buildinfo"
-	"github.com/tasuku43/cmdproxy/internal/config"
-	"github.com/tasuku43/cmdproxy/internal/domain/policy"
-	"github.com/tasuku43/cmdproxy/internal/integration"
+	"github.com/tasuku43/cc-bash-proxy/internal/buildinfo"
+	"github.com/tasuku43/cc-bash-proxy/internal/config"
+	"github.com/tasuku43/cc-bash-proxy/internal/domain/policy"
+	"github.com/tasuku43/cc-bash-proxy/internal/integration"
 )
 
 type Status string
@@ -79,10 +79,10 @@ func Run(loaded config.Loaded, tool string, cwd string, home string) Report {
 		checks = append(checks, Check{ID: "rewrite.pattern-broadness", Category: "diagnostics", Status: StatusPass, Message: "rewrite matches are not obviously broad"})
 	}
 
-	if path, err := exec.LookPath("cmdproxy"); err == nil {
-		checks = append(checks, Check{ID: "install.binary-on-path", Category: "install", Status: StatusPass, Message: "cmdproxy found on PATH at " + path})
+	if path, err := exec.LookPath("cc-bash-proxy"); err == nil {
+		checks = append(checks, Check{ID: "install.binary-on-path", Category: "install", Status: StatusPass, Message: "cc-bash-proxy found on PATH at " + path})
 	} else {
-		checks = append(checks, Check{ID: "install.binary-on-path", Category: "install", Status: StatusWarn, Message: "cmdproxy not found on PATH"})
+		checks = append(checks, Check{ID: "install.binary-on-path", Category: "install", Status: StatusWarn, Message: "cc-bash-proxy not found on PATH"})
 	}
 
 	if exe, err := os.Executable(); err == nil {
@@ -106,10 +106,10 @@ func Run(loaded config.Loaded, tool string, cwd string, home string) Report {
 		claudeSettings := filepath.Join(home, ".claude", "settings.json")
 		if _, err := os.Stat(claudeSettings); err == nil {
 			data, readErr := os.ReadFile(claudeSettings)
-			if readErr == nil && strings.Contains(string(data), "cmdproxy hook claude") && strings.Contains(string(data), "\"matcher\": \"Bash\"") {
+			if readErr == nil && strings.Contains(string(data), "cc-bash-proxy hook") && strings.Contains(string(data), "\"matcher\": \"Bash\"") {
 				checks = append(checks, Check{ID: "install.claude-registered", Category: "install", Status: StatusPass, Message: "Claude Code hook registration detected"})
 			} else {
-				checks = append(checks, Check{ID: "install.claude-registered", Category: "install", Status: StatusWarn, Message: "Claude Code settings found but cmdproxy hook claude not detected"})
+				checks = append(checks, Check{ID: "install.claude-registered", Category: "install", Status: StatusWarn, Message: "Claude Code settings found but cc-bash-proxy hook not detected"})
 			}
 		} else {
 			checks = append(checks, Check{ID: "install.claude-registered", Category: "install", Status: StatusWarn, Message: "Claude Code settings.json not found"})
@@ -259,7 +259,7 @@ func extractClaudeHookCommand(raw string) (string, bool) {
 func findHookCommand(node any) string {
 	switch v := node.(type) {
 	case map[string]any:
-		if command, ok := v["command"].(string); ok && strings.Contains(command, "cmdproxy hook claude") {
+		if command, ok := v["command"].(string); ok && strings.Contains(command, "cc-bash-proxy hook") {
 			return command
 		}
 		for _, value := range v {

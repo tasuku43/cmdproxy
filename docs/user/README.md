@@ -1,6 +1,6 @@
 # User Documentation
 
-Start here if your goal is to use `cmdproxy` in local workflows.
+Start here if your goal is to use `cc-bash-proxy` in local workflows.
 
 ## Entry
 
@@ -8,9 +8,9 @@ Start here if your goal is to use `cmdproxy` in local workflows.
 
 ## Current Focus
 
-- user-wide config at `~/.config/cmdproxy/cmdproxy.yml`
-- rule editing followed by `cmdproxy test`
-- hook integration via `cmdproxy hook claude`
+- user-wide config at `~/.config/cc-bash-proxy/cc-bash-proxy.yml`
+- rule editing followed by `cc-bash-proxy verify`
+- hook integration via `cc-bash-proxy hook`
 
 ## Intended Guide Set
 

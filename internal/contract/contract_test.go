@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/cmdproxy/internal/domain/policy"
+	"github.com/tasuku43/cc-bash-proxy/internal/domain/policy"
 )
 
 func TestValidateRewritesAcceptsStrictAWSMappings(t *testing.T) {

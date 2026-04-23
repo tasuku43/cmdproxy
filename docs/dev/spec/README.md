@@ -1,13 +1,13 @@
 ---
-title: "cmdproxy specs"
+title: "cc-bash-proxy specs"
 status: proposed
 date: 2026-04-22
 ---
 
-# cmdproxy specs
+# cc-bash-proxy specs
 
 This directory contains the proposed implementation contracts for the current
-`cmdproxy` model.
+`cc-bash-proxy` model.
 
 The repository is moving from a directive-oriented redesign into a pipeline
 model with:
@@ -29,10 +29,10 @@ model with:
 
 ## Target priorities
 
-The current `cmdproxy` contract prioritizes:
+The current `cc-bash-proxy` contract prioritizes:
 
 1. Invocation canonicalization before permission evaluation
-2. `cmdproxy`-owned permission decisions
+2. `cc-bash-proxy`-owned permission decisions
 3. Simple caller input, rich internal normalization
 4. Deterministic rewrite ordering and deterministic permission bucket ordering
 5. Reviewable, testable policy authoring

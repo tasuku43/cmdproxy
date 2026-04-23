@@ -7,8 +7,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/tasuku43/cmdproxy/internal/domain/directive"
-	"github.com/tasuku43/cmdproxy/internal/domain/invocation"
+	"github.com/tasuku43/cc-bash-proxy/internal/domain/directive"
+	"github.com/tasuku43/cc-bash-proxy/internal/domain/invocation"
 )
 
 type PipelineSpec struct {

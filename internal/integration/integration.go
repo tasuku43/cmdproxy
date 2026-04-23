@@ -3,8 +3,8 @@ package integration
 import (
 	"strings"
 
-	"github.com/tasuku43/cmdproxy/internal/claude"
-	"github.com/tasuku43/cmdproxy/internal/domain/policy"
+	"github.com/tasuku43/cc-bash-proxy/internal/claude"
+	"github.com/tasuku43/cc-bash-proxy/internal/domain/policy"
 )
 
 const ToolClaude = "claude"

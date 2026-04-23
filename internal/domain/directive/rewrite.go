@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/tasuku43/cmdproxy/internal/domain/invocation"
+	"github.com/tasuku43/cc-bash-proxy/internal/domain/invocation"
 )
 
 func UnwrapShellDashC(command string) (string, bool) {

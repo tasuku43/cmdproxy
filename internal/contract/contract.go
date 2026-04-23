@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/tasuku43/cmdproxy/internal/domain/policy"
+	"github.com/tasuku43/cc-bash-proxy/internal/domain/policy"
 )
 
 type Contract interface {

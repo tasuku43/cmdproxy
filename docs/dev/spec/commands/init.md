@@ -1,24 +1,24 @@
 ---
-title: "cmdproxy init"
+title: "cc-bash-proxy init"
 status: proposed
 date: 2026-04-19
 ---
 
-# cmdproxy init
+# cc-bash-proxy init
 
 ## Purpose
 
-`cmdproxy init` bootstraps a local `cmdproxy` setup without destructively
+`cc-bash-proxy init` bootstraps a local `cc-bash-proxy` setup without destructively
 modifying existing user configuration.
 
 ## Target Responsibilities
 
-`cmdproxy init` should:
+`cc-bash-proxy init` should:
 
 - create a starter user-wide config when one does not exist
 - explain where the user-wide config lives
 - detect compatible Claude Code settings files
-- print the hook snippet needed to register `cmdproxy hook claude`
+- print the hook snippet needed to register `cc-bash-proxy hook`
 
 ## Starter Config Goal
 
@@ -30,7 +30,7 @@ It should:
 - demonstrate at least one structured matcher
 - demonstrate a directive, preferably `rewrite` or `reject`
 - include examples that show the intended rule effect
-- be valid under `cmdproxy test`
+- be valid under `cc-bash-proxy verify`
 
 ## Safety Principle
 

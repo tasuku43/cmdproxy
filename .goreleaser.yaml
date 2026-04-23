@@ -1,15 +1,15 @@
 version: 2
 
-project_name: cmdproxy
+project_name: cc-bash-proxy
 
 before:
   hooks:
     - go test ./...
 
 builds:
-  - id: cmdproxy
-    main: ./cmd/cmdproxy
-    binary: cmdproxy
+  - id: cc-bash-proxy
+    main: ./cmd/cc-bash-proxy
+    binary: cc-bash-proxy
     env:
       - CGO_ENABLED=0
     goos:
@@ -24,7 +24,7 @@ builds:
 archives:
   - id: archives
     ids:
-      - cmdproxy
+      - cc-bash-proxy
     formats:
       - tar.gz
     name_template: >-

@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/cmdproxy/internal/domain/policy"
+	"github.com/tasuku43/cc-bash-proxy/internal/domain/policy"
 )
 
 func TestLoadEffectiveUsesUserConfig(t *testing.T) {
 	home := t.TempDir()
-	userPath := filepath.Join(home, ".config", "cmdproxy", "cmdproxy.yml")
+	userPath := filepath.Join(home, ".config", "cc-bash-proxy", "cc-bash-proxy.yml")
 	if err := os.MkdirAll(filepath.Dir(userPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestLoadEffectiveForToolMergesUserAndProjectConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	userPath := filepath.Join(home, ".config", "cmdproxy", "cmdproxy.yml")
+	userPath := filepath.Join(home, ".config", "cc-bash-proxy", "cc-bash-proxy.yml")
 	if err := os.MkdirAll(filepath.Dir(userPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ test:
 		t.Fatal(err)
 	}
 
-	localPath := filepath.Join(project, ".cmdproxy", "cmdproxy.yaml")
+	localPath := filepath.Join(project, ".cc-bash-proxy", "cc-bash-proxy.yaml")
 	if err := os.MkdirAll(filepath.Dir(localPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +132,7 @@ test:
 
 func TestLoadFileForEvalIfPresentSupportsStripCommandPath(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "cmdproxy.yml")
+	path := filepath.Join(dir, "cc-bash-proxy.yml")
 	cacheDir := t.TempDir()
 	body := `rewrite:
   - match:
@@ -175,7 +175,7 @@ test:
 
 func TestVerifyFileWritesVerifiedArtifactAndHookLoadsIt(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "cmdproxy.yml")
+	path := filepath.Join(dir, "cc-bash-proxy.yml")
 	cacheDir := t.TempDir()
 	body := `permission:
   allow:
@@ -236,7 +236,7 @@ test:
 
 func TestLoadVerifiedFileForHookFailsWhenArtifactMissing(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "cmdproxy.yml")
+	path := filepath.Join(dir, "cc-bash-proxy.yml")
 	body := `permission:
   allow:
     - match:
@@ -253,7 +253,7 @@ test:
 	}
 
 	_, err := LoadVerifiedFileForHook(Source{Layer: LayerUser, Path: path}, []string{t.TempDir()})
-	if err == nil || !strings.Contains(err.Error(), "run cmdproxy verify") {
+	if err == nil || !strings.Contains(err.Error(), "run cc-bash-proxy verify") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -266,7 +266,7 @@ func TestVerifyEffectiveToAllCachesIncludesToolSettingsFingerprint(t *testing.T)
 		t.Fatal(err)
 	}
 
-	configPath := filepath.Join(home, ".config", "cmdproxy", "cmdproxy.yml")
+	configPath := filepath.Join(home, ".config", "cc-bash-proxy", "cc-bash-proxy.yml")
 	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -319,7 +319,7 @@ test:
 
 func TestLoadFileIfPresentRejectsUnsupportedBuiltInRewriteContract(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "cmdproxy.yml")
+	path := filepath.Join(dir, "cc-bash-proxy.yml")
 	body := `rewrite:
   - match:
       command: aws

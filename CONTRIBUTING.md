@@ -1,4 +1,4 @@
-# Contributing to cmdproxy
+# Contributing to cc-bash-proxy
 
 Thanks for contributing.
 
@@ -66,4 +66,4 @@ Please include:
 
 - releases are tag-driven (`v*`) via GitHub Actions
 - artifacts are published to GitHub Releases
-- stable tags can update the Homebrew tap (`tasuku43/homebrew-cmdproxy`)
+- stable tags can update the Homebrew tap (`tasuku43/homebrew-cc-bash-proxy`)

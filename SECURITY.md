@@ -26,14 +26,14 @@ prepared.
 
 ## Verification Guidance
 
-Because `cmdproxy` can rewrite commands before execution, users should treat the
+Because `cc-bash-proxy` can rewrite commands before execution, users should treat the
 installed binary as part of their execution trust boundary.
 
 Before relying on a downloaded build:
 
 1. verify the published release checksum
-2. inspect the binary with `cmdproxy version --format json`
-3. run `cmdproxy verify --format json`
+2. inspect the binary with `cc-bash-proxy version --format json`
+3. run `cc-bash-proxy verify --format json`
 
 ## Disclosure
 

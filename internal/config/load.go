@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tasuku43/cmdproxy/internal/contract"
-	"github.com/tasuku43/cmdproxy/internal/domain/policy"
-	"github.com/tasuku43/cmdproxy/internal/integration"
+	"github.com/tasuku43/cc-bash-proxy/internal/contract"
+	"github.com/tasuku43/cc-bash-proxy/internal/domain/policy"
+	"github.com/tasuku43/cc-bash-proxy/internal/integration"
 	"gopkg.in/yaml.v3"
 )
 
@@ -51,7 +51,7 @@ func ConfigPaths(home string, xdgConfigHome string) []Source {
 	}
 	return []Source{{
 		Layer: LayerUser,
-		Path:  filepath.Join(userConfigBase, "cmdproxy", "cmdproxy.yml"),
+		Path:  filepath.Join(userConfigBase, "cc-bash-proxy", "cc-bash-proxy.yml"),
 	}}
 }
 
@@ -77,7 +77,7 @@ func ResolveEffectiveInputs(cwd string, home string, xdgConfigHome string, tool 
 func HookCacheDir(home string, xdgCacheHome string) string {
 	dirs := HookCacheDirs(home, xdgCacheHome)
 	if len(dirs) == 0 {
-		return filepath.Join(home, ".cache", "cmdproxy")
+		return filepath.Join(home, ".cache", "cc-bash-proxy")
 	}
 	return dirs[0]
 }
@@ -89,14 +89,14 @@ func HookCacheDirs(home string, xdgCacheHome string) []string {
 		if strings.TrimSpace(base) == "" {
 			return
 		}
-		path := filepath.Join(base, "cmdproxy")
+		path := filepath.Join(base, "cc-bash-proxy")
 		if _, ok := seen[path]; ok {
 			return
 		}
 		seen[path] = struct{}{}
 		dirs = append(dirs, path)
 	}
-	add(filepath.Join(os.TempDir(), "cmdproxy-"+shortHash(home)))
+	add(filepath.Join(os.TempDir(), "cc-bash-proxy-"+shortHash(home)))
 	add(filepath.Join(home, ".cache"))
 	add(xdgCacheHome)
 	return dirs
@@ -267,7 +267,7 @@ func loadFileForEval(src Source, cacheDir string, requireVerified bool, cmdproxy
 		return pipeline, nil
 	}
 	if requireVerified {
-		return policy.Pipeline{}, fmt.Errorf("%s config %s changed since last verify; run cmdproxy verify", src.Layer, src.Path)
+		return policy.Pipeline{}, fmt.Errorf("%s config %s changed since last verify; run cc-bash-proxy verify", src.Layer, src.Path)
 	}
 	return compileEvalData(src, cacheDir, cmdproxyVersion, data, sourceHash)
 }
@@ -326,7 +326,7 @@ func loadVerifiedFileForHook(src Source, cacheDirs []string) (policy.Pipeline, e
 			return pipeline, nil
 		}
 	}
-	return policy.Pipeline{}, fmt.Errorf("%s config %s changed since last verify; verified artifact not found in %s; run cmdproxy verify", src.Layer, src.Path, strings.Join(cacheDirs, ", "))
+	return policy.Pipeline{}, fmt.Errorf("%s config %s changed since last verify; verified artifact not found in %s; run cc-bash-proxy verify", src.Layer, src.Path, strings.Join(cacheDirs, ", "))
 }
 
 func loadVerifiedEffectivePipeline(inputs EffectiveInputs, cacheDirs []string) (policy.Pipeline, error) {
@@ -336,7 +336,7 @@ func loadVerifiedEffectivePipeline(inputs EffectiveInputs, cacheDirs []string) (
 			return pipeline, nil
 		}
 	}
-	return policy.Pipeline{}, fmt.Errorf("effective config for %s changed since last verify; verified artifact not found in %s; run cmdproxy verify %s", inputs.Tool, strings.Join(cacheDirs, ", "), inputs.Tool)
+	return policy.Pipeline{}, fmt.Errorf("effective config for %s changed since last verify; verified artifact not found in %s; run cc-bash-proxy verify", inputs.Tool, strings.Join(cacheDirs, ", "))
 }
 
 func decodeFile(src Source, data string) (File, error) {
@@ -532,18 +532,18 @@ func resolveUserConfigCandidates(home string, xdgConfigHome string) []string {
 	if base == "" {
 		base = filepath.Join(home, ".config")
 	}
-	dir := filepath.Join(base, "cmdproxy")
+	dir := filepath.Join(base, "cc-bash-proxy")
 	return configCandidates(dir)
 }
 
 func resolveProjectConfigCandidates(root string) []string {
-	return configCandidates(filepath.Join(root, ".cmdproxy"))
+	return configCandidates(filepath.Join(root, ".cc-bash-proxy"))
 }
 
 func configCandidates(dir string) []string {
 	candidates := []string{
-		filepath.Join(dir, "cmdproxy.yml"),
-		filepath.Join(dir, "cmdproxy.yaml"),
+		filepath.Join(dir, "cc-bash-proxy.yml"),
+		filepath.Join(dir, "cc-bash-proxy.yaml"),
 	}
 	var existing []string
 	for _, path := range candidates {

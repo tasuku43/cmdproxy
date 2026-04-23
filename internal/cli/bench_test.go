@@ -20,7 +20,7 @@ func BenchmarkEvaluateRequestWithSmallConfig(b *testing.B) {
 	env := Env{Cwd: b.TempDir(), Home: home, XDGCacheHome: cacheHome}
 	reqJSON := []byte(`{"tool_name":"Bash","tool_input":{"command":"git -C repos/foo status"}}`)
 
-	if code := Run([]string{"hook", "claude"}, Streams{
+	if code := Run([]string{"hook"}, Streams{
 		Stdin:  bytes.NewReader(reqJSON),
 		Stdout: bytes.NewBuffer(nil),
 		Stderr: bytes.NewBuffer(nil),
@@ -32,7 +32,7 @@ func BenchmarkEvaluateRequestWithSmallConfig(b *testing.B) {
 	for b.Loop() {
 		streams.Stdout = bytes.NewBuffer(nil)
 		streams.Stderr = bytes.NewBuffer(nil)
-		code := Run([]string{"hook", "claude"}, Streams{
+		code := Run([]string{"hook"}, Streams{
 			Stdin:  bytes.NewReader(reqJSON),
 			Stdout: streams.Stdout,
 			Stderr: streams.Stderr,
@@ -50,7 +50,7 @@ func BenchmarkEvaluateRequestWithLargeConfig(b *testing.B) {
 	env := Env{Cwd: b.TempDir(), Home: home, XDGCacheHome: cacheHome}
 	reqJSON := []byte(`{"tool_name":"Bash","tool_input":{"command":"git -C repos/foo status"}}`)
 
-	if code := Run([]string{"hook", "claude"}, Streams{
+	if code := Run([]string{"hook"}, Streams{
 		Stdin:  bytes.NewReader(reqJSON),
 		Stdout: bytes.NewBuffer(nil),
 		Stderr: bytes.NewBuffer(nil),
@@ -60,7 +60,7 @@ func BenchmarkEvaluateRequestWithLargeConfig(b *testing.B) {
 
 	b.ResetTimer()
 	for b.Loop() {
-		code := Run([]string{"hook", "claude"}, Streams{
+		code := Run([]string{"hook"}, Streams{
 			Stdin:  bytes.NewReader(reqJSON),
 			Stdout: bytes.NewBuffer(nil),
 			Stderr: bytes.NewBuffer(nil),
@@ -112,7 +112,7 @@ func benchmarkConfig(ruleCount, examplesPerRule int) string {
 
 func writeUserConfigBenchmark(b *testing.B, home string, body string) {
 	b.Helper()
-	path := filepath.Join(home, ".config", "cmdproxy", "cmdproxy.yml")
+	path := filepath.Join(home, ".config", "cc-bash-proxy", "cc-bash-proxy.yml")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		b.Fatal(err)
 	}

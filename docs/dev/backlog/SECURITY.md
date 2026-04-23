@@ -7,7 +7,7 @@ date: 2026-04-21
 # SECURITY Backlog
 
 This backlog tracks the security work required to publish and operate
-`cmdproxy` as a trusted command-rewriting binary.
+`cc-bash-proxy` as a trusted command-rewriting binary.
 
 The primary threat model is **binary or implementation tampering**, not
 user-authored rules.
@@ -193,26 +193,26 @@ user-authored rules.
   - Depends: SECURITY-011
   - Serial: no
 
-- [x] SECURITY-023: `homebrew-cmdproxy` release-pipeline integration
+- [x] SECURITY-023: `homebrew-cc-bash-proxy` release-pipeline integration
   - What: define and implement the release-path contract between the main
-    `cmdproxy` repository and `tasuku43/homebrew-cmdproxy`, so Homebrew formula
+    `cc-bash-proxy` repository and `tasuku43/homebrew-cc-bash-proxy`, so Homebrew formula
     updates are treated as part of the trusted publish pipeline rather than an
     ad-hoc post-release step.
   - Specs:
     - `.github/workflows/release.yml`
     - `.github/scripts/update-homebrew-formula.sh`
     - `docs/dev/ops/RELEASING.md`
-    - `/Users/tasuku43/work/github.com/tasuku43/homebrew-cmdproxy`
+    - `/Users/tasuku43/work/github.com/tasuku43/homebrew-cc-bash-proxy`
   - Depends: SECURITY-006
   - Serial: yes
 
-- [x] SECURITY-024: `homebrew-cmdproxy` repository protections and CI baseline
+- [x] SECURITY-024: `homebrew-cc-bash-proxy` repository protections and CI baseline
   - What: apply the same minimum trust controls to the tap repository, including
     branch protection, required review, and CI validation for formula changes,
     so a compromised or weakly protected tap cannot undercut signed releases and
     checksums from the main repository.
   - Specs:
-    - `/Users/tasuku43/work/github.com/tasuku43/homebrew-cmdproxy`
+    - `/Users/tasuku43/work/github.com/tasuku43/homebrew-cc-bash-proxy`
     - `docs/dev/ops/RELEASING.md`
   - Depends: SECURITY-023
   - Serial: yes

@@ -1,6 +1,6 @@
 # Start Here
 
-`cmdproxy` is a local CLI that sits in front of command execution and evaluates
+`cc-bash-proxy` is a local CLI that sits in front of command execution and evaluates
 command policy in two phases:
 
 1. rewrite the command into its canonical form
@@ -14,66 +14,66 @@ permission behavior.
 1. Create the user config
 
 ```sh
-cmdproxy init
+cc-bash-proxy init
 ```
 
-2. Edit `~/.config/cmdproxy/cmdproxy.yml`
+2. Edit `~/.config/cc-bash-proxy/cc-bash-proxy.yml`
 
 3. Verify the config after each change
 
 ```sh
-cmdproxy verify
-cmdproxy doctor --format json
+cc-bash-proxy verify
+cc-bash-proxy doctor --format json
 ```
 
 4. Spot-check individual commands
 
 ```sh
-cmdproxy check aws --profile read-only-profile s3 ls
-cmdproxy check bash -c 'git status'
+cc-bash-proxy check aws --profile read-only-profile s3 ls
+cc-bash-proxy check bash -c 'git status'
 ```
 
-5. Register `cmdproxy hook claude --rtk` in Claude Code
+5. Register `cc-bash-proxy hook --rtk` in Claude Code
 
 ## Verifying an Installed Binary
 
-If you install `cmdproxy` from a release artifact, verify it before relying on
+If you install `cc-bash-proxy` from a release artifact, verify it before relying on
 it in your command path.
 
 1. Check the downloaded file against `checksums.txt`
 2. Verify the release provenance with GitHub attestation data
 3. Inspect the binary metadata
-4. Run `cmdproxy verify`
+4. Run `cc-bash-proxy verify`
 
 Example:
 
 ```sh
 shasum -a 256 -c checksums.txt
-gh attestation verify path/to/cmdproxy_<tag>_<os>_<arch>.tar.gz -R tasuku43/cmdguard
-cmdproxy version --format json
-cmdproxy verify --format json
+gh attestation verify path/to/cc-bash-proxy_<tag>_<os>_<arch>.tar.gz -R tasuku43/cmdguard
+cc-bash-proxy version --format json
+cc-bash-proxy verify --format json
 ```
 
 ## Claude Code
 
-For Claude Code, add `cmdproxy hook claude --rtk` as a `PreToolUse` Bash hook.
+For Claude Code, add `cc-bash-proxy hook --rtk` as a `PreToolUse` Bash hook.
 
 ```json
 {
   "matcher": "Bash",
   "hooks": [
-    { "type": "command", "command": "cmdproxy hook claude --rtk" }
+    { "type": "command", "command": "cc-bash-proxy hook --rtk" }
   ]
 }
 ```
 
-`cmdproxy hook claude --rtk` evaluates `cmdproxy` policy first. It returns:
+`cc-bash-proxy hook --rtk` evaluates `cc-bash-proxy` policy first. It returns:
 
 - `allow`: auto-allow immediately
 - `ask`: let Claude prompt
 - `deny`: block immediately
 
-If `rtk` rewriting is enabled, that final rewrite is applied after `cmdproxy`
+If `rtk` rewriting is enabled, that final rewrite is applied after `cc-bash-proxy`
 has already decided the permission outcome.
 
 ## Current Config Model

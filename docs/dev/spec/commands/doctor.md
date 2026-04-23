@@ -1,14 +1,14 @@
 ---
-title: "cmdproxy doctor"
+title: "cc-bash-proxy doctor"
 status: proposed
 date: 2026-04-19
 ---
 
-# cmdproxy doctor
+# cc-bash-proxy doctor
 
 ## Purpose
 
-`cmdproxy doctor` reports the health of the current `cmdproxy` setup,
+`cc-bash-proxy doctor` reports the health of the current `cc-bash-proxy` setup,
 configuration, and integration posture.
 
 ## Categories
@@ -38,7 +38,7 @@ invalid rule definitions.
 
 Useful install checks include:
 
-- whether `cmdproxy` is on `PATH`
+- whether `cc-bash-proxy` is on `PATH`
 - which executable path is currently running
 - whether the binary exposes build metadata such as VCS revision
-- whether Claude Code is wired to `cmdproxy hook claude`
+- whether Claude Code is wired to `cc-bash-proxy hook`

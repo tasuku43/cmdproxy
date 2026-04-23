@@ -1,21 +1,20 @@
 ---
-title: "cmdproxy hook"
+title: "cc-bash-proxy hook"
 status: proposed
 date: 2026-04-23
 ---
 
-# cmdproxy hook
+# cc-bash-proxy hook
 
 ## Purpose
 
-`cmdproxy hook <tool>` is the tool-specific hook entrypoint. In the current
-implementation, `claude` is the supported tool. It reads the tool hook payload
-from stdin, applies the configured rewrite and permission pipeline, and emits
-tool-specific hook JSON on stdout.
+`cc-bash-proxy hook` is the current Claude Code hook entrypoint. It reads the
+Claude hook payload from stdin, applies the configured rewrite and permission
+pipeline, and emits hook JSON on stdout.
 
 ## Input Sources
 
-`cmdproxy hook claude` supports:
+`cc-bash-proxy hook` supports:
 
 - Claude Code `PreToolUse` Bash payloads
 
@@ -29,11 +28,11 @@ The current flow is:
 1. Read stdin fully
 2. Parse Claude Code hook JSON
 3. Normalize the Bash command into an invocation request
-4. Resolve global and project-local `cmdproxy` policy for the tool
+4. Resolve global and project-local `cc-bash-proxy` policy for the tool
 5. Resolve global and project-local tool settings for the tool
 6. Load the verified artifact for the effective merged state
 7. Evaluate the rewrite pipeline
-8. Evaluate `cmdproxy` permissions on the rewritten command
+8. Evaluate `cc-bash-proxy` permissions on the rewritten command
 9. Evaluate tool-native permissions for migration and coexistence
 10. Combine both permission sources with:
    - deny if either side denies
@@ -61,9 +60,9 @@ evaluation continues with the current command.
 
 ## Permission Coexistence
 
-`cmdproxy` and tool-native settings coexist during evaluation.
+`cc-bash-proxy` and tool-native settings coexist during evaluation.
 
-`cmdproxy` is responsible for:
+`cc-bash-proxy` is responsible for:
 
 - rewrite
 - flexible additional permission rules
@@ -81,10 +80,10 @@ During migration, tool-native settings are treated as four-state inputs:
 
 ## RTK Integration
 
-When `cmdproxy hook claude --rtk` is used, the runtime order is:
+When `cc-bash-proxy hook --rtk` is used, the runtime order is:
 
-1. evaluate `cmdproxy` rewrite pipeline
-2. evaluate `cmdproxy` permission pipeline
+1. evaluate `cc-bash-proxy` rewrite pipeline
+2. evaluate `cc-bash-proxy` permission pipeline
 3. evaluate Claude settings permission
 4. combine both verdicts
 5. if not denied, apply the final `rtk` rewrite

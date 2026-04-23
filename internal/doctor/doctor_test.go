@@ -3,8 +3,8 @@ package doctor
 import (
 	"testing"
 
-	"github.com/tasuku43/cmdproxy/internal/config"
-	"github.com/tasuku43/cmdproxy/internal/domain/policy"
+	"github.com/tasuku43/cc-bash-proxy/internal/config"
+	"github.com/tasuku43/cc-bash-proxy/internal/domain/policy"
 )
 
 func TestRunWarnsOnRelaxedRewriteContracts(t *testing.T) {

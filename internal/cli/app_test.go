@@ -9,15 +9,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/cmdproxy/internal/buildinfo"
-	"github.com/tasuku43/cmdproxy/internal/config"
-	"github.com/tasuku43/cmdproxy/internal/doctor"
+	"github.com/tasuku43/cc-bash-proxy/internal/buildinfo"
+	"github.com/tasuku43/cc-bash-proxy/internal/config"
+	"github.com/tasuku43/cc-bash-proxy/internal/doctor"
 )
 
 type hookPayload struct {
 	HookSpecificOutput map[string]any `json:"hookSpecificOutput"`
 	SystemMessage      string         `json:"systemMessage"`
-	Cmdproxy           map[string]any `json:"cmdproxy"`
+	Cmdproxy           map[string]any `json:"cc-bash-proxy"`
 }
 
 type hookEnvSpec struct {
@@ -47,7 +47,7 @@ func runClaudeHookTest(t *testing.T, spec hookEnvSpec) hookPayload {
 		writeProjectClaudeLocalSettings(t, cwd, spec.ClaudeLocalSettings)
 	}
 
-	args := []string{"hook", "claude"}
+	args := []string{"hook"}
 	if spec.UseRTK {
 		args = append(args, "--rtk")
 	}
@@ -105,7 +105,7 @@ test:
 `)
 
 	var stdout, stderr bytes.Buffer
-	code := Run([]string{"hook", "claude"}, Streams{
+	code := Run([]string{"hook"}, Streams{
 		Stdin:  strings.NewReader(`{"tool_name":"Bash","tool_input":{"command":"aws --profile dev sts get-caller-identity"}}`),
 		Stdout: &stdout,
 		Stderr: &stderr,
@@ -146,7 +146,7 @@ test:
 `)
 
 	var stdout, stderr bytes.Buffer
-	code := Run([]string{"hook", "claude"}, Streams{
+	code := Run([]string{"hook"}, Streams{
 		Stdin:  strings.NewReader(`{"tool_name":"Bash","tool_input":{"command":"aws s3 ls"}}`),
 		Stdout: &stdout,
 		Stderr: &stderr,
@@ -183,7 +183,7 @@ test:
 `)
 
 	var stdout, stderr bytes.Buffer
-	code := Run([]string{"hook", "claude"}, Streams{
+	code := Run([]string{"hook"}, Streams{
 		Stdin:  strings.NewReader(`{"tool_name":"Bash","tool_input":{"command":"git diff goal.md"}}`),
 		Stdout: &stdout,
 		Stderr: &stderr,
@@ -226,7 +226,7 @@ test:
 `)
 
 	var stdout, stderr bytes.Buffer
-	code := Run([]string{"hook", "claude"}, Streams{
+	code := Run([]string{"hook"}, Streams{
 		Stdin:  strings.NewReader(`{"tool_name":"Bash","tool_input":{"command":"git status -s"}}`),
 		Stdout: &stdout,
 		Stderr: &stderr,
@@ -305,7 +305,7 @@ test:
 			wantPermissionField: true,
 		},
 		{
-			name: "settings deny beats cmdproxy allow",
+			name: "settings deny beats cc-bash-proxy allow",
 			cmdproxyPermission: `permission:
   allow:
     - match:
@@ -355,7 +355,7 @@ test:
 			wantPermissionField: false,
 		},
 		{
-			name: "cmdproxy allow plus settings abstain stays allow",
+			name: "cc-bash-proxy allow plus settings abstain stays allow",
 			cmdproxyPermission: `permission:
   allow:
     - match:
@@ -397,7 +397,7 @@ test:
 			wantPermissionField: false,
 		},
 		{
-			name: "cmdproxy ask plus settings abstain stays ask",
+			name: "cc-bash-proxy ask plus settings abstain stays ask",
 			cmdproxyPermission: `permission:
   ask:
     - match:
@@ -537,7 +537,7 @@ test:
 `)
 
 	var stdout, stderr bytes.Buffer
-	code := Run([]string{"hook", "claude", "--rtk"}, Streams{
+	code := Run([]string{"hook", "--rtk"}, Streams{
 		Stdin:  strings.NewReader(`{"tool_name":"Bash","tool_input":{"command":"git diff goal.md"}}`),
 		Stdout: &stdout,
 		Stderr: &stderr,
@@ -578,7 +578,7 @@ test:
 `)
 
 	var stdout, stderr bytes.Buffer
-	code := Run([]string{"hook", "claude"}, Streams{
+	code := Run([]string{"hook"}, Streams{
 		Stdin:  strings.NewReader(`{"tool_name":"Bash","tool_input":{"command":"rm -rf /tmp/x"}}`),
 		Stdout: &stdout,
 		Stderr: &stderr,
@@ -625,7 +625,7 @@ test:
 `)
 
 	var stdout, stderr bytes.Buffer
-	code := Run([]string{"hook", "claude"}, Streams{
+	code := Run([]string{"hook"}, Streams{
 		Stdin:  strings.NewReader(`{"tool_name":"Bash","tool_input":{"command":"bash -c 'git status'"}}`),
 		Stdout: &stdout,
 		Stderr: &stderr,
@@ -646,7 +646,7 @@ func TestVerifyStatus(t *testing.T) {
 			{ID: "tests.pass", Status: doctor.StatusPass},
 		},
 	}
-	ok, reasons := verifyStatus(report, buildinfo.Info{Version: "dev", Module: "github.com/tasuku43/cmdproxy", VCSRevision: "abc123"}, "claude")
+	ok, reasons := verifyStatus(report, buildinfo.Info{Version: "dev", Module: "github.com/tasuku43/cc-bash-proxy", VCSRevision: "abc123"}, "claude")
 	if !ok || len(reasons) != 0 {
 		t.Fatalf("ok=%v reasons=%v", ok, reasons)
 	}
@@ -664,7 +664,7 @@ func TestRunInitCreatesStarterConfig(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("code = %d stderr=%s", code, stderr.String())
 	}
-	data, err := os.ReadFile(filepath.Join(home, ".config", "cmdproxy", "cmdproxy.yml"))
+	data, err := os.ReadFile(filepath.Join(home, ".config", "cc-bash-proxy", "cc-bash-proxy.yml"))
 	if err != nil {
 		t.Fatalf("read config: %v", err)
 	}
@@ -675,7 +675,7 @@ func TestRunInitCreatesStarterConfig(t *testing.T) {
 
 func writeUserConfig(t *testing.T, home string, body string) {
 	t.Helper()
-	path := filepath.Join(home, ".config", "cmdproxy", "cmdproxy.yml")
+	path := filepath.Join(home, ".config", "cc-bash-proxy", "cc-bash-proxy.yml")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -689,7 +689,7 @@ func writeProjectConfig(t *testing.T, cwd string, body string) {
 	if err := os.Mkdir(filepath.Join(cwd, ".git"), 0o755); err != nil && !os.IsExist(err) {
 		t.Fatal(err)
 	}
-	path := filepath.Join(cwd, ".cmdproxy", "cmdproxy.yaml")
+	path := filepath.Join(cwd, ".cc-bash-proxy", "cc-bash-proxy.yaml")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}

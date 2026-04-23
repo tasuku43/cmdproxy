@@ -9,7 +9,7 @@ date: 2026-04-18
 ## 1. Scope
 
 This document defines the intended compatibility and distribution stance for
-the current `cmdproxy` rule model.
+the current `cc-bash-proxy` rule model.
 
 ## 2. Rule Schema Stability
 
@@ -24,7 +24,7 @@ in-file schema version numbers.
 
 ## 3. Runtime Expectations
 
-`cmdproxy` is intended to run as:
+`cc-bash-proxy` is intended to run as:
 
 - a local CLI in developer environments
 - a hook target for AI-agent and shell integrations
@@ -40,7 +40,7 @@ The implementation should favor:
 
 Planned distribution channels are:
 
-- `go install github.com/tasuku43/cmdproxy/cmd/cmdproxy@latest`
+- `go install github.com/tasuku43/cc-bash-proxy/cmd/cc-bash-proxy@latest`
 - GitHub Releases
 - Homebrew tap
 
@@ -48,7 +48,7 @@ Additional package managers are post-v1.
 
 ## 5. Platform Stance
 
-`cmdproxy` should target the major developer platforms used for CLI tooling:
+`cc-bash-proxy` should target the major developer platforms used for CLI tooling:
 
 - macOS
 - Linux

@@ -1,20 +1,20 @@
 ---
-title: "cmdproxy check"
+title: "cc-bash-proxy check"
 status: proposed
 date: 2026-04-19
 ---
 
-# cmdproxy check
+# cc-bash-proxy check
 
 ## Purpose
 
-`cmdproxy check` evaluates a single invocation interactively without requiring
+`cc-bash-proxy check` evaluates a single invocation interactively without requiring
 stdin JSON from an external hook.
 
-## Relationship To `hook claude`
+## Relationship To `hook`
 
-`cmdproxy check` is the interactive convenience wrapper over the same directive
-application logic used by `cmdproxy hook claude`.
+`cc-bash-proxy check` is the interactive convenience wrapper over the same directive
+application logic used by `cc-bash-proxy hook`.
 
 - it accepts a command string as CLI input
 - it constructs the canonical execution request internally

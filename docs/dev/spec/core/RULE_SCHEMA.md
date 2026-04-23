@@ -8,7 +8,7 @@ date: 2026-04-22
 
 ## 1. Scope
 
-This document defines the current YAML schema for `cmdproxy`.
+This document defines the current YAML schema for `cc-bash-proxy`.
 
 ## 2. Top-Level Shape
 

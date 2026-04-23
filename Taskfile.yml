@@ -1,7 +1,7 @@
 version: "3"
 
 vars:
-  BIN: cmdproxy
+  BIN: cc-bash-proxy
 
 tasks:
   default:
@@ -9,9 +9,9 @@ tasks:
       - task: build
 
   build:
-    desc: Build the cmdproxy binary into the repository root
+    desc: Build the cc-bash-proxy binary into the repository root
     cmds:
-      - go build -o {{.BIN}} ./cmd/cmdproxy
+      - go build -o {{.BIN}} ./cmd/cc-bash-proxy
 
   test:
     desc: Run the Go test suite

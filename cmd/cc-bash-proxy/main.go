@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/tasuku43/cmdproxy/internal/cli"
+	"github.com/tasuku43/cc-bash-proxy/internal/cli"
 )
 
 func main() {

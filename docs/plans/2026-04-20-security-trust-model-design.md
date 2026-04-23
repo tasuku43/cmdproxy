@@ -8,11 +8,11 @@ date: 2026-04-20
 
 ## Summary
 
-This plan defines the publication-time security stance for `cmdproxy`.
+This plan defines the publication-time security stance for `cc-bash-proxy`.
 
 The main security concern is not user-authored rules. It is the risk that a
 published binary or merged implementation change could introduce malicious
-rewrite behavior. Because `cmdproxy` runs directly in the command path before
+rewrite behavior. Because `cc-bash-proxy` runs directly in the command path before
 execution, a compromised build could change invocation shape in ways that are
 hard for users to notice.
 
@@ -56,7 +56,7 @@ Lower priority for this phase:
 
 ### Runtime verification
 
-- add `cmdproxy version --build-info`
+- add `cc-bash-proxy version --build-info`
 - add a `verify` command or equivalent `doctor` checks for:
   - resolved binary path
   - Claude hook command wiring

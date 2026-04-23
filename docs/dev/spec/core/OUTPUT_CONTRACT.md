@@ -9,9 +9,9 @@ date: 2026-04-22
 ## 1. Scope
 
 This document defines the target output contract for the main hook entrypoint of
-`cmdproxy`.
+`cc-bash-proxy`.
 
-The command name is `hook claude`, and the contract below is for the current
+The command name is `hook`, and the contract below is for the current
 rewrite-plus-permission model.
 
 ## 2. Runtime Outcomes
@@ -104,6 +104,6 @@ The important distinction is:
 
 ## 6. Integration Note
 
-The central design goal is that `cmdproxy` itself becomes the primary
+The central design goal is that `cc-bash-proxy` itself becomes the primary
 permission authority for shell commands, after the rewrite pipeline has already
 produced the canonical command shape.

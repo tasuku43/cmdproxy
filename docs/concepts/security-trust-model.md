@@ -8,7 +8,7 @@ date: 2026-04-20
 
 ## 1. Why This Matters
 
-`cmdproxy` is not a passive formatter. It may rewrite commands immediately
+`cc-bash-proxy` is not a passive formatter. It may rewrite commands immediately
 before execution. That makes it more security-sensitive than a typical local
 CLI.
 
@@ -20,12 +20,12 @@ to crashes or incorrect output. A compromised build could:
 - weaken the user's downstream permission model
 - silently redirect execution into an organization-unsafe form
 
-For that reason, users should treat `cmdproxy` as part of their local execution
+For that reason, users should treat `cc-bash-proxy` as part of their local execution
 trust boundary.
 
 ## 2. Primary Threat Model
 
-The highest-priority threat for `cmdproxy` is **binary or implementation
+The highest-priority threat for `cc-bash-proxy` is **binary or implementation
 tampering**.
 
 This includes:
@@ -41,7 +41,7 @@ publication is whether users can trust the shipped tool itself.
 
 ## 3. Security Principles
 
-`cmdproxy` should follow these principles:
+`cc-bash-proxy` should follow these principles:
 
 1. **Typed rewrites only**
    Rewrites must remain narrow, typed, and reviewable. Free-form command
@@ -51,7 +51,7 @@ publication is whether users can trust the shipped tool itself.
 3. **Visible transformations**
    Rewrites should be observable through trace data and user-visible summaries.
 4. **Minimal trust expansion**
-   `cmdproxy` should normalize command shape, not become a general shell macro
+   `cc-bash-proxy` should normalize command shape, not become a general shell macro
    engine.
 5. **Verifiable distribution**
    Users should be able to verify what binary they installed and what source
@@ -86,7 +86,7 @@ Before wider publication, the project should adopt the following baseline:
 
 The next practical security steps are:
 
-1. add `cmdproxy version --build-info`
+1. add `cc-bash-proxy version --build-info`
 2. add a verification command for installation and hook wiring
 3. add `CODEOWNERS` for hook, directive, policy, and config-loading paths
 4. publish checksums for release artifacts
@@ -97,9 +97,9 @@ The next practical security steps are:
 This trust model does not attempt to solve:
 
 - low-level runtime sandboxing
-- credential compromise outside `cmdproxy`
+- credential compromise outside `cc-bash-proxy`
 - arbitrary shell escape paths that should be handled by the downstream runtime
 - centralized remote policy enforcement
 
-`cmdproxy` should remain a local invocation policy proxy, but one that users can
+`cc-bash-proxy` should remain a local invocation policy proxy, but one that users can
 reasonably trust as part of their execution boundary.

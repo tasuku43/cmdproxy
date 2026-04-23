@@ -8,26 +8,26 @@ date: 2026-04-22
 
 ## 1. Scope
 
-This document defines the current evaluation model for `cmdproxy`.
+This document defines the current evaluation model for `cc-bash-proxy`.
 
-`cmdproxy` evaluates a requested CLI invocation in two phases:
+`cc-bash-proxy` evaluates a requested CLI invocation in two phases:
 
 1. rewrite the command through an ordered rewrite pipeline
 2. evaluate permissions on the rewritten command
 
 ## 2. Caller Contract
 
-`cmdproxy` keeps caller input intentionally simple.
+`cc-bash-proxy` keeps caller input intentionally simple.
 
 - the caller provides a requested command invocation
 - the primary external form is still a raw command string for `exec`
-- internal parsing and normalization complexity stays inside `cmdproxy`
+- internal parsing and normalization complexity stays inside `cc-bash-proxy`
 
 The caller should not need to understand the internal matcher model.
 
 ## 3. Internal Normalization
 
-Inside `cmdproxy`, the raw command string is normalized into a parsed
+Inside `cc-bash-proxy`, the raw command string is normalized into a parsed
 invocation model that may include:
 
 - environment assignments
@@ -43,8 +43,8 @@ shell AST.
 
 The current target config location is a single user-wide file:
 
-- `$XDG_CONFIG_HOME/cmdproxy/cmdproxy.yml`
-- `~/.config/cmdproxy/cmdproxy.yml` when `XDG_CONFIG_HOME` is not set
+- `$XDG_CONFIG_HOME/cc-bash-proxy/cc-bash-proxy.yml`
+- `~/.config/cc-bash-proxy/cc-bash-proxy.yml` when `XDG_CONFIG_HOME` is not set
 
 ## 5. Rewrite Phase
 
@@ -73,7 +73,7 @@ Examples:
 
 ## 6. Permission Phase
 
-After the rewrite phase finishes, `cmdproxy` evaluates permission rules against
+After the rewrite phase finishes, `cc-bash-proxy` evaluates permission rules against
 the resulting command.
 
 Permission buckets are evaluated in this fixed order:
@@ -97,13 +97,13 @@ This yields three runtime outcomes:
 
 ## 7. Hook Behavior
 
-`cmdproxy hook claude` maps the final permission outcome into Claude hook JSON:
+`cc-bash-proxy hook` maps the final permission outcome into Claude hook JSON:
 
 - `allow`: emit `permissionDecision: "allow"`
 - `ask`: omit `permissionDecision` so Claude prompts
 - `deny`: emit `permissionDecision: "deny"`
 
-If `--rtk` is enabled, the `rtk` rewrite runs only after `cmdproxy` has
+If `--rtk` is enabled, the `rtk` rewrite runs only after `cc-bash-proxy` has
 already decided the permission outcome.
 
 ## 8. Testing Model

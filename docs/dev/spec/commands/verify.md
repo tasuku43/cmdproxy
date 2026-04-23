@@ -1,25 +1,25 @@
 ---
-title: "cmdproxy verify"
+title: "cc-bash-proxy verify"
 status: proposed
 date: 2026-04-23
 ---
 
-# cmdproxy verify
+# cc-bash-proxy verify
 
 ## Purpose
 
-`cmdproxy verify <tool>` is a stricter trust-oriented check than `cmdproxy doctor`.
+`cc-bash-proxy verify` is a stricter trust-oriented check than `cc-bash-proxy doctor`.
 
 It exists to answer a narrower question:
 
-**Can the current local `cmdproxy` setup for this tool be reasonably trusted as
+**Can the current local `cc-bash-proxy` setup be reasonably trusted as
 part of the execution path?**
 
 ## Behavior
 
-`cmdproxy verify <tool>` should:
+`cc-bash-proxy verify` should:
 
-- resolve and merge global and project-local `cmdproxy` policy
+- resolve and merge global and project-local `cc-bash-proxy` policy
 - resolve global and project-local settings for the target tool
 - run the same config and rule validation used by `doctor`
 - run rewrite tests, permission rule tests, and top-level E2E tests against the
@@ -27,12 +27,12 @@ part of the execution path?**
 - compile and write a tool-specific verified hook artifact
 - require build metadata to be visible in the current binary
 - for Claude, fail if Claude Code settings exist but do not point at
-  `cmdproxy hook claude`
-- for Claude, fail if Claude Code settings use `cmdproxy hook claude` via PATH lookup
+  `cc-bash-proxy hook`
+- for Claude, fail if Claude Code settings use `cc-bash-proxy hook` via PATH lookup
   rather than an absolute binary path
 - for Claude, fail if an absolute Claude Code hook target does not exist or is not
   executable
-- for Claude, fail if Claude Code points at a different `cmdproxy` binary than the one
+- for Claude, fail if Claude Code points at a different `cc-bash-proxy` binary than the one
   currently being verified
 
 It should not require the target tool to be installed. If no tool settings file
@@ -53,7 +53,7 @@ The default output should include:
 
 ### JSON
 
-`cmdproxy verify --format json` should expose:
+`cc-bash-proxy verify --format json` should expose:
 
 - `verified`
 - `tool`
@@ -73,7 +73,7 @@ promote a smaller set of trust-critical conditions into failures.
 
 ## Hook Relationship
 
-`cmdproxy hook <tool>` reads only verified artifacts at runtime.
+`cc-bash-proxy hook` reads only verified artifacts at runtime.
 
 - If a verified artifact exists and matches the current config hash, the hook uses it
 - If the config changed and no verified artifact is available, the hook should try an implicit verify once

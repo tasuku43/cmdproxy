@@ -8,11 +8,11 @@ date: 2026-04-21
 
 ## Purpose
 
-`cmdproxy` should not execute hook-time policy directly from the human-edited
+`cc-bash-proxy` should not execute hook-time policy directly from the human-edited
 YAML source config.
 
-Instead, `cmdproxy verify <tool>` compiles the current effective config into a
-machine-only JSON artifact. `cmdproxy hook <tool>` reads only that artifact.
+Instead, `cc-bash-proxy verify` compiles the current effective config into a
+machine-only JSON artifact. `cc-bash-proxy hook` reads only that artifact.
 
 ## Required Fields
 
@@ -29,9 +29,9 @@ The runtime artifact must carry at least:
 
 ## Runtime Gate
 
-`cmdproxy hook <tool>` should:
+`cc-bash-proxy hook` should:
 
-1. resolve the current effective `cmdproxy` sources for that tool
+1. resolve the current effective `cc-bash-proxy` sources for that tool
 2. resolve the current tool settings files for that tool
 3. compute the effective fingerprint from both policy files and tool settings
 4. look for the artifact matching that fingerprint and tool

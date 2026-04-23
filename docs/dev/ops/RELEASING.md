@@ -2,7 +2,7 @@
 
 ## Overview
 
-`cmdproxy` releases are tag-driven.
+`cc-bash-proxy` releases are tag-driven.
 
 The intended pipeline is:
 
@@ -11,7 +11,7 @@ The intended pipeline is:
 3. build archives with GoReleaser
 4. publish GitHub Release artifacts and `checksums.txt`
 5. for stable tags without prerelease suffixes, optionally open a PR against
-   `tasuku43/homebrew-cmdproxy`
+   `tasuku43/homebrew-cc-bash-proxy`
 
 ## Release Inputs
 
@@ -27,14 +27,14 @@ Every release should publish:
 - `checksums.txt`
 - artifact attestations for archives and `checksums.txt`
 
-Checksums are part of the security story for `cmdproxy` because users are
+Checksums are part of the security story for `cc-bash-proxy` because users are
 trusting a binary that can rewrite commands before execution.
 
 GitHub Artifact Attestations provide a signed provenance record for the release
 artifacts. Consumers should be able to verify release provenance with:
 
 ```sh
-gh attestation verify path/to/cmdproxy_<tag>_<os>_<arch>.tar.gz -R tasuku43/cmdguard
+gh attestation verify path/to/cc-bash-proxy_<tag>_<os>_<arch>.tar.gz -R tasuku43/cmdguard
 ```
 
 ## Release Invariants
@@ -62,8 +62,8 @@ After a release is published:
 1. download one artifact
 2. verify its checksum against `checksums.txt`
 3. run:
-   - `cmdproxy version --format json`
-   - `cmdproxy verify --format json`
+   - `cc-bash-proxy version --format json`
+   - `cc-bash-proxy verify --format json`
 4. run `gh attestation verify` against the downloaded artifact
 5. confirm the reported VCS revision matches the intended release commit
 

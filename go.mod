@@ -1,4 +1,4 @@
-module github.com/tasuku43/cmdproxy
+module github.com/tasuku43/cc-bash-proxy
 
 go 1.25.0
 

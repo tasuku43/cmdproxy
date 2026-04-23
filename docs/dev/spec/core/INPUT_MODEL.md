@@ -8,12 +8,12 @@ date: 2026-04-18
 
 ## 1. Scope
 
-This document defines the supported stdin payloads for `cmdproxy hook claude` and
+This document defines the supported stdin payloads for `cc-bash-proxy hook` and
 the normalization step that turns them into a command-string evaluation request.
 
 ## 2. Canonical Execution Request
 
-Internally, `cmdproxy hook claude` should normalize supported inputs into a canonical
+Internally, `cc-bash-proxy hook` should normalize supported inputs into a canonical
 execution request equivalent to:
 
 ```json
