@@ -48,7 +48,6 @@ The current `cc-bash-proxy` contract prioritizes:
   - `core/OUTPUT_CONTRACT.md`: output contract for allow, ask, deny, and error
 - Commands
   - `commands/hook.md`: Claude Code hook entrypoint and hook-specific output contract
-  - `commands/check.md`: interactive single-command evaluation
   - `commands/init.md`: setup and starter config behavior
   - `commands/doctor.md`: setup and pipeline health diagnostics
   - `commands/verify.md`: trust-oriented local verification

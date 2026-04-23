@@ -69,25 +69,6 @@ func runClaudeHookTest(t *testing.T, spec hookEnvSpec) hookPayload {
 	return payload
 }
 
-func TestRunCheckReconstructsQuotedCommandString(t *testing.T) {
-	var stdout, stderr bytes.Buffer
-	code := Run([]string{"check", "--format", "json", "bash", "-c", "echo hello world"}, Streams{
-		Stdout: &stdout,
-		Stderr: &stderr,
-	}, Env{Cwd: t.TempDir(), Home: t.TempDir()})
-	if code != 0 {
-		t.Fatalf("code = %d stderr=%s", code, stderr.String())
-	}
-
-	var payload map[string]any
-	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
-		t.Fatalf("json error: %v stdout=%s", err, stdout.String())
-	}
-	if got := payload["command"]; got != "bash -c 'echo hello world'" {
-		t.Fatalf("command = %#v, want %q", got, "bash -c 'echo hello world'")
-	}
-}
-
 func TestRunHookClaudeAllowReturnsAllowAndUpdatedInput(t *testing.T) {
 	home := t.TempDir()
 	writeClaudeSettings(t, home, `{

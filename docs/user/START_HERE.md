@@ -26,16 +26,11 @@ cc-bash-proxy verify
 cc-bash-proxy doctor --format json
 ```
 
-4. Spot-check individual commands
+4. Verify the current policy
 
 ```sh
-cc-bash-proxy check 'aws --profile read-only-profile s3 ls'
-cc-bash-proxy check 'bash -c '"'"'git status'"'"''
+cc-bash-proxy verify
 ```
-
-For shell-sensitive spot checks, prefer a single quoted command string. This
-lets `cc-bash-proxy check` reconstruct the intended invocation before applying the
-same rewrite and permission logic used by the Claude hook path.
 
 5. Register `cc-bash-proxy hook` in Claude Code
 

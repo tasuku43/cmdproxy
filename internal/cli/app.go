@@ -14,7 +14,6 @@ import (
 	"github.com/tasuku43/cc-bash-proxy/internal/buildinfo"
 	"github.com/tasuku43/cc-bash-proxy/internal/config"
 	"github.com/tasuku43/cc-bash-proxy/internal/doctor"
-	"github.com/tasuku43/cc-bash-proxy/internal/domain/invocation"
 	"github.com/tasuku43/cc-bash-proxy/internal/domain/policy"
 	"github.com/tasuku43/cc-bash-proxy/internal/input"
 	"github.com/tasuku43/cc-bash-proxy/internal/integration"
@@ -48,8 +47,6 @@ func Run(args []string, streams Streams, env Env) int {
 	switch args[0] {
 	case "hook":
 		return runHook(args[1:], streams, env)
-	case "check":
-		return runCheck(args[1:], streams, env)
 	case "doctor":
 		return runDoctor(args[1:], streams, env)
 	case "verify":
@@ -95,20 +92,6 @@ func runHook(args []string, streams Streams, env Env) int {
 		return emitHookError(integration.ToolClaude, streams, "invalid_input", err.Error())
 	}
 	return runClaudeHook(req, useRTK, streams, env)
-}
-
-func runCheck(args []string, streams Streams, env Env) int {
-	if wantsHelp(args) {
-		writeCommandHelp(streams.Stdout, "check")
-		return exitAllow
-	}
-	format, rest, err := parseCommonFlags(args)
-	if err != nil || len(rest) == 0 {
-		writeCommandHelp(streams.Stderr, "check")
-		return exitError
-	}
-	req := input.ExecRequest{Action: "exec", Command: invocation.Join(rest)}
-	return evaluateRequest(req, format, streams, env)
 }
 
 func runDoctor(args []string, streams Streams, env Env) int {
@@ -322,14 +305,6 @@ func verifyStatus(report doctor.Report, info buildinfo.Info, tool string) (bool,
 	return len(reasons) == 0, reasons
 }
 
-func evaluateRequest(req input.ExecRequest, format string, streams Streams, env Env) int {
-	decision, err := evaluateDecision(req, env)
-	if err != nil {
-		return emitError(streams, format, "runtime_error", err.Error())
-	}
-	return emitDecision(streams, format, decision)
-}
-
 func evaluateDecision(req input.ExecRequest, env Env) (policy.Decision, error) {
 	loaded := config.LoadEffectiveForHookTool(env.Cwd, env.Home, env.XDGConfigHome, env.XDGCacheHome, integration.ToolClaude)
 	if len(loaded.Errors) > 0 {
@@ -366,25 +341,6 @@ func ensureVerifiedArtifacts(env Env, tool string) error {
 	info := buildinfo.Read()
 	_, err := config.VerifyEffectiveToAllCaches(env.Cwd, env.Home, env.XDGConfigHome, env.XDGCacheHome, tool, info.Version)
 	return err
-}
-
-func emitDecision(streams Streams, format string, decision policy.Decision) int {
-	if format == "json" {
-		payload := map[string]any{
-			"decision":         decision.Outcome,
-			"command":          decision.Command,
-			"original_command": decision.OriginalCommand,
-			"message":          decision.Message,
-			"trace":            decision.Trace,
-		}
-		_ = json.NewEncoder(streams.Stdout).Encode(payload)
-	} else {
-		fmt.Fprintf(streams.Stdout, "%s: %s\n", decision.Outcome, decision.Command)
-	}
-	if decision.Outcome == "deny" {
-		return exitReject
-	}
-	return exitAllow
 }
 
 func runClaudeHook(req input.ExecRequest, useRTK bool, streams Streams, env Env) int {
@@ -502,21 +458,6 @@ func buildRewriteSystemMessage(decision policy.Decision) string {
 	return fmt.Sprintf("cc-bash-proxy: rewrote [%s] -> %s", strings.Join(ruleIDs, " -> "), decision.Command)
 }
 
-func emitError(streams Streams, format string, code string, message string) int {
-	if format == "json" {
-		_ = json.NewEncoder(streams.Stdout).Encode(map[string]any{
-			"decision": "error",
-			"error": map[string]string{
-				"code":    code,
-				"message": message,
-			},
-		})
-	} else {
-		writeErr(streams.Stderr, message)
-	}
-	return exitError
-}
-
 func parseCommonFlags(args []string) (string, []string, error) {
 	format := ""
 	rest := make([]string, 0, len(args))
@@ -549,14 +490,12 @@ Typical workflow:
   3. Add rewrite, permission, and E2E tests
   4. Run cc-bash-proxy verify
   5. Let Claude Code call cc-bash-proxy hook --rtk from PreToolUse
-  6. Use cc-bash-proxy check for spot checks
 
 Usage:
   cc-bash-proxy <command> [flags]
 
 Commands:
   init     create the user config and print the Claude Code hook snippet
-  check    evaluate one command string interactively
   doctor   inspect config quality and installation state
   verify   verify config tests, trust-critical setup, and build metadata
   version  print build and source metadata for the running binary
@@ -571,7 +510,6 @@ Help:
 
 Examples:
   cc-bash-proxy init
-  cc-bash-proxy check --format json 'git -C repo status'
   cc-bash-proxy verify --format json
   cc-bash-proxy version --format json
   cc-bash-proxy hook --rtk
@@ -592,22 +530,6 @@ Usage:
 
 Typical use:
   cc-bash-proxy init
-`)
-	case "check":
-		fmt.Fprint(w, `cc-bash-proxy check
-
-Evaluate one command string against the current rule set.
-Use this while authoring rules before relying on Claude Code hooks.
-For shell-sensitive examples, pass a single quoted command string so the shell
-does not pre-split nested arguments before cmdproxy reconstructs the invocation.
-
-Usage:
-  cc-bash-proxy check [--format json] <command>
-
-Examples:
-  cc-bash-proxy check 'git -C repo status'
-  cc-bash-proxy check 'bash -c '"'"'echo hello world'"'"''
-  cc-bash-proxy check --format json 'AWS_PROFILE=read-only-profile aws s3 ls'
 `)
 	case "doctor":
 		fmt.Fprint(w, `cc-bash-proxy doctor
@@ -652,8 +574,8 @@ Options:
           the final rewritten command if it changes
 
 Note:
-  You usually do not run this manually. Edit rules and use cc-bash-proxy verify or
-  cc-bash-proxy check instead.
+  You usually do not run this manually. Edit rules and use cc-bash-proxy verify
+  while authoring policy instead.
 `)
 	case "version":
 		fmt.Fprint(w, `cc-bash-proxy version
