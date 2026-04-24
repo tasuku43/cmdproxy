@@ -1,6 +1,7 @@
 package directive
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -183,7 +184,19 @@ func StripCommandPath(command string) (string, bool) {
 	if strings.TrimSpace(base) == "" || base == commandToken {
 		return "", false
 	}
-	if _, err := exec.LookPath(base); err != nil {
+	resolved, err := exec.LookPath(base)
+	if err != nil {
+		return "", false
+	}
+	commandInfo, err := os.Stat(commandToken)
+	if err != nil {
+		return "", false
+	}
+	resolvedInfo, err := os.Stat(resolved)
+	if err != nil {
+		return "", false
+	}
+	if !os.SameFile(commandInfo, resolvedInfo) {
 		return "", false
 	}
 

@@ -7,8 +7,15 @@ import (
 )
 
 func RunDoctor(env Env) DoctorResult {
-	loaded := configrepo.LoadEffective(env.Home, env.XDGConfigHome)
+	inputs := configrepo.ResolveEffectiveInputs(env.Cwd, env.Home, env.XDGConfigHome, claude.Tool)
+	loaded := configrepo.LoadEffectiveForTool(env.Cwd, env.Home, env.XDGConfigHome, claude.Tool)
+	report := doctoring.Run(loaded, claude.Tool, env.Cwd, env.Home)
+	report.Tool = claude.Tool
+	report.ConfigSources = inputs.ConfigSources
+	report.SettingsPaths = inputs.SettingsPaths
+	report.EffectiveFingerprint = inputs.Fingerprint
+	report.VerifiedArtifactExists = configrepo.VerifiedEffectiveArtifactExists(env.Cwd, env.Home, env.XDGConfigHome, env.XDGCacheHome, claude.Tool)
 	return DoctorResult{
-		Report: doctoring.Run(loaded, claude.Tool, env.Cwd, env.Home),
+		Report: report,
 	}
 }

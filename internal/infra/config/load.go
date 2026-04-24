@@ -254,6 +254,16 @@ func VerifyEffectiveToAllCaches(cwd string, home string, xdgConfigHome string, x
 	return pipeline, nil
 }
 
+func VerifiedEffectiveArtifactExists(cwd string, home string, xdgConfigHome string, xdgCacheHome string, tool string) bool {
+	inputs := ResolveEffectiveInputs(cwd, home, xdgConfigHome, tool)
+	for _, cacheDir := range HookCacheDirs(home, xdgCacheHome) {
+		if _, ok := loadEffectiveEvalCache(effectiveCachePath(cacheDir, tool, inputs.Fingerprint), inputs); ok {
+			return true
+		}
+	}
+	return false
+}
+
 func loadFileForEval(src Source, cacheDir string, requireVerified bool, cmdproxyVersion string) (policy.Pipeline, error) {
 	data, err := readConfigFile(src)
 	if err != nil {

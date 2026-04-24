@@ -1,6 +1,10 @@
 package directive
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestUnwrapShellDashC(t *testing.T) {
 	got, ok := UnwrapShellDashC("bash -c 'git status'")
@@ -86,16 +90,41 @@ func TestUnwrapWrapperPreservesEmptyEnvAssignments(t *testing.T) {
 }
 
 func TestStripCommandPath(t *testing.T) {
-	got, ok := StripCommandPath("/bin/ls -R foo")
-	if !ok || got != "ls -R foo" {
+	tool := writeExecutable(t, t.TempDir(), "fakecmd")
+	t.Setenv("PATH", filepath.Dir(tool))
+
+	got, ok := StripCommandPath(tool + " -R foo")
+	if !ok || got != "fakecmd -R foo" {
 		t.Fatalf("got %q ok=%v", got, ok)
 	}
 }
 
 func TestStripCommandPathPreservesEnvAssignments(t *testing.T) {
-	got, ok := StripCommandPath("FOO=bar /bin/ls -R foo")
-	if !ok || got != "FOO=bar ls -R foo" {
+	tool := writeExecutable(t, t.TempDir(), "fakecmd")
+	t.Setenv("PATH", filepath.Dir(tool))
+
+	got, ok := StripCommandPath("FOO=bar " + tool + " -R foo")
+	if !ok || got != "FOO=bar fakecmd -R foo" {
 		t.Fatalf("got %q ok=%v", got, ok)
+	}
+}
+
+func TestStripCommandPathRejectsDifferentPathTarget(t *testing.T) {
+	original := writeExecutable(t, t.TempDir(), "fakecmd")
+	pathTarget := writeExecutable(t, t.TempDir(), "fakecmd")
+	t.Setenv("PATH", filepath.Dir(pathTarget))
+
+	if _, ok := StripCommandPath(original + " -R foo"); ok {
+		t.Fatal("expected strip_command_path to fail when PATH target differs")
+	}
+}
+
+func TestStripCommandPathRejectsMissingPathCommand(t *testing.T) {
+	tool := writeExecutable(t, t.TempDir(), "fakecmd")
+	t.Setenv("PATH", t.TempDir())
+
+	if _, ok := StripCommandPath(tool + " -R foo"); ok {
+		t.Fatal("expected strip_command_path to fail when basename is not on PATH")
 	}
 }
 
@@ -103,4 +132,13 @@ func TestStripCommandPathRejectsRelativeCommand(t *testing.T) {
 	if _, ok := StripCommandPath("ls -R foo"); ok {
 		t.Fatal("expected strip_command_path to fail")
 	}
+}
+
+func writeExecutable(t *testing.T, dir string, name string) string {
+	t.Helper()
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }

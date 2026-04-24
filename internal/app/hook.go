@@ -78,14 +78,17 @@ func hookPayload(decision policy.Decision, originalCommand string) map[string]an
 		if decision.Outcome == "allow" {
 			hookOutput["permissionDecision"] = "allow"
 		}
-		return map[string]any{
-			"systemMessage":      buildRewriteSystemMessage(decision),
+		payload := map[string]any{
 			"hookSpecificOutput": hookOutput,
 			"cc-bash-proxy": map[string]any{
 				"outcome": decision.Outcome,
 				"trace":   decision.Trace,
 			},
 		}
+		if message, ok := buildRewriteSystemMessage(decision); ok {
+			payload["systemMessage"] = message
+		}
+		return payload
 	case "deny":
 		reason := decision.Message
 		if strings.TrimSpace(reason) == "" {
@@ -132,10 +135,7 @@ func applyRTKRewrite(decision policy.Decision) policy.Decision {
 	return decision
 }
 
-func buildRewriteSystemMessage(decision policy.Decision) string {
-	if len(decision.Trace) == 0 {
-		return "cc-bash-proxy: rewrote -> " + decision.Command
-	}
+func buildRewriteSystemMessage(decision policy.Decision) (string, bool) {
 	ruleIDs := make([]string, 0, len(decision.Trace))
 	for _, step := range decision.Trace {
 		if step.Action != "rewrite" {
@@ -144,7 +144,7 @@ func buildRewriteSystemMessage(decision policy.Decision) string {
 		ruleIDs = append(ruleIDs, step.Name)
 	}
 	if len(ruleIDs) == 0 {
-		return "cc-bash-proxy: rewrote -> " + decision.Command
+		return "", false
 	}
-	return fmt.Sprintf("cc-bash-proxy: rewrote [%s] -> %s", strings.Join(ruleIDs, " -> "), decision.Command)
+	return fmt.Sprintf("cc-bash-proxy: rewrote [%s] -> %s", strings.Join(ruleIDs, " -> "), decision.Command), true
 }

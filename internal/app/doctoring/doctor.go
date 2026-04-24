@@ -30,7 +30,12 @@ type Check struct {
 }
 
 type Report struct {
-	Checks []Check `json:"checks"`
+	Tool                   string              `json:"tool,omitempty"`
+	ConfigSources          []configrepo.Source `json:"config_sources,omitempty"`
+	SettingsPaths          []string            `json:"settings_paths,omitempty"`
+	EffectiveFingerprint   string              `json:"effective_fingerprint,omitempty"`
+	VerifiedArtifactExists bool                `json:"verified_artifact_exists"`
+	Checks                 []Check             `json:"checks"`
 }
 
 func Run(loaded configrepo.Loaded, tool string, cwd string, home string) Report {
