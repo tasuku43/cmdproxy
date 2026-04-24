@@ -130,3 +130,83 @@ func TestPermissionRuleMatchesPatterns(t *testing.T) {
 		t.Fatal("did not expect match")
 	}
 }
+
+func TestEvaluateStructuredAllowFailsClosedOnUnsafeShellExpressions(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+		rule    PermissionRuleSpec
+	}{
+		{
+			name:    "and list",
+			command: "git status && rm -rf /tmp/x",
+			rule:    PermissionRuleSpec{Match: MatchSpec{Command: "git", Subcommand: "status"}},
+		},
+		{
+			name:    "semicolon list",
+			command: "git status; rm -rf /tmp/x",
+			rule:    PermissionRuleSpec{Match: MatchSpec{Command: "git", Subcommand: "status"}},
+		},
+		{
+			name:    "pipe",
+			command: "git status | sh",
+			rule:    PermissionRuleSpec{Match: MatchSpec{Command: "git", Subcommand: "status"}},
+		},
+		{
+			name:    "redirect",
+			command: "git status > /tmp/out",
+			rule:    PermissionRuleSpec{Match: MatchSpec{Command: "git", Subcommand: "status"}},
+		},
+		{
+			name:    "comment",
+			command: "git status # harmless-looking comment",
+			rule:    PermissionRuleSpec{Match: MatchSpec{Command: "git", Subcommand: "status"}},
+		},
+		{
+			name:    "bash c compound",
+			command: "bash -c 'git status && rm -rf /tmp/x'",
+			rule:    PermissionRuleSpec{Match: MatchSpec{Command: "bash", Subcommand: "-c"}},
+		},
+		{
+			name:    "bash c redirect",
+			command: "bash -c 'git status > /tmp/out'",
+			rule:    PermissionRuleSpec{Match: MatchSpec{Command: "bash", Subcommand: "-c"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewPipeline(PipelineSpec{
+				Permission: PermissionSpec{
+					Allow: []PermissionRuleSpec{tt.rule},
+				},
+			}, Source{})
+
+			got, err := Evaluate(p, tt.command)
+			if err != nil {
+				t.Fatalf("Evaluate() error = %v", err)
+			}
+			if got.Outcome != "ask" {
+				t.Fatalf("got %+v", got)
+			}
+		})
+	}
+}
+
+func TestEvaluatePatternAllowCanStillOptInToUnsafeShellExpressions(t *testing.T) {
+	p := NewPipeline(PipelineSpec{
+		Permission: PermissionSpec{
+			Allow: []PermissionRuleSpec{{
+				Pattern: `^\s*git\s+status\s*\|\s*sh$`,
+			}},
+		},
+	}, Source{})
+
+	got, err := Evaluate(p, "git status | sh")
+	if err != nil {
+		t.Fatalf("Evaluate() error = %v", err)
+	}
+	if got.Outcome != "allow" {
+		t.Fatalf("got %+v", got)
+	}
+}

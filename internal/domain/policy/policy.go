@@ -168,7 +168,7 @@ func Evaluate(p Pipeline, command string) (Decision, error) {
 		trace = append(trace, TraceStep{Action: "permission", Effect: "ask", Message: rule.Message})
 		return Decision{Outcome: "ask", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
 	}
-	if rule, ok := firstPermissionMatch(p.Permission.Allow, current); ok {
+	if rule, ok := firstAllowPermissionMatch(p.Permission.Allow, current); ok {
 		trace = append(trace, TraceStep{Action: "permission", Effect: "allow", Message: rule.Message})
 		return Decision{Outcome: "allow", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
 	}
@@ -184,6 +184,25 @@ func firstPermissionMatch(rules []PermissionRuleSpec, command string) (Permissio
 		}
 	}
 	return PermissionRuleSpec{}, false
+}
+
+func firstAllowPermissionMatch(rules []PermissionRuleSpec, command string) (PermissionRuleSpec, bool) {
+	for _, rule := range rules {
+		if !allowRuleCanMatch(rule, command) {
+			continue
+		}
+		if PermissionRuleMatches(rule, command) {
+			return rule, true
+		}
+	}
+	return PermissionRuleSpec{}, false
+}
+
+func allowRuleCanMatch(rule PermissionRuleSpec, command string) bool {
+	if IsZeroMatchSpec(rule.Match) {
+		return true
+	}
+	return invocation.IsStructuredSafeForAllow(command)
 }
 
 func applyRewriteStep(step RewriteStepSpec, command string) (string, bool) {

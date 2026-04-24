@@ -234,6 +234,41 @@ test:
 	}
 }
 
+func TestVerifyFileSupportsCompoundCommandAsExplicitAskE2E(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "cc-bash-proxy.yml")
+	cacheDir := t.TempDir()
+	body := `permission:
+  allow:
+    - match:
+        command: git
+        subcommand: status
+      test:
+        allow:
+          - "git status"
+        pass:
+          - "git diff"
+test:
+  - in: "git status && rm -rf /tmp/x"
+    decision: ask
+`
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	pipeline, err := VerifyFile(Source{Layer: LayerUser, Path: path}, cacheDir, "vtest")
+	if err != nil {
+		t.Fatalf("VerifyFile() error = %v", err)
+	}
+	decision, err := policy.Evaluate(pipeline, "git status && rm -rf /tmp/x")
+	if err != nil {
+		t.Fatalf("Evaluate() error = %v", err)
+	}
+	if decision.Outcome != "ask" {
+		t.Fatalf("decision = %+v", decision)
+	}
+}
+
 func TestLoadVerifiedFileForHookFailsWhenArtifactMissing(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "cc-bash-proxy.yml")

@@ -640,6 +640,47 @@ test:
 	}
 }
 
+func TestRunHookClaudeStructuredAllowFailsClosedOnCompoundCommand(t *testing.T) {
+	home := t.TempDir()
+	writeUserConfig(t, home, `permission:
+  allow:
+    - match:
+        command: git
+        subcommand: status
+      test:
+        allow:
+          - "git status"
+        pass:
+          - "git diff"
+test:
+  - in: "git status && rm -rf /tmp/x"
+    decision: ask
+`)
+
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"hook"}, Streams{
+		Stdin:  strings.NewReader(`{"tool_name":"Bash","tool_input":{"command":"git status && rm -rf /tmp/x"}}`),
+		Stdout: &stdout,
+		Stderr: &stderr,
+	}, Env{Cwd: t.TempDir(), Home: home})
+	if code != 0 {
+		t.Fatalf("code = %d stderr=%s", code, stderr.String())
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("json error: %v", err)
+	}
+	hookOut := payload["hookSpecificOutput"].(map[string]any)
+	if _, ok := hookOut["permissionDecision"]; ok {
+		t.Fatalf("payload = %+v", payload)
+	}
+	ccPayload := payload["cc-bash-proxy"].(map[string]any)
+	if ccPayload["outcome"] != "ask" {
+		t.Fatalf("payload = %+v", payload)
+	}
+}
+
 func TestVerifyStatus(t *testing.T) {
 	report := doctoring.Report{
 		Checks: []doctoring.Check{

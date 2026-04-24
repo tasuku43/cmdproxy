@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"strings"
 	"unicode"
+
+	"mvdan.cc/sh/v3/syntax"
 )
 
 type Parsed struct {
@@ -13,6 +15,15 @@ type Parsed struct {
 	Subcommand     string
 	Args           []string
 }
+
+type CommandClass string
+
+const (
+	CommandClassSimple            CommandClass = "simple"
+	CommandClassEnvPrefixedSimple CommandClass = "env_prefixed_simple"
+	CommandClassWrapperPrefixed   CommandClass = "wrapper_prefixed_simple"
+	CommandClassUnsafeCompound    CommandClass = "unsafe_compound"
+)
 
 func Parse(command string) Parsed {
 	tokens := Tokens(command)
@@ -315,4 +326,199 @@ func isSafeSingleCommand(command string) bool {
 
 func IsSafeSingleCommand(command string) bool {
 	return isSafeSingleCommand(command)
+}
+
+func Classify(command string) CommandClass {
+	if !isASTSafeSimpleCommand(command) {
+		return CommandClassUnsafeCompound
+	}
+
+	parsed := Parse(command)
+	if isShellDashCUnsafe(parsed) {
+		return CommandClassUnsafeCompound
+	}
+
+	tokens := Tokens(command)
+	if len(tokens) == 0 {
+		return CommandClassUnsafeCompound
+	}
+	if hasKnownWrapperPrefix(tokens) {
+		return CommandClassWrapperPrefixed
+	}
+
+	if parsed.CommandToken == "" {
+		return CommandClassUnsafeCompound
+	}
+	if len(parsed.EnvAssignments) > 0 {
+		return CommandClassEnvPrefixedSimple
+	}
+	return CommandClassSimple
+}
+
+func IsStructuredSafeForAllow(command string) bool {
+	switch Classify(command) {
+	case CommandClassSimple, CommandClassEnvPrefixedSimple, CommandClassWrapperPrefixed:
+		return true
+	default:
+		return false
+	}
+}
+
+func isASTSafeSimpleCommand(command string) bool {
+	if hasUnquotedComment(command) {
+		return false
+	}
+	parser := syntax.NewParser()
+	file, err := parser.Parse(strings.NewReader(command), "")
+	if err != nil {
+		return false
+	}
+	if len(file.Stmts) != 1 {
+		return false
+	}
+	if len(file.Last) > 0 {
+		return false
+	}
+
+	stmt := file.Stmts[0]
+	if len(stmt.Comments) > 0 || stmt.Negated || stmt.Background || stmt.Coprocess || stmt.Disown || len(stmt.Redirs) > 0 {
+		return false
+	}
+
+	call, ok := stmt.Cmd.(*syntax.CallExpr)
+	if !ok || len(call.Args) == 0 {
+		return false
+	}
+	for _, assign := range call.Assigns {
+		if !isSafeAssign(assign) {
+			return false
+		}
+	}
+	for _, arg := range call.Args {
+		if !isSafeWord(arg) {
+			return false
+		}
+	}
+	return true
+}
+
+func isSafeAssign(assign *syntax.Assign) bool {
+	if assign == nil || assign.Naked || assign.Append || assign.Index != nil || assign.Array != nil || assign.Name == nil {
+		return false
+	}
+	if assign.Value == nil {
+		return true
+	}
+	return isSafeWord(assign.Value)
+}
+
+func isSafeWord(word *syntax.Word) bool {
+	if word == nil {
+		return false
+	}
+	for _, part := range word.Parts {
+		switch x := part.(type) {
+		case *syntax.Lit:
+			continue
+		case *syntax.SglQuoted:
+			continue
+		case *syntax.DblQuoted:
+			if !isSafeDoubleQuoted(x) {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func isSafeDoubleQuoted(quoted *syntax.DblQuoted) bool {
+	if quoted == nil || quoted.Dollar {
+		return false
+	}
+	for _, part := range quoted.Parts {
+		switch part.(type) {
+		case *syntax.Lit:
+			continue
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func hasKnownWrapperPrefix(tokens []string) bool {
+	i := 0
+	for i < len(tokens) && IsEnvAssignment(tokens[i]) {
+		i++
+	}
+
+	for i < len(tokens) {
+		token := BaseCommand(tokens[i])
+		switch token {
+		case "command", "exec", "nohup":
+			return true
+		case "env":
+			return true
+		case "sudo":
+			return true
+		case "timeout":
+			return true
+		case "busybox":
+			return true
+		default:
+			return false
+		}
+	}
+	return false
+}
+
+func isShellDashCUnsafe(parsed Parsed) bool {
+	if !IsShellCommand(parsed.Command) {
+		return false
+	}
+	if len(parsed.Args) < 2 || parsed.Args[0] != "-c" {
+		return false
+	}
+	return !isASTSafeSimpleCommand(parsed.Args[1])
+}
+
+func hasUnquotedComment(command string) bool {
+	inSingle := false
+	inDouble := false
+	escaped := false
+	var prev rune
+	for i, r := range command {
+		switch {
+		case escaped:
+			escaped = false
+		case inSingle:
+			if r == '\'' {
+				inSingle = false
+			}
+		case inDouble:
+			switch r {
+			case '"':
+				inDouble = false
+			case '\\':
+				escaped = true
+			}
+		default:
+			switch r {
+			case '\'':
+				inSingle = true
+			case '"':
+				inDouble = true
+			case '\\':
+				escaped = true
+			case '#':
+				if i == 0 || unicode.IsSpace(prev) {
+					return true
+				}
+			}
+		}
+		prev = r
+	}
+	return false
 }
