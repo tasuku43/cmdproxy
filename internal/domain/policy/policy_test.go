@@ -212,6 +212,32 @@ func TestEvaluateStructuredAllowFailsClosedOnUnsafeShellExpressions(t *testing.T
 	}
 }
 
+func TestMatchSpecGitSubcommandMatchesGlobalOptionVariants(t *testing.T) {
+	match := MatchSpec{Command: "git", Subcommand: "status"}
+	tests := []string{
+		"git status",
+		"git -C repo status",
+		"git --no-pager status",
+		"git -c core.quotePath=false status",
+		"git --git-dir .git --work-tree . status",
+	}
+
+	for _, command := range tests {
+		t.Run(command, func(t *testing.T) {
+			if !match.MatchMatches(command) {
+				t.Fatalf("MatchMatches(%q) = false, want true", command)
+			}
+		})
+	}
+}
+
+func TestMatchSpecGitSubcommandDoesNotTreatDoubleDashBeforeStatusAsStatus(t *testing.T) {
+	match := MatchSpec{Command: "git", Subcommand: "status"}
+	if match.MatchMatches("git -C repo -- status") {
+		t.Fatal("MatchMatches() = true, want false")
+	}
+}
+
 func TestEvaluatePatternAllowFailsClosedOnUnsafeShellExpressions(t *testing.T) {
 	p := NewPipeline(PipelineSpec{
 		Permission: PermissionSpec{

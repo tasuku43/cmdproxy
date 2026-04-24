@@ -61,6 +61,10 @@ type Diagnostic struct {
 }
 
 func Parse(raw string) CommandPlan {
+	return ParseWithRegistry(raw, DefaultParserRegistry())
+}
+
+func ParseWithRegistry(raw string, registry *CommandParserRegistry) CommandPlan {
 	plan := CommandPlan{
 		Raw:   raw,
 		Shape: ShellShape{Kind: ShellShapeUnknown},
@@ -78,7 +82,7 @@ func Parse(raw string) CommandPlan {
 		return plan
 	}
 
-	walker := planWalker{raw: raw}
+	walker := planWalker{raw: raw, registry: registry}
 	if len(file.Stmts) > 1 || len(file.Last) > 0 {
 		walker.shape.HasSequence = true
 	}
@@ -97,6 +101,7 @@ func Parse(raw string) CommandPlan {
 
 type planWalker struct {
 	raw      string
+	registry *CommandParserRegistry
 	shape    ShellShape
 	commands []Command
 }
@@ -178,19 +183,10 @@ func (w *planWalker) visitCall(call *syntax.CallExpr) {
 	}
 
 	raw := w.nodeRaw(call)
-	parsed := invocation.Parse(raw)
-	cmd := Command{
-		Raw:          raw,
-		Program:      parsed.Command,
-		ProgramToken: parsed.CommandToken,
-		Env:          parsed.EnvAssignments,
-		Args:         parsed.Args,
-		Parser:       parserName(parsed.Command),
+	inv := NewInvocation(raw)
+	if cmd, ok := w.registry.Parse(inv); ok {
+		w.commands = append(w.commands, cmd)
 	}
-	cmd.GlobalOptions, cmd.ActionPath, cmd.Options = splitSemanticArgs(parsed.Command, parsed.Args)
-	cmd.WorkingDirectory = workingDirectory(parsed.Command, parsed.Args)
-	cmd.Namespace, cmd.ResourceType, cmd.ResourceName = kubectlResource(parsed.Command, parsed.Args)
-	w.commands = append(w.commands, cmd)
 }
 
 func (w *planWalker) visitWord(word *syntax.Word) {
@@ -261,112 +257,4 @@ func (s ShellShape) finalize() ShellShape {
 		s.Kind = ShellShapeSimple
 	}
 	return s
-}
-
-func parserName(program string) string {
-	switch program {
-	case "aws", "git", "kubectl":
-		return program
-	default:
-		return "generic"
-	}
-}
-
-func splitSemanticArgs(program string, args []string) ([]string, []string, []string) {
-	globalOptions := []string{}
-	actionPath := []string{}
-	options := []string{}
-	seenAction := false
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
-		if strings.HasPrefix(arg, "-") && arg != "-" {
-			if seenAction {
-				options = append(options, arg)
-			} else {
-				globalOptions = append(globalOptions, arg)
-			}
-			if optionConsumesValue(program, arg) && i+1 < len(args) {
-				if seenAction {
-					options = append(options, args[i+1])
-				} else {
-					globalOptions = append(globalOptions, args[i+1])
-				}
-				i++
-			}
-			continue
-		}
-		seenAction = true
-		actionPath = append(actionPath, arg)
-	}
-	return globalOptions, actionPath, options
-}
-
-func optionConsumesValue(program string, option string) bool {
-	if strings.Contains(option, "=") {
-		return false
-	}
-	switch program {
-	case "git":
-		switch option {
-		case "-C", "-c", "--git-dir", "--work-tree", "--namespace":
-			return true
-		}
-	case "aws":
-		switch option {
-		case "--profile", "--region", "--endpoint-url", "--output":
-			return true
-		}
-	case "kubectl":
-		switch option {
-		case "-n", "--namespace", "--context", "--kubeconfig":
-			return true
-		}
-	}
-	return false
-}
-
-func workingDirectory(program string, args []string) string {
-	if program != "git" {
-		return ""
-	}
-	for i, arg := range args {
-		if arg == "-C" && i+1 < len(args) {
-			return args[i+1]
-		}
-	}
-	return ""
-}
-
-func kubectlResource(program string, args []string) (string, string, string) {
-	if program != "kubectl" {
-		return "", "", ""
-	}
-	namespace := ""
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case "-n", "--namespace":
-			if i+1 < len(args) {
-				namespace = args[i+1]
-				i++
-			}
-		default:
-			if strings.HasPrefix(args[i], "--namespace=") {
-				namespace = strings.TrimPrefix(args[i], "--namespace=")
-			}
-		}
-	}
-	for i, arg := range args {
-		if arg == "get" || arg == "describe" || arg == "delete" || arg == "logs" {
-			resourceType := ""
-			resourceName := ""
-			if i+1 < len(args) {
-				resourceType = args[i+1]
-			}
-			if i+2 < len(args) {
-				resourceName = args[i+2]
-			}
-			return namespace, resourceType, resourceName
-		}
-	}
-	return namespace, "", ""
 }

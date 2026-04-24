@@ -21,6 +21,9 @@ func TestParseCommandPlanSimpleGitStatus(t *testing.T) {
 	if len(cmd.ActionPath) != 1 || cmd.ActionPath[0] != "status" {
 		t.Fatalf("ActionPath = %#v, want [status]", cmd.ActionPath)
 	}
+	if cmd.Parser != "git" {
+		t.Fatalf("Parser = %q, want git", cmd.Parser)
+	}
 }
 
 func TestParseCommandPlanAndListExtractsCommandsButFailsClosed(t *testing.T) {
@@ -102,4 +105,81 @@ func assertNoShellConnectorMetadata(t *testing.T, commands []Command) {
 			}
 		}
 	}
+}
+
+func TestParserRegistryDispatchesKnownParser(t *testing.T) {
+	registry := NewCommandParserRegistry(testParser{program: "known"})
+
+	plan := ParseWithRegistry("known run --flag", registry)
+
+	if len(plan.Commands) != 1 {
+		t.Fatalf("len(Commands) = %d, want 1", len(plan.Commands))
+	}
+	cmd := plan.Commands[0]
+	if cmd.Parser != "test-known" {
+		t.Fatalf("Parser = %q, want test-known", cmd.Parser)
+	}
+	if len(cmd.ActionPath) != 1 || cmd.ActionPath[0] != "dispatched" {
+		t.Fatalf("ActionPath = %#v, want [dispatched]", cmd.ActionPath)
+	}
+}
+
+func TestParserRegistryFallsBackToGenericParser(t *testing.T) {
+	registry := NewCommandParserRegistry(testParser{program: "known"})
+
+	plan := ParseWithRegistry("unknown status", registry)
+
+	if len(plan.Commands) != 1 {
+		t.Fatalf("len(Commands) = %d, want 1", len(plan.Commands))
+	}
+	cmd := plan.Commands[0]
+	if cmd.Program != "unknown" {
+		t.Fatalf("Program = %q, want unknown", cmd.Program)
+	}
+	if cmd.Parser != "generic" {
+		t.Fatalf("Parser = %q, want generic", cmd.Parser)
+	}
+	if len(cmd.ActionPath) != 1 || cmd.ActionPath[0] != "status" {
+		t.Fatalf("ActionPath = %#v, want [status]", cmd.ActionPath)
+	}
+}
+
+func TestGenericParserDoesNotInferOptionValueArity(t *testing.T) {
+	cmd, ok := GenericParser{}.Parse(Invocation{
+		Raw:          "tool --profile dev status --verbose",
+		ProgramToken: "tool",
+		Program:      "tool",
+		Words:        []string{"--profile", "dev", "status", "--verbose"},
+	})
+	if !ok {
+		t.Fatal("GenericParser.Parse() ok = false, want true")
+	}
+	if len(cmd.GlobalOptions) != 1 || cmd.GlobalOptions[0] != "--profile" {
+		t.Fatalf("GlobalOptions = %#v, want [--profile]", cmd.GlobalOptions)
+	}
+	if len(cmd.ActionPath) != 2 || cmd.ActionPath[0] != "dev" || cmd.ActionPath[1] != "status" {
+		t.Fatalf("ActionPath = %#v, want [dev status]", cmd.ActionPath)
+	}
+	if len(cmd.Options) != 1 || cmd.Options[0] != "--verbose" {
+		t.Fatalf("Options = %#v, want [--verbose]", cmd.Options)
+	}
+}
+
+type testParser struct {
+	program string
+}
+
+func (p testParser) Program() string {
+	return p.program
+}
+
+func (p testParser) Parse(inv Invocation) (Command, bool) {
+	return Command{
+		Raw:          inv.Raw,
+		Program:      inv.Program,
+		ProgramToken: inv.ProgramToken,
+		Args:         append([]string(nil), inv.Words...),
+		ActionPath:   []string{"dispatched"},
+		Parser:       "test-" + p.program,
+	}, true
 }

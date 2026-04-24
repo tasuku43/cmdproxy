@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	commandpkg "github.com/tasuku43/cc-bash-proxy/internal/domain/command"
 	"github.com/tasuku43/cc-bash-proxy/internal/domain/directive"
 	"github.com/tasuku43/cc-bash-proxy/internal/domain/invocation"
 )
@@ -349,7 +350,11 @@ func RewriteStepName(step RewriteStepSpec) string {
 }
 
 func (m MatchSpec) MatchMatches(command string) bool {
-	return m.matches(invocation.Parse(command))
+	plan := commandpkg.Parse(command)
+	if len(plan.Commands) != 1 {
+		return false
+	}
+	return m.matches(plan.Commands[0])
 }
 
 func RewriteStepMatches(step RewriteStepSpec, command string) bool {
@@ -428,43 +433,50 @@ func rewritePrimitiveName(step RewriteStepSpec) string {
 	}
 }
 
-func (m MatchSpec) matches(parsed invocation.Parsed) bool {
-	if parsed.Command == "" {
+func (m MatchSpec) matches(cmd commandpkg.Command) bool {
+	if cmd.Program == "" {
 		return false
 	}
-	if m.Command != "" && parsed.Command != m.Command {
+	if m.Command != "" && cmd.Program != m.Command {
 		return false
 	}
-	if len(m.CommandIn) > 0 && !containsString(m.CommandIn, parsed.Command) {
+	if len(m.CommandIn) > 0 && !containsString(m.CommandIn, cmd.Program) {
 		return false
 	}
-	if m.CommandIsAbsolutePath && !invocation.IsAbsoluteCommand(parsed.CommandToken) {
+	if m.CommandIsAbsolutePath && !invocation.IsAbsoluteCommand(cmd.ProgramToken) {
 		return false
 	}
-	if m.Subcommand != "" && parsed.Subcommand != m.Subcommand {
+	if m.Subcommand != "" && commandSubcommand(cmd) != m.Subcommand {
 		return false
 	}
 	for _, arg := range m.ArgsContains {
-		if !containsString(parsed.Args, arg) {
+		if !containsString(cmd.Args, arg) {
 			return false
 		}
 	}
 	for _, prefix := range m.ArgsPrefixes {
-		if !containsPrefix(parsed.Args, prefix) {
+		if !containsPrefix(cmd.Args, prefix) {
 			return false
 		}
 	}
 	for _, env := range m.EnvRequires {
-		if _, ok := parsed.EnvAssignments[env]; !ok {
+		if _, ok := cmd.Env[env]; !ok {
 			return false
 		}
 	}
 	for _, env := range m.EnvMissing {
-		if _, ok := parsed.EnvAssignments[env]; ok {
+		if _, ok := cmd.Env[env]; ok {
 			return false
 		}
 	}
 	return true
+}
+
+func commandSubcommand(cmd commandpkg.Command) string {
+	if len(cmd.ActionPath) == 0 {
+		return ""
+	}
+	return cmd.ActionPath[0]
 }
 
 func ValidatePipeline(spec PipelineSpec) []string {
