@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -176,7 +177,7 @@ test:
 func TestVerifyFileWritesVerifiedArtifactAndHookLoadsIt(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "cc-bash-proxy.yml")
-	cacheDir := t.TempDir()
+	cacheDir := filepath.Join(t.TempDir(), "cache")
 	body := `permission:
   allow:
     - match:
@@ -210,7 +211,18 @@ test:
 	if len(files) != 1 {
 		t.Fatalf("files = %v", files)
 	}
-	data, err := os.ReadFile(filepath.Join(cacheDir, files[0].Name()))
+	if fi, err := os.Stat(cacheDir); err != nil {
+		t.Fatal(err)
+	} else if fi.Mode().Perm() != 0o700 {
+		t.Fatalf("cache dir mode = %o, want 0700", fi.Mode().Perm())
+	}
+	cachePath := filepath.Join(cacheDir, files[0].Name())
+	if fi, err := os.Stat(cachePath); err != nil {
+		t.Fatal(err)
+	} else if fi.Mode().Perm() != 0o600 {
+		t.Fatalf("cache file mode = %o, want 0600", fi.Mode().Perm())
+	}
+	data, err := os.ReadFile(cachePath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,6 +243,78 @@ test:
 	}
 	if len(hookPipeline.Permission.Allow) != 1 {
 		t.Fatalf("hookPipeline = %#v", hookPipeline)
+	}
+}
+
+func TestHookCacheDirsPreferUserCacheBeforeTempFallback(t *testing.T) {
+	home := t.TempDir()
+	xdg := filepath.Join(t.TempDir(), "xdg-cache")
+
+	got := HookCacheDirs(home, xdg)
+	want := []string{
+		filepath.Join(xdg, "cc-bash-proxy"),
+		filepath.Join(home, ".cache", "cc-bash-proxy"),
+		filepath.Join(os.TempDir(), "cc-bash-proxy-"+shortHash(home), "cc-bash-proxy"),
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HookCacheDirs() = %#v, want %#v", got, want)
+	}
+
+	got = HookCacheDirs(home, "")
+	want = []string{
+		filepath.Join(home, ".cache", "cc-bash-proxy"),
+		filepath.Join(os.TempDir(), "cc-bash-proxy-"+shortHash(home), "cc-bash-proxy"),
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("HookCacheDirs() without xdg = %#v, want %#v", got, want)
+	}
+}
+
+func TestLoadVerifiedFileForHookRejectsUnsafeCachePermissions(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "cc-bash-proxy.yml")
+	cacheDir := filepath.Join(t.TempDir(), "cache")
+	body := `permission:
+  allow:
+    - match:
+        command: git
+      test:
+        allow: ["git status"]
+        pass: ["pwd"]
+test:
+  - in: "git status"
+    decision: allow
+`
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := VerifyFile(Source{Layer: LayerUser, Path: path}, cacheDir, "vtest"); err != nil {
+		t.Fatalf("VerifyFile() error = %v", err)
+	}
+
+	files, err := os.ReadDir(cacheDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("files = %v", files)
+	}
+	cachePath := filepath.Join(cacheDir, files[0].Name())
+	if err := os.Chmod(cachePath, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadVerifiedFileForHook(Source{Layer: LayerUser, Path: path}, []string{cacheDir}); err == nil {
+		t.Fatal("expected unsafe cache file permissions to be rejected")
+	}
+
+	if err := os.Chmod(cachePath, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(cacheDir, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadVerifiedFileForHook(Source{Layer: LayerUser, Path: path}, []string{cacheDir}); err == nil {
+		t.Fatal("expected unsafe cache dir permissions to be rejected")
 	}
 }
 

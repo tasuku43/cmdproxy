@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -96,9 +97,9 @@ func HookCacheDirs(home string, xdgCacheHome string) []string {
 		seen[path] = struct{}{}
 		dirs = append(dirs, path)
 	}
-	add(filepath.Join(os.TempDir(), "cc-bash-proxy-"+shortHash(home)))
-	add(filepath.Join(home, ".cache"))
 	add(xdgCacheHome)
+	add(filepath.Join(home, ".cache"))
+	add(filepath.Join(os.TempDir(), "cc-bash-proxy-"+shortHash(home)))
 	return dirs
 }
 
@@ -357,7 +358,7 @@ func validateFile(file File) []string {
 }
 
 func loadEvalCache(src Source, cachePath string, sourceHash string, requireVerified bool) (policy.Pipeline, bool) {
-	data, err := os.ReadFile(cachePath)
+	data, err := readTrustedCacheFile(cachePath)
 	if err != nil {
 		return policy.Pipeline{}, false
 	}
@@ -375,7 +376,7 @@ func loadEvalCache(src Source, cachePath string, sourceHash string, requireVerif
 }
 
 func loadEffectiveEvalCache(cachePath string, inputs EffectiveInputs) (policy.Pipeline, bool) {
-	data, err := os.ReadFile(cachePath)
+	data, err := readTrustedCacheFile(cachePath)
 	if err != nil {
 		return policy.Pipeline{}, false
 	}
@@ -390,14 +391,140 @@ func loadEffectiveEvalCache(cachePath string, inputs EffectiveInputs) (policy.Pi
 }
 
 func writeEvalCache(cachePath string, cache evalCacheFile) error {
-	if err := os.MkdirAll(filepath.Dir(cachePath), 0o755); err != nil {
-		return err
-	}
 	data, err := json.Marshal(cache)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(cachePath, data, 0o644)
+	return writeTrustedCacheFile(cachePath, data)
+}
+
+func readTrustedCacheFile(cachePath string) ([]byte, error) {
+	if err := validateTrustedCacheDir(filepath.Dir(cachePath)); err != nil {
+		return nil, err
+	}
+	if err := validateTrustedCacheFile(cachePath); err != nil {
+		return nil, err
+	}
+	return os.ReadFile(cachePath)
+}
+
+func writeTrustedCacheFile(cachePath string, data []byte) error {
+	cacheDir := filepath.Dir(cachePath)
+	if err := ensureTrustedCacheDir(cacheDir); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(cacheDir, "."+filepath.Base(cachePath)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	committed := false
+	defer func() {
+		if !committed {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+
+	if err := tmp.Chmod(0o600); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, cachePath); err != nil {
+		return err
+	}
+	committed = true
+	return fsyncDir(cacheDir)
+}
+
+func ensureTrustedCacheDir(cacheDir string) error {
+	fi, err := os.Lstat(cacheDir)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		if err := os.MkdirAll(cacheDir, 0o700); err != nil {
+			return err
+		}
+	} else {
+		if fi.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("cache dir %s must not be a symlink", cacheDir)
+		}
+		if !fi.IsDir() {
+			return fmt.Errorf("cache dir %s is not a directory", cacheDir)
+		}
+		if err := validateCacheOwner(cacheDir, fi); err != nil {
+			return err
+		}
+		if err := os.Chmod(cacheDir, 0o700); err != nil {
+			return err
+		}
+	}
+	return validateTrustedCacheDir(cacheDir)
+}
+
+func validateTrustedCacheDir(cacheDir string) error {
+	fi, err := os.Lstat(cacheDir)
+	if err != nil {
+		return err
+	}
+	if fi.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("cache dir %s must not be a symlink", cacheDir)
+	}
+	if !fi.IsDir() {
+		return fmt.Errorf("cache dir %s is not a directory", cacheDir)
+	}
+	if fi.Mode().Perm()&0o077 != 0 {
+		return fmt.Errorf("cache dir %s has unsafe permissions %o", cacheDir, fi.Mode().Perm())
+	}
+	if err := validateCacheOwner(cacheDir, fi); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateTrustedCacheFile(cachePath string) error {
+	fi, err := os.Lstat(cachePath)
+	if err != nil {
+		return err
+	}
+	if fi.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("cache file %s must not be a symlink", cachePath)
+	}
+	if !fi.Mode().IsRegular() {
+		return fmt.Errorf("cache file %s is not a regular file", cachePath)
+	}
+	if fi.Mode().Perm()&0o077 != 0 {
+		return fmt.Errorf("cache file %s has unsafe permissions %o", cachePath, fi.Mode().Perm())
+	}
+	if err := validateCacheOwner(cachePath, fi); err != nil {
+		return err
+	}
+	return nil
+}
+
+func fsyncDir(dir string) error {
+	f, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = f.Close()
+	}()
+	if err := f.Sync(); err != nil && !errors.Is(err, os.ErrInvalid) && !errors.Is(err, io.ErrUnexpectedEOF) {
+		return err
+	}
+	return nil
 }
 
 func pruneOldEvalCaches(cacheDir string, keepPath string) {
