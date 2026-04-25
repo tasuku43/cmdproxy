@@ -15,6 +15,7 @@ type Command struct {
 	GlobalOptions    []Option
 	ActionPath       []string
 	Options          []Option
+	RawWords         []string
 	Args             []string
 	WorkingDirectory string
 	Namespace        string

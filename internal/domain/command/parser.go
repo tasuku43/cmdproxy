@@ -86,6 +86,7 @@ func (GenericParser) Parse(inv Invocation) (Command, bool) {
 		GlobalOptions: globalOptions,
 		ActionPath:    actionPath,
 		Options:       options,
+		RawWords:      append([]string(nil), inv.Words...),
 		Args:          append([]string(nil), inv.Words...),
 		Parser:        GenericParser{}.Program(),
 	}, true

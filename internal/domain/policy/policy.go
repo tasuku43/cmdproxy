@@ -627,13 +627,14 @@ func (m MatchSpec) matches(cmd commandpkg.Command) bool {
 	if m.Subcommand != "" && commandSubcommand(cmd) != m.Subcommand {
 		return false
 	}
+	args := commandMatchArgs(cmd)
 	for _, arg := range m.ArgsContains {
-		if !containsString(cmd.Args, arg) {
+		if !containsString(args, arg) {
 			return false
 		}
 	}
 	for _, prefix := range m.ArgsPrefixes {
-		if !containsPrefix(cmd.Args, prefix) {
+		if !containsPrefix(args, prefix) {
 			return false
 		}
 	}
@@ -655,6 +656,13 @@ func commandSubcommand(cmd commandpkg.Command) string {
 		return ""
 	}
 	return cmd.ActionPath[0]
+}
+
+func commandMatchArgs(cmd commandpkg.Command) []string {
+	if len(cmd.RawWords) > 0 {
+		return cmd.RawWords
+	}
+	return cmd.Args
 }
 
 func ValidatePipeline(spec PipelineSpec) []string {

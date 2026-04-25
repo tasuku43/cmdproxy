@@ -18,7 +18,8 @@ func (GitParser) Parse(inv Invocation) (Command, bool) {
 		Program:      inv.Program,
 		ProgramToken: inv.ProgramToken,
 		Env:          inv.Env,
-		Args:         append([]string(nil), inv.Words...),
+		RawWords:     append([]string(nil), inv.Words...),
+		Args:         []string{},
 		Parser:       GitParser{}.Program(),
 	}
 
@@ -70,7 +71,7 @@ func (GitParser) Parse(inv Invocation) (Command, bool) {
 			cmd.GlobalOptions = append(cmd.GlobalOptions, Option{Name: word, Position: i})
 			i++
 		default:
-			cmd.ActionPath, cmd.Options = splitGitAction(inv.Words[i:], i)
+			cmd.ActionPath, cmd.Options, cmd.Args = splitGitAction(inv.Words[i:], i)
 			return cmd, true
 		}
 	}
@@ -99,15 +100,24 @@ func gitConsumedWords(word string) int {
 	return 2
 }
 
-func splitGitAction(words []string, startPosition int) ([]string, []Option) {
-	actionPath := []string{}
+func splitGitAction(words []string, startPosition int) ([]string, []Option, []string) {
+	if len(words) > 0 && words[0] == "--" {
+		return append([]string(nil), words...), nil, []string{}
+	}
+
+	var actionPath []string
 	var options []Option
+	args := []string{}
 	for i, word := range words {
-		if i > 0 && strings.HasPrefix(word, "-") && word != "-" {
+		if i == 0 {
+			actionPath = append(actionPath, word)
+			continue
+		}
+		if strings.HasPrefix(word, "-") && word != "-" {
 			options = append(options, parseOptionWord(word, startPosition+i))
 			continue
 		}
-		actionPath = append(actionPath, word)
+		args = append(args, word)
 	}
-	return actionPath, options
+	return actionPath, options, args
 }

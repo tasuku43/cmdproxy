@@ -12,6 +12,8 @@ func TestGitParserExtractsActionPathAndGlobalOptions(t *testing.T) {
 		wantGlobal       []Option
 		wantAction       []string
 		wantOptions      []Option
+		wantArgs         []string
+		wantRawWords     []string
 		wantWorkingDir   string
 		wantStructuredOK bool
 	}{
@@ -37,6 +39,14 @@ func TestGitParserExtractsActionPathAndGlobalOptions(t *testing.T) {
 			wantStructuredOK: true,
 		},
 		{
+			name:             "status short option",
+			raw:              "git status --short",
+			wantAction:       []string{"status"},
+			wantOptions:      []Option{{Name: "--short", Position: 1}},
+			wantArgs:         []string{},
+			wantStructuredOK: true,
+		},
+		{
 			name:             "config",
 			raw:              "git -c core.quotePath=false status",
 			wantGlobal:       []Option{{Name: "-c", Value: "core.quotePath=false", HasValue: true, Position: 0}},
@@ -49,7 +59,24 @@ func TestGitParserExtractsActionPathAndGlobalOptions(t *testing.T) {
 			wantGlobal:       []Option{{Name: "-C", Value: "repo", HasValue: true, Position: 0}, {Name: "-c", Value: "core.quotePath=false", HasValue: true, Position: 2}},
 			wantAction:       []string{"status"},
 			wantOptions:      []Option{{Name: "--short", Position: 5}},
+			wantArgs:         []string{},
 			wantWorkingDir:   "repo",
+			wantStructuredOK: true,
+		},
+		{
+			name:             "diff range is positional arg",
+			raw:              "git diff main...HEAD",
+			wantAction:       []string{"diff"},
+			wantArgs:         []string{"main...HEAD"},
+			wantRawWords:     []string{"diff", "main...HEAD"},
+			wantStructuredOK: true,
+		},
+		{
+			name:             "checkout branch name is positional arg",
+			raw:              "git checkout -b feature",
+			wantAction:       []string{"checkout"},
+			wantOptions:      []Option{{Name: "-b", Position: 1}},
+			wantArgs:         []string{"feature"},
 			wantStructuredOK: true,
 		},
 		{
@@ -114,6 +141,12 @@ func TestGitParserExtractsActionPathAndGlobalOptions(t *testing.T) {
 			}
 			if !reflect.DeepEqual(cmd.Options, tt.wantOptions) {
 				t.Fatalf("Options = %#v, want %#v", cmd.Options, tt.wantOptions)
+			}
+			if tt.wantArgs != nil && !reflect.DeepEqual(cmd.Args, tt.wantArgs) {
+				t.Fatalf("Args = %#v, want %#v", cmd.Args, tt.wantArgs)
+			}
+			if tt.wantRawWords != nil && !reflect.DeepEqual(cmd.RawWords, tt.wantRawWords) {
+				t.Fatalf("RawWords = %#v, want %#v", cmd.RawWords, tt.wantRawWords)
 			}
 			if cmd.WorkingDirectory != tt.wantWorkingDir {
 				t.Fatalf("WorkingDirectory = %q, want %q", cmd.WorkingDirectory, tt.wantWorkingDir)

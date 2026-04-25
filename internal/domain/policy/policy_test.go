@@ -85,6 +85,24 @@ func TestEvaluatePermissionPriorityDenyAskAllow(t *testing.T) {
 	}
 }
 
+func TestEvaluateGitArgsContainsUsesRawWordsForCompatibility(t *testing.T) {
+	p := NewPipeline(PipelineSpec{
+		Permission: PermissionSpec{
+			Ask: []PermissionRuleSpec{{
+				Match: MatchSpec{Command: "git", ArgsContains: []string{"--short"}},
+			}},
+		},
+	}, Source{})
+
+	got, err := Evaluate(p, "git status --short")
+	if err != nil {
+		t.Fatalf("Evaluate() error = %v", err)
+	}
+	if got.Outcome != "ask" {
+		t.Fatalf("Outcome = %q, want ask; decision=%+v", got.Outcome, got)
+	}
+}
+
 func TestValidatePipelineRequiresE2ETest(t *testing.T) {
 	issues := ValidatePipeline(PipelineSpec{
 		Rewrite: []RewriteStepSpec{{
