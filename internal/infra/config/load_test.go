@@ -195,6 +195,41 @@ test:
 	}
 }
 
+func TestLoadEffectiveRejectsPermissionCompositionConfig(t *testing.T) {
+	home := t.TempDir()
+	userPath := filepath.Join(home, ".config", "cc-bash-proxy", "cc-bash-proxy.yml")
+	if err := os.MkdirAll(filepath.Dir(userPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(userPath, []byte(`permission:
+  composition:
+    allow:
+      - pipeline
+  allow:
+    - match:
+        command: git
+        subcommand: status
+      test:
+        allow:
+          - "git status"
+        pass:
+          - "git diff"
+test:
+  - in: "git status"
+    decision: allow
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	loaded := LoadEffective(home, "")
+	if len(loaded.Errors) == 0 {
+		t.Fatal("expected permission.composition to be rejected")
+	}
+	if !strings.Contains(loaded.Errors[0].Error(), "field composition not found") {
+		t.Fatalf("error = %v", loaded.Errors[0])
+	}
+}
+
 func TestLoadFileForEvalIfPresentSupportsStripCommandPath(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "cc-bash-proxy.yml")

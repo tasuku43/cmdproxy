@@ -35,14 +35,9 @@ type RewriteStepSpec struct {
 }
 
 type PermissionSpec struct {
-	Deny        []PermissionRuleSpec      `yaml:"deny" json:"deny,omitempty"`
-	Ask         []PermissionRuleSpec      `yaml:"ask" json:"ask,omitempty"`
-	Allow       []PermissionRuleSpec      `yaml:"allow" json:"allow,omitempty"`
-	Composition CompositionPermissionSpec `yaml:"composition" json:"composition,omitempty"`
-}
-
-type CompositionPermissionSpec struct {
-	Allow []string `yaml:"allow" json:"allow,omitempty"`
+	Deny  []PermissionRuleSpec `yaml:"deny" json:"deny,omitempty"`
+	Ask   []PermissionRuleSpec `yaml:"ask" json:"ask,omitempty"`
+	Allow []PermissionRuleSpec `yaml:"allow" json:"allow,omitempty"`
 }
 
 type PermissionRuleSpec struct {
@@ -643,7 +638,6 @@ func ValidatePipeline(spec PipelineSpec) []string {
 	for i, rule := range spec.Permission.Allow {
 		issues = append(issues, ValidatePermissionRule(fmt.Sprintf("permission.allow[%d]", i), rule, "allow")...)
 	}
-	issues = append(issues, ValidateCompositionPermission("permission.composition", spec.Permission.Composition)...)
 	issues = append(issues, ValidatePipelineTest("test", spec.Test)...)
 	return issues
 }
@@ -697,19 +691,6 @@ func ValidatePermissionRule(prefix string, rule PermissionRuleSpec, effect strin
 		issues = append(issues, prefix+".message must be non-empty when allow_unsafe_shell is true")
 	}
 	issues = append(issues, ValidatePermissionTest(prefix+".test", rule.Test, effect)...)
-	return issues
-}
-
-func ValidateCompositionPermission(prefix string, spec CompositionPermissionSpec) []string {
-	var issues []string
-	for i, shape := range spec.Allow {
-		switch strings.TrimSpace(shape) {
-		case string(commandpkg.ShellShapeSimple), string(commandpkg.ShellShapeAndList), string(commandpkg.ShellShapeSequence), string(commandpkg.ShellShapeOrList), string(commandpkg.ShellShapePipeline):
-			continue
-		default:
-			issues = append(issues, fmt.Sprintf("%s.allow[%d] must be one of simple, and_list, sequence, or_list, pipeline", prefix, i))
-		}
-	}
 	return issues
 }
 
@@ -857,7 +838,7 @@ func ErrorStrings(errs []error) []string {
 }
 
 func IsZeroPermissionSpec(spec PermissionSpec) bool {
-	return len(spec.Deny) == 0 && len(spec.Ask) == 0 && len(spec.Allow) == 0 && len(spec.Composition.Allow) == 0
+	return len(spec.Deny) == 0 && len(spec.Ask) == 0 && len(spec.Allow) == 0
 }
 
 func IsZeroMatchSpec(match MatchSpec) bool {
