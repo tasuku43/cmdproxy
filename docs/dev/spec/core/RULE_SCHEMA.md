@@ -1,7 +1,7 @@
 ---
 title: "Pipeline Schema"
-status: proposed
-date: 2026-04-22
+status: implemented
+date: 2026-04-25
 ---
 
 # Pipeline Schema

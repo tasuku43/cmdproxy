@@ -1,16 +1,20 @@
 ---
 title: "cc-bash-proxy specs"
-status: proposed
-date: 2026-04-22
+status: implemented
+date: 2026-04-25
 ---
 
 # cc-bash-proxy specs
 
-This directory contains the proposed implementation contracts for the current
-`cc-bash-proxy` model.
+This directory contains the implementation contracts for `cc-bash-proxy`.
+Each spec file declares its own status. Only `status: implemented` documents
+behavior that should be treated as current contract.
 
-The repository is moving from a directive-oriented redesign into a pipeline
-model with:
+`status: proposed` and `status: planned` documents may describe target behavior,
+but coding agents and contributors must not treat those documents as shipped
+behavior.
+
+The repository uses a pipeline model with:
 
 1. rewrite
 2. permission
@@ -39,23 +43,44 @@ The current `cc-bash-proxy` contract prioritizes:
 
 ## Index
 
-- Core
-  - `core/COMPATIBILITY.md`: versioning and compatibility stance
-  - `core/INPUT_MODEL.md`: supported stdin payloads and normalized invocation model
-  - `core/PARSER_MODEL.md`: command parser layers and match stability rules
-  - `core/RULE_SCHEMA.md`: YAML schema for `rewrite`, `permission`, and `test`
-  - `core/CONFIG.md`: config locations and invalid-state handling
-  - `core/EVALUATION.md`: rewrite phase plus permission phase
-  - `core/OUTPUT_CONTRACT.md`: output contract for allow, ask, deny, and error
-- Commands
-  - `commands/hook.md`: Claude Code hook entrypoint and hook-specific output contract
-  - `commands/init.md`: setup and starter config behavior
-  - `commands/doctor.md`: setup and pipeline health diagnostics
-  - `commands/verify.md`: trust-oriented local verification
-  - `commands/version.md`: binary build metadata and provenance visibility
+### Core
+
+| Spec | Status | Scope |
+|---|---|---|
+| `core/COMPATIBILITY.md` | implemented | versioning and compatibility stance |
+| `core/CONFIG.md` | implemented | config locations, merge order, and invalid-state handling |
+| `core/EVALUATION.md` | implemented | rewrite phase, permission phase, compound command evaluation, raw allow, and fail-closed behavior |
+| `core/INPUT_MODEL.md` | implemented | supported stdin payloads and normalized invocation model |
+| `core/PARSER_MODEL.md` | implemented | command parser layers and match stability rules |
+| `core/RULE_SCHEMA.md` | implemented | YAML schema for `rewrite`, `permission`, and `test` |
+| `core/OUTPUT_CONTRACT.md` | proposed | output contract for allow, ask, deny, and error |
+| `core/VERIFY_ARTIFACT.md` | proposed | trust-oriented verified policy artifact details |
+
+### Commands
+
+| Spec | Status | Scope |
+|---|---|---|
+| `commands/doctor.md` | proposed | setup and pipeline health diagnostics |
+| `commands/hook.md` | proposed | Claude Code hook entrypoint and hook-specific output contract |
+| `commands/init.md` | proposed | setup and starter config behavior |
+| `commands/verify.md` | proposed | trust-oriented local verification |
+| `commands/version.md` | proposed | binary build metadata and provenance visibility |
 
 ## Source Of Truth
 
-During this transition, these specs define the intended target model. Where
-implementation and spec differ, treat the spec as the redesign target and note
-the gap explicitly.
+- User-facing current behavior: `README.md`
+- Implementation contract: `docs/dev/spec/*` entries with `status: implemented`
+- Actual behavior: tests plus `internal/domain/*`
+
+If README, spec, tests, and implementation disagree, do not silently pick one.
+For permission behavior, preserve security-first behavior and fail closed for
+ambiguity. Document the gap, update tests for the chosen behavior, and update
+README/spec together with code when behavior changes.
+
+## Known Gaps
+
+- Command-level specs under `docs/dev/spec/commands/*` are still marked
+  `proposed`; use CLI tests and implementation as the current behavior until
+  those specs are promoted to `implemented`.
+- `core/OUTPUT_CONTRACT.md` and `core/VERIFY_ARTIFACT.md` are still marked
+  `proposed`; do not treat all details there as current contract.

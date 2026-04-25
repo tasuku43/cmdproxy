@@ -2,6 +2,11 @@
 
 Policy proxy for CLI invocations used by AI agents and shell hooks.
 
+This README documents the current user-facing behavior of `cc-bash-proxy`.
+It is not a roadmap. Planned or proposed behavior belongs in
+[`docs/dev/spec`](docs/dev/spec/README.md) and must not be treated as shipped
+unless the spec status is `implemented` and the behavior is covered by tests.
+
 `cc-bash-proxy` evaluates commands in two phases:
 
 1. `rewrite`: normalize command shape into a safer, more canonical form
@@ -41,12 +46,6 @@ Typical examples:
 - `--rtk` integration after `cc-bash-proxy` rewrite and permission evaluation
 - project-local plus global policy merge behavior
 - shell fidelity hardening beyond the currently covered quote/env cases
-
-### Planned
-
-- broader non-Claude adapters
-- additional shell fidelity coverage for more quoting and escaping edge cases
-- further CLI/package decomposition beyond the current command surface
 
 Today, the codebase currently ships:
 
@@ -387,10 +386,9 @@ test:
 the command words after the executable token, before command-specific semantic
 argument parsing. For example, `git -C repo status` can still match
 `args_contains: ["-C"]`, even though `-C` is a git global option and not a
-semantic positional argument. Future semantic argument matchers will use new
-field names rather than changing these legacy fields.
+semantic positional argument.
 
-## Design Direction
+## Current Design
 
 The current model is pipeline-driven:
 

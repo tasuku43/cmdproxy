@@ -41,12 +41,13 @@ used by `cc-bash-proxy hook` and `cc-bash-proxy verify`.
 
 Missing files are allowed and treated as absent layers.
 
-## 3. ID Collision Policy
+## 3. Rule Identity
 
-Rule IDs must be unique across the effective configuration set.
+The current schema does not expose rule IDs. Rules are identified by their
+position, source layer, bucket, selector, and effect in traces and validation
+messages.
 
-- Duplicate IDs within one file are errors
-v1 does not provide an override mechanism based on matching IDs.
+There is no ID-based override or collision behavior in the current contract.
 
 ## 4. Empty and Invalid States
 
@@ -65,4 +66,5 @@ These are still post-v1 concerns:
 - `include:` directives
 - rule packs
 - explicit override semantics
+- rule IDs and ID collision policy
 - additional config layers such as repo-global or team-managed paths
