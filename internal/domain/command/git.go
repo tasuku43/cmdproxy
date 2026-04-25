@@ -67,6 +67,7 @@ func (GitParser) Parse(base Command) (Command, bool) {
 			i++
 		default:
 			cmd.ActionPath, cmd.Options, cmd.Args = splitGitAction(base.RawWords[i:], i)
+			cmd.Git = buildGitSemantic(cmd.ActionPath, cmd.Options, cmd.Args)
 			return cmd, true
 		}
 	}
@@ -115,4 +116,111 @@ func splitGitAction(words []string, startPosition int) ([]string, []Option, []st
 		args = append(args, word)
 	}
 	return actionPath, options, args
+}
+
+func buildGitSemantic(actionPath []string, options []Option, args []string) *GitSemantic {
+	if len(actionPath) == 0 {
+		return nil
+	}
+	semantic := &GitSemantic{
+		Verb:  actionPath[0],
+		Flags: normalizedGitFlags(options),
+	}
+	switch semantic.Verb {
+	case "diff":
+		if gitHasAnyOption(options, "--cached", "--staged") {
+			semantic.Cached = true
+			semantic.Staged = true
+		}
+	case "push":
+		if gitHasAnyOption(options, "--force", "-f", "--force-with-lease", "--force-if-includes") {
+			semantic.Force = true
+		}
+		positional := gitPositionalArgs(args)
+		if len(positional) > 0 {
+			semantic.Remote = positional[0]
+		}
+		if len(positional) > 1 {
+			semantic.Branch = positional[1]
+			semantic.Ref = positional[1]
+		}
+	case "reset":
+		if gitHasAnyOption(options, "--hard") {
+			semantic.Hard = true
+		}
+		positional := gitPositionalArgs(args)
+		if len(positional) > 0 {
+			semantic.Ref = positional[0]
+		}
+	case "clean":
+		semantic.Force = gitHasShortFlag(options, 'f') || gitHasAnyOption(options, "--force")
+		semantic.Recursive = gitHasShortFlag(options, 'd')
+		semantic.IncludeIgnored = gitHasShortFlag(options, 'x') || gitHasAnyOption(options, "--ignored")
+	case "checkout":
+		positional := gitPositionalArgs(args)
+		if len(positional) > 0 {
+			semantic.Branch = positional[0]
+			semantic.Ref = positional[0]
+		}
+	case "switch":
+		positional := gitPositionalArgs(args)
+		if len(positional) > 0 {
+			if gitHasAnyOption(options, "-c", "-C", "--create", "--force-create") && len(positional) > 0 {
+				semantic.Branch = positional[0]
+			} else {
+				semantic.Branch = positional[0]
+			}
+			semantic.Ref = semantic.Branch
+		}
+	}
+	return semantic
+}
+
+func normalizedGitFlags(options []Option) []string {
+	flags := make([]string, 0, len(options))
+	for _, option := range options {
+		flags = append(flags, option.Name)
+		name := option.Name
+		if len(name) > 2 && strings.HasPrefix(name, "-") && !strings.HasPrefix(name, "--") {
+			for _, flag := range name[1:] {
+				flags = append(flags, "-"+string(flag))
+			}
+		}
+	}
+	return flags
+}
+
+func gitPositionalArgs(args []string) []string {
+	out := make([]string, 0, len(args))
+	for _, arg := range args {
+		if arg == "--" {
+			break
+		}
+		out = append(out, arg)
+	}
+	return out
+}
+
+func gitHasAnyOption(options []Option, names ...string) bool {
+	for _, option := range options {
+		for _, name := range names {
+			if option.Name == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func gitHasShortFlag(options []Option, flag byte) bool {
+	for _, option := range options {
+		name := option.Name
+		if len(name) < 2 || !strings.HasPrefix(name, "-") || strings.HasPrefix(name, "--") {
+			continue
+		}
+		if strings.ContainsRune(name[1:], rune(flag)) {
+			return true
+		}
+	}
+	return false
 }

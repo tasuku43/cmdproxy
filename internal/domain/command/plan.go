@@ -27,6 +27,7 @@ type Command struct {
 	ResourceType     string
 	ResourceName     string
 	SemanticParser   string
+	Git              *GitSemantic
 }
 
 type Option struct {
@@ -34,6 +35,20 @@ type Option struct {
 	Value    string
 	HasValue bool
 	Position int
+}
+
+type GitSemantic struct {
+	Verb           string
+	Remote         string
+	Branch         string
+	Ref            string
+	Force          bool
+	Hard           bool
+	Recursive      bool
+	IncludeIgnored bool
+	Cached         bool
+	Staged         bool
+	Flags          []string
 }
 
 func (c Command) HasOption(name string) bool {

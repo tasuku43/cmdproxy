@@ -190,6 +190,31 @@ shell expression only after the rewritten command passes the fail-closed
 evaluation safety gate. Without that opt-in, raw allow patterns do not allow
 the raw command; use structured `match` rules for normal allow cases.
 
+Structured permission `match` supports command-specific semantic matching. The
+`match.command` value is the discriminator for the `semantic` schema; do not
+nest another command key under `semantic`. Today only `command: git` has a
+semantic schema. Git semantic matching is best-effort static parsing from the
+argv, is not attempted by the `GenericParser` fallback, and unsupported fields
+or value types fail during `verify`. Semantic matching is permission-only and
+cannot be used in rewrite selectors or with raw `pattern` / `patterns`.
+
+```yaml
+permission:
+  deny:
+    - match:
+        command: git
+        semantic:
+          verb: push
+          force: true
+      message: "force push is blocked"
+
+  allow:
+    - match:
+        command: git
+        semantic:
+          verb_in: [status, diff, log, show, branch]
+```
+
 Fail-closed means `allow` rules are ignored when parsing or shell-shape analysis
 cannot prove the command is in the supported evaluation subset. Any diagnostic,
 syntax parse error, unknown shell shape, redirection, background execution,
@@ -417,6 +442,13 @@ the command words after the executable token, before command-specific semantic
 argument parsing. For example, `git -C repo status` can still match
 `args_contains: ["-C"]`, even though `-C` is a git global option and not a
 semantic positional argument.
+
+For `command: git`, `match.semantic` may use `verb`, `verb_in`, `remote`,
+`remote_in`, `branch`, `branch_in`, `ref`, `ref_in`, boolean fields `force`,
+`hard`, `recursive`, `include_ignored`, `cached`, `staged`, plus
+`flags_contains` and `flags_prefixes`. `semantic` requires exact
+`match.command`; `command_in` with `semantic` is invalid. Future semantic
+support will add a separate command-specific schema for each command.
 
 ## Current Design
 

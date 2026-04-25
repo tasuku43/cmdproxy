@@ -88,14 +88,34 @@ type RewriteTestCase struct {
 }
 
 type MatchSpec struct {
-	Command               string   `yaml:"command" json:"command,omitempty"`
-	CommandIn             []string `yaml:"command_in" json:"command_in,omitempty"`
-	CommandIsAbsolutePath bool     `yaml:"command_is_absolute_path" json:"command_is_absolute_path,omitempty"`
-	Subcommand            string   `yaml:"subcommand" json:"subcommand,omitempty"`
-	ArgsContains          []string `yaml:"args_contains" json:"args_contains,omitempty"`
-	ArgsPrefixes          []string `yaml:"args_prefixes" json:"args_prefixes,omitempty"`
-	EnvRequires           []string `yaml:"env_requires" json:"env_requires,omitempty"`
-	EnvMissing            []string `yaml:"env_missing" json:"env_missing,omitempty"`
+	Command               string             `yaml:"command" json:"command,omitempty"`
+	CommandIn             []string           `yaml:"command_in" json:"command_in,omitempty"`
+	CommandIsAbsolutePath bool               `yaml:"command_is_absolute_path" json:"command_is_absolute_path,omitempty"`
+	Subcommand            string             `yaml:"subcommand" json:"subcommand,omitempty"`
+	ArgsContains          []string           `yaml:"args_contains" json:"args_contains,omitempty"`
+	ArgsPrefixes          []string           `yaml:"args_prefixes" json:"args_prefixes,omitempty"`
+	EnvRequires           []string           `yaml:"env_requires" json:"env_requires,omitempty"`
+	EnvMissing            []string           `yaml:"env_missing" json:"env_missing,omitempty"`
+	Semantic              *SemanticMatchSpec `yaml:"semantic" json:"semantic,omitempty"`
+}
+
+type SemanticMatchSpec struct {
+	Verb           string   `yaml:"verb" json:"verb,omitempty"`
+	VerbIn         []string `yaml:"verb_in" json:"verb_in,omitempty"`
+	Remote         string   `yaml:"remote" json:"remote,omitempty"`
+	RemoteIn       []string `yaml:"remote_in" json:"remote_in,omitempty"`
+	Branch         string   `yaml:"branch" json:"branch,omitempty"`
+	BranchIn       []string `yaml:"branch_in" json:"branch_in,omitempty"`
+	Ref            string   `yaml:"ref" json:"ref,omitempty"`
+	RefIn          []string `yaml:"ref_in" json:"ref_in,omitempty"`
+	Force          *bool    `yaml:"force" json:"force,omitempty"`
+	Hard           *bool    `yaml:"hard" json:"hard,omitempty"`
+	Recursive      *bool    `yaml:"recursive" json:"recursive,omitempty"`
+	IncludeIgnored *bool    `yaml:"include_ignored" json:"include_ignored,omitempty"`
+	Cached         *bool    `yaml:"cached" json:"cached,omitempty"`
+	Staged         *bool    `yaml:"staged" json:"staged,omitempty"`
+	FlagsContains  []string `yaml:"flags_contains" json:"flags_contains,omitempty"`
+	FlagsPrefixes  []string `yaml:"flags_prefixes" json:"flags_prefixes,omitempty"`
 }
 
 type Source struct {
@@ -138,6 +158,8 @@ type TraceStep struct {
 	CommandIndex   *int     `json:"command_index,omitempty"`
 	Parser         string   `json:"parser,omitempty"`
 	SemanticParser string   `json:"semantic_parser,omitempty"`
+	SemanticMatch  bool     `json:"semantic_match,omitempty"`
+	SemanticFields []string `json:"semantic_fields,omitempty"`
 	FromShape      string   `json:"from_shape,omitempty"`
 	FromShapeFlags []string `json:"from_shape_flags,omitempty"`
 	FromSafe       *bool    `json:"from_safe,omitempty"`
@@ -334,8 +356,8 @@ func Evaluate(p Pipeline, command string) (Decision, error) {
 		trace = append(trace, permissionTraceStep("deny", permissionRuleTypeRaw, rule))
 		return Decision{Outcome: "deny", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
 	}
-	if rule, ok := firstPreparedStructuredPermissionMatch(prepared.Deny, current); ok {
-		trace = append(trace, permissionTraceStep("deny", permissionRuleTypeStructured, rule))
+	if rule, cmd, ok := firstPreparedStructuredPermissionMatch(prepared.Deny, current); ok {
+		trace = append(trace, permissionTraceStepForCommand("deny", permissionRuleTypeStructured, rule, cmd))
 		return Decision{Outcome: "deny", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
 	}
 	if !safety.Safe {
@@ -348,8 +370,8 @@ func Evaluate(p Pipeline, command string) (Decision, error) {
 		trace = append(trace, permissionTraceStep("ask", permissionRuleTypeRaw, rule))
 		return Decision{Outcome: "ask", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
 	}
-	if rule, ok := firstPreparedStructuredPermissionMatch(prepared.Ask, current); ok {
-		trace = append(trace, permissionTraceStep("ask", permissionRuleTypeStructured, rule))
+	if rule, cmd, ok := firstPreparedStructuredPermissionMatch(prepared.Ask, current); ok {
+		trace = append(trace, permissionTraceStepForCommand("ask", permissionRuleTypeStructured, rule, cmd))
 		return Decision{Outcome: "ask", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
 	}
 	if !safety.Safe {
@@ -359,8 +381,8 @@ func Evaluate(p Pipeline, command string) (Decision, error) {
 		}
 		return Decision{Outcome: "ask", Command: current, OriginalCommand: command, Trace: trace}, nil
 	}
-	if rule, ok := firstPreparedStructuredAllowPermissionMatch(prepared.Allow, current); ok {
-		trace = append(trace, permissionTraceStep("allow", permissionRuleTypeStructured, rule))
+	if rule, cmd, ok := firstPreparedStructuredAllowPermissionMatch(prepared.Allow, current); ok {
+		trace = append(trace, permissionTraceStepForCommand("allow", permissionRuleTypeStructured, rule, cmd))
 		return Decision{Outcome: "allow", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
 	}
 	if decision, ok := evaluateCommandPlanComposition(prepared.Deny, prepared.Ask, prepared.Allow, plan, false, true); ok {
@@ -440,6 +462,17 @@ func permissionTraceStep(effect string, ruleType string, rule PermissionRuleSpec
 	}
 }
 
+func permissionTraceStepForCommand(effect string, ruleType string, rule PermissionRuleSpec, cmd commandpkg.Command) TraceStep {
+	step := permissionTraceStep(effect, ruleType, rule)
+	step.Parser = cmd.Parser
+	step.SemanticParser = cmd.SemanticParser
+	if rule.Match.Semantic != nil {
+		step.SemanticMatch = true
+		step.SemanticFields = rule.Match.Semantic.fieldsUsed()
+	}
+	return step
+}
+
 func firstPreparedRawPermissionMatch(rules []preparedPermissionRule, command string) (PermissionRuleSpec, bool) {
 	for _, rule := range rules {
 		if rule.Selector.matchesRaw(command) {
@@ -449,25 +482,25 @@ func firstPreparedRawPermissionMatch(rules []preparedPermissionRule, command str
 	return PermissionRuleSpec{}, false
 }
 
-func firstPreparedStructuredPermissionMatch(rules []preparedPermissionRule, command string) (PermissionRuleSpec, bool) {
+func firstPreparedStructuredPermissionMatch(rules []preparedPermissionRule, command string) (PermissionRuleSpec, commandpkg.Command, bool) {
 	for _, rule := range rules {
-		if rule.Selector.matchesStructured(command) {
-			return rule.Spec, true
+		if cmd, ok := rule.Selector.matchesStructured(command); ok {
+			return rule.Spec, cmd, true
 		}
 	}
-	return PermissionRuleSpec{}, false
+	return PermissionRuleSpec{}, commandpkg.Command{}, false
 }
 
-func firstPreparedStructuredAllowPermissionMatch(rules []preparedPermissionRule, command string) (PermissionRuleSpec, bool) {
+func firstPreparedStructuredAllowPermissionMatch(rules []preparedPermissionRule, command string) (PermissionRuleSpec, commandpkg.Command, bool) {
 	for _, rule := range rules {
 		if !allowRuleCanMatch(rule.Spec, command) {
 			continue
 		}
-		if rule.Selector.matchesStructured(command) {
-			return rule.Spec, true
+		if cmd, ok := rule.Selector.matchesStructured(command); ok {
+			return rule.Spec, cmd, true
 		}
 	}
-	return PermissionRuleSpec{}, false
+	return PermissionRuleSpec{}, commandpkg.Command{}, false
 }
 
 func firstPreparedRawAllowPermissionMatch(rules []preparedPermissionRule, command string) (PermissionRuleSpec, bool) {
@@ -716,7 +749,7 @@ func hasUnresolvedSemanticGuard(rules []preparedPermissionRule, cmd commandpkg.C
 }
 
 func matchRequiresSemantic(match MatchSpec) bool {
-	return match.Subcommand != ""
+	return match.Subcommand != "" || match.Semantic != nil
 }
 
 func matchStructuralScopeMatches(match MatchSpec, cmd commandpkg.Command) bool {
@@ -799,7 +832,8 @@ func PermissionRuleMatches(rule PermissionRuleSpec, command string) bool {
 func PermissionAllowRuleMatches(rule PermissionRuleSpec, command string) bool {
 	selector := prepareSelector(rule.Match, rule.Pattern, rule.Patterns)
 	if selector.hasStructuredSelector() {
-		return allowRuleCanMatch(rule, command) && selector.matchesStructured(command)
+		_, ok := selector.matchesStructured(command)
+		return allowRuleCanMatch(rule, command) && ok
 	}
 	return allowRuleCanMatch(rule, command) && rule.AllowUnsafeShell && selector.matchesRaw(command)
 }
@@ -866,8 +900,16 @@ func (s preparedSelector) matchesRaw(command string) bool {
 	return false
 }
 
-func (s preparedSelector) matchesStructured(command string) bool {
-	return s.hasStructuredSelector() && s.Match.MatchMatches(command)
+func (s preparedSelector) matchesStructured(command string) (commandpkg.Command, bool) {
+	if !s.hasStructuredSelector() {
+		return commandpkg.Command{}, false
+	}
+	plan := commandpkg.Parse(command)
+	if len(plan.Commands) != 1 {
+		return commandpkg.Command{}, false
+	}
+	cmd := plan.Commands[0]
+	return cmd, s.Match.matches(cmd)
 }
 
 func (s preparedSelector) matchesStructuredCommand(cmd commandpkg.Command) bool {
@@ -936,7 +978,123 @@ func (m MatchSpec) matches(cmd commandpkg.Command) bool {
 			return false
 		}
 	}
+	if m.Semantic != nil && !m.Semantic.matchesGit(cmd) {
+		return false
+	}
 	return true
+}
+
+func (s SemanticMatchSpec) matchesGit(cmd commandpkg.Command) bool {
+	if cmd.SemanticParser != "git" || cmd.Git == nil {
+		return false
+	}
+	git := cmd.Git
+	if s.Verb != "" && git.Verb != s.Verb {
+		return false
+	}
+	if len(s.VerbIn) > 0 && !containsString(s.VerbIn, git.Verb) {
+		return false
+	}
+	if s.Remote != "" && git.Remote != s.Remote {
+		return false
+	}
+	if len(s.RemoteIn) > 0 && !containsString(s.RemoteIn, git.Remote) {
+		return false
+	}
+	if s.Branch != "" && git.Branch != s.Branch {
+		return false
+	}
+	if len(s.BranchIn) > 0 && !containsString(s.BranchIn, git.Branch) {
+		return false
+	}
+	if s.Ref != "" && git.Ref != s.Ref {
+		return false
+	}
+	if len(s.RefIn) > 0 && !containsString(s.RefIn, git.Ref) {
+		return false
+	}
+	if s.Force != nil && git.Force != *s.Force {
+		return false
+	}
+	if s.Hard != nil && git.Hard != *s.Hard {
+		return false
+	}
+	if s.Recursive != nil && git.Recursive != *s.Recursive {
+		return false
+	}
+	if s.IncludeIgnored != nil && git.IncludeIgnored != *s.IncludeIgnored {
+		return false
+	}
+	if s.Cached != nil && git.Cached != *s.Cached {
+		return false
+	}
+	if s.Staged != nil && git.Staged != *s.Staged {
+		return false
+	}
+	for _, flag := range s.FlagsContains {
+		if !containsString(git.Flags, flag) {
+			return false
+		}
+	}
+	for _, prefix := range s.FlagsPrefixes {
+		if !containsPrefix(git.Flags, prefix) {
+			return false
+		}
+	}
+	return true
+}
+
+func (s SemanticMatchSpec) fieldsUsed() []string {
+	var fields []string
+	if s.Verb != "" {
+		fields = append(fields, "verb")
+	}
+	if len(s.VerbIn) > 0 {
+		fields = append(fields, "verb_in")
+	}
+	if s.Remote != "" {
+		fields = append(fields, "remote")
+	}
+	if len(s.RemoteIn) > 0 {
+		fields = append(fields, "remote_in")
+	}
+	if s.Branch != "" {
+		fields = append(fields, "branch")
+	}
+	if len(s.BranchIn) > 0 {
+		fields = append(fields, "branch_in")
+	}
+	if s.Ref != "" {
+		fields = append(fields, "ref")
+	}
+	if len(s.RefIn) > 0 {
+		fields = append(fields, "ref_in")
+	}
+	if s.Force != nil {
+		fields = append(fields, "force")
+	}
+	if s.Hard != nil {
+		fields = append(fields, "hard")
+	}
+	if s.Recursive != nil {
+		fields = append(fields, "recursive")
+	}
+	if s.IncludeIgnored != nil {
+		fields = append(fields, "include_ignored")
+	}
+	if s.Cached != nil {
+		fields = append(fields, "cached")
+	}
+	if s.Staged != nil {
+		fields = append(fields, "staged")
+	}
+	if len(s.FlagsContains) > 0 {
+		fields = append(fields, "flags_contains")
+	}
+	if len(s.FlagsPrefixes) > 0 {
+		fields = append(fields, "flags_prefixes")
+	}
+	return fields
 }
 
 func commandSubcommand(cmd commandpkg.Command) string {
@@ -992,7 +1150,7 @@ func ValidatePipeline(spec PipelineSpec) []string {
 
 func ValidateRewriteStep(prefix string, step RewriteStepSpec) []string {
 	var issues []string
-	issues = append(issues, ValidateSelector(prefix, step.Match, step.Pattern, step.Patterns, false)...)
+	issues = append(issues, ValidateSelector(prefix, step.Match, step.Pattern, step.Patterns, false, false)...)
 	primitiveCount := 0
 	if step.UnwrapShellDashC {
 		primitiveCount++
@@ -1034,7 +1192,7 @@ func ValidateRewriteStep(prefix string, step RewriteStepSpec) []string {
 
 func ValidatePermissionRule(prefix string, rule PermissionRuleSpec, effect string) []string {
 	var issues []string
-	issues = append(issues, ValidateSelector(prefix, rule.Match, rule.Pattern, rule.Patterns, true)...)
+	issues = append(issues, ValidateSelector(prefix, rule.Match, rule.Pattern, rule.Patterns, true, true)...)
 	if rule.AllowUnsafeShell && strings.TrimSpace(rule.Message) == "" {
 		issues = append(issues, prefix+".message must be non-empty when allow_unsafe_shell is true")
 	}
@@ -1042,12 +1200,12 @@ func ValidatePermissionRule(prefix string, rule PermissionRuleSpec, effect strin
 	return issues
 }
 
-func ValidateSelector(prefix string, match MatchSpec, pattern string, patterns []string, required bool) []string {
+func ValidateSelector(prefix string, match MatchSpec, pattern string, patterns []string, required bool, allowSemantic bool) []string {
 	var issues []string
 	count := 0
 	if !IsZeroMatchSpec(match) {
 		count++
-		issues = append(issues, ValidateMatchSpec(prefix+".match", match)...)
+		issues = append(issues, validateMatchSpec(prefix+".match", match, allowSemantic)...)
 	}
 	if strings.TrimSpace(pattern) != "" {
 		count++
@@ -1074,6 +1232,10 @@ func ValidateSelector(prefix string, match MatchSpec, pattern string, patterns [
 }
 
 func ValidateMatchSpec(prefix string, match MatchSpec) []string {
+	return validateMatchSpec(prefix, match, true)
+}
+
+func validateMatchSpec(prefix string, match MatchSpec, allowSemantic bool) []string {
 	var issues []string
 	if IsZeroMatchSpec(match) {
 		return []string{prefix + " must not be empty"}
@@ -1089,6 +1251,50 @@ func ValidateMatchSpec(prefix string, match MatchSpec) []string {
 	issues = append(issues, validateNonEmptyStrings(prefix+".args_prefixes", match.ArgsPrefixes)...)
 	issues = append(issues, validateNonEmptyStrings(prefix+".env_requires", match.EnvRequires)...)
 	issues = append(issues, validateNonEmptyStrings(prefix+".env_missing", match.EnvMissing)...)
+	if match.Semantic != nil {
+		if !allowSemantic {
+			issues = append(issues, prefix+".semantic is not supported; semantic match is currently permission-only")
+		}
+		if strings.TrimSpace(match.Command) == "" {
+			issues = append(issues, prefix+".command must be set when semantic is used")
+		}
+		if len(match.CommandIn) > 0 {
+			issues = append(issues, prefix+".command_in cannot be used with semantic")
+		}
+		if match.Command != "" && match.Command != "git" {
+			issues = append(issues, prefix+".semantic is only supported for command: git")
+		}
+		if match.Subcommand != "" {
+			issues = append(issues, prefix+".subcommand cannot be used with semantic.verb")
+		}
+		issues = append(issues, ValidateGitSemanticMatchSpec(prefix+".semantic", *match.Semantic)...)
+	}
+	return issues
+}
+
+func ValidateGitSemanticMatchSpec(prefix string, semantic SemanticMatchSpec) []string {
+	var issues []string
+	if IsZeroSemanticMatchSpec(semantic) {
+		issues = append(issues, prefix+" must not be empty")
+	}
+	if strings.TrimSpace(semantic.Verb) == "" && semantic.Verb != "" {
+		issues = append(issues, prefix+".verb must be non-empty")
+	}
+	if strings.TrimSpace(semantic.Remote) == "" && semantic.Remote != "" {
+		issues = append(issues, prefix+".remote must be non-empty")
+	}
+	if strings.TrimSpace(semantic.Branch) == "" && semantic.Branch != "" {
+		issues = append(issues, prefix+".branch must be non-empty")
+	}
+	if strings.TrimSpace(semantic.Ref) == "" && semantic.Ref != "" {
+		issues = append(issues, prefix+".ref must be non-empty")
+	}
+	issues = append(issues, validateNonEmptyStrings(prefix+".verb_in", semantic.VerbIn)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".remote_in", semantic.RemoteIn)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".branch_in", semantic.BranchIn)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".ref_in", semantic.RefIn)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".flags_contains", semantic.FlagsContains)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".flags_prefixes", semantic.FlagsPrefixes)...)
 	return issues
 }
 
@@ -1197,7 +1403,27 @@ func IsZeroMatchSpec(match MatchSpec) bool {
 		len(match.ArgsContains) == 0 &&
 		len(match.ArgsPrefixes) == 0 &&
 		len(match.EnvRequires) == 0 &&
-		len(match.EnvMissing) == 0
+		len(match.EnvMissing) == 0 &&
+		match.Semantic == nil
+}
+
+func IsZeroSemanticMatchSpec(semantic SemanticMatchSpec) bool {
+	return semantic.Verb == "" &&
+		len(semantic.VerbIn) == 0 &&
+		semantic.Remote == "" &&
+		len(semantic.RemoteIn) == 0 &&
+		semantic.Branch == "" &&
+		len(semantic.BranchIn) == 0 &&
+		semantic.Ref == "" &&
+		len(semantic.RefIn) == 0 &&
+		semantic.Force == nil &&
+		semantic.Hard == nil &&
+		semantic.Recursive == nil &&
+		semantic.IncludeIgnored == nil &&
+		semantic.Cached == nil &&
+		semantic.Staged == nil &&
+		len(semantic.FlagsContains) == 0 &&
+		len(semantic.FlagsPrefixes) == 0
 }
 
 func IsZeroMoveFlagToEnvSpec(spec MoveFlagToEnvSpec) bool {

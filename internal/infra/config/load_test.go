@@ -349,6 +349,64 @@ test:
 	}
 }
 
+func TestVerifyFileRejectsInvalidSemanticSchema(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "unknown semantic field",
+			body: `permission:
+  deny:
+    - match:
+        command: git
+        semantic:
+          namespace: prod
+      test:
+        deny: ["git push"]
+        pass: ["git status"]
+test:
+  - in: "git push"
+    decision: deny
+`,
+			want: "field namespace not found",
+		},
+		{
+			name: "unsupported semantic type",
+			body: `permission:
+  deny:
+    - match:
+        command: git
+        semantic:
+          force: "true"
+      test:
+        deny: ["git push --force origin main"]
+        pass: ["git status"]
+test:
+  - in: "git push --force origin main"
+    decision: deny
+`,
+			want: "cannot unmarshal !!str `true` into bool",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "cc-bash-proxy.yml")
+			cacheDir := filepath.Join(t.TempDir(), "cache")
+			if err := os.WriteFile(path, []byte(tt.body), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			_, err := VerifyFile(Source{Layer: LayerUser, Path: path}, cacheDir, "vtest")
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("VerifyFile() error = %v, want containing %q", err, tt.want)
+			}
+		})
+	}
+}
+
 func TestHookCacheDirsUseUserCacheOnly(t *testing.T) {
 	home := t.TempDir()
 	xdg := filepath.Join(t.TempDir(), "xdg-cache")

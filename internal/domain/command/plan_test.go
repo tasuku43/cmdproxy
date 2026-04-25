@@ -27,6 +27,50 @@ func TestParseCommandPlanSimpleGitStatus(t *testing.T) {
 	if cmd.Parser != "git" {
 		t.Fatalf("Parser = %q, want git", cmd.Parser)
 	}
+	if cmd.Git == nil || cmd.Git.Verb != "status" {
+		t.Fatalf("Git semantic = %+v, want verb status", cmd.Git)
+	}
+}
+
+func TestGitParserBuildsSemanticFields(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want GitSemantic
+	}{
+		{name: "push force", raw: "git push --force origin main", want: GitSemantic{Verb: "push", Force: true, Remote: "origin", Branch: "main", Ref: "main"}},
+		{name: "push short force", raw: "git push -f origin main", want: GitSemantic{Verb: "push", Force: true, Remote: "origin", Branch: "main", Ref: "main"}},
+		{name: "diff cached", raw: "git diff --cached", want: GitSemantic{Verb: "diff", Cached: true, Staged: true}},
+		{name: "reset hard", raw: "git reset --hard HEAD", want: GitSemantic{Verb: "reset", Hard: true, Ref: "HEAD"}},
+		{name: "clean combined flags", raw: "git clean -fdx", want: GitSemantic{Verb: "clean", Force: true, Recursive: true, IncludeIgnored: true}},
+		{name: "switch branch", raw: "git switch main", want: GitSemantic{Verb: "switch", Branch: "main", Ref: "main"}},
+		{name: "switch create branch", raw: "git switch -c feature/foo", want: GitSemantic{Verb: "switch", Branch: "feature/foo", Ref: "feature/foo"}},
+		{name: "checkout best effort branch", raw: "git checkout main", want: GitSemantic{Verb: "checkout", Branch: "main", Ref: "main"}},
+		{name: "log", raw: "git log", want: GitSemantic{Verb: "log"}},
+		{name: "show", raw: "git show", want: GitSemantic{Verb: "show"}},
+		{name: "branch", raw: "git branch", want: GitSemantic{Verb: "branch"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			plan := Parse(tt.raw)
+			if len(plan.Commands) != 1 {
+				t.Fatalf("len(Commands)=%d", len(plan.Commands))
+			}
+			got := plan.Commands[0].Git
+			if got == nil {
+				t.Fatalf("Git semantic = nil")
+			}
+			if got.Verb != tt.want.Verb || got.Remote != tt.want.Remote || got.Branch != tt.want.Branch || got.Ref != tt.want.Ref ||
+				got.Force != tt.want.Force || got.Hard != tt.want.Hard || got.Recursive != tt.want.Recursive ||
+				got.IncludeIgnored != tt.want.IncludeIgnored || got.Cached != tt.want.Cached || got.Staged != tt.want.Staged {
+				t.Fatalf("Git semantic = %+v, want %+v", *got, tt.want)
+			}
+			if tt.raw == "git clean -fdx" && !containsString(got.Flags, "-x") {
+				t.Fatalf("Git clean flags = %#v, want split -x", got.Flags)
+			}
+		})
+	}
 }
 
 func TestParseCommandPlanAndListExtractsCommandsButFailsClosed(t *testing.T) {

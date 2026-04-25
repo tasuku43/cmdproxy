@@ -291,6 +291,138 @@ func TestPermissionRuleMatchesPatterns(t *testing.T) {
 	}
 }
 
+func TestPermissionRuleMatchesGitSemantic(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+		match   MatchSpec
+		want    bool
+	}{
+		{
+			name:    "force push",
+			command: "git push --force origin main",
+			match:   MatchSpec{Command: "git", Semantic: &SemanticMatchSpec{Verb: "push", Force: boolPtr(true)}},
+			want:    true,
+		},
+		{
+			name:    "status verb in",
+			command: "git status",
+			match:   MatchSpec{Command: "git", Semantic: &SemanticMatchSpec{VerbIn: []string{"status", "diff", "log"}}},
+			want:    true,
+		},
+		{
+			name:    "destructive clean",
+			command: "git clean -fdx",
+			match: MatchSpec{Command: "git", Semantic: &SemanticMatchSpec{
+				Verb:           "clean",
+				Force:          boolPtr(true),
+				Recursive:      boolPtr(true),
+				IncludeIgnored: boolPtr(true),
+			}},
+			want: true,
+		},
+		{
+			name:    "normal push is not force",
+			command: "git push origin main",
+			match:   MatchSpec{Command: "git", Semantic: &SemanticMatchSpec{Verb: "push", Force: boolPtr(true)}},
+		},
+		{
+			name:    "wrong verb",
+			command: "git status",
+			match:   MatchSpec{Command: "git", Semantic: &SemanticMatchSpec{Verb: "push"}},
+		},
+		{
+			name:    "generic fallback does not satisfy semantic",
+			command: "unknown status",
+			match:   MatchSpec{Command: "unknown", Semantic: &SemanticMatchSpec{Verb: "status"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.match.MatchMatches(tt.command); got != tt.want {
+				t.Fatalf("MatchMatches(%q)=%v, want %v", tt.command, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMatchSpecGitSemanticRequiresGitParserData(t *testing.T) {
+	match := MatchSpec{Command: "git", Semantic: &SemanticMatchSpec{Verb: "status"}}
+	cmd := commandpkg.Command{
+		Raw:      "git status",
+		Program:  "git",
+		RawWords: []string{"status"},
+		Parser:   "generic",
+	}
+	if match.matches(cmd) {
+		t.Fatal("generic parser command satisfied git semantic match")
+	}
+}
+
+func TestEvaluateGitSemanticPermissionOutcomes(t *testing.T) {
+	p := NewPipeline(PipelineSpec{
+		Permission: PermissionSpec{
+			Deny: []PermissionRuleSpec{{
+				Match:   MatchSpec{Command: "git", Semantic: &SemanticMatchSpec{Verb: "push", Force: boolPtr(true)}},
+				Message: "force push is blocked",
+			}},
+			Ask: []PermissionRuleSpec{{
+				Match:   MatchSpec{Command: "git", Semantic: &SemanticMatchSpec{VerbIn: []string{"push", "reset", "rebase", "clean"}}},
+				Message: "dangerous git operation requires confirmation",
+			}},
+			Allow: []PermissionRuleSpec{{
+				Match: MatchSpec{Command: "git", Semantic: &SemanticMatchSpec{VerbIn: []string{"status", "diff", "log", "show", "branch"}}},
+			}},
+		},
+	}, Source{})
+
+	tests := []struct {
+		command string
+		want    string
+	}{
+		{command: "git push --force origin main", want: "deny"},
+		{command: "git push origin main", want: "ask"},
+		{command: "git status", want: "allow"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.command, func(t *testing.T) {
+			got, err := Evaluate(p, tt.command)
+			if err != nil {
+				t.Fatalf("Evaluate() error = %v", err)
+			}
+			if got.Outcome != tt.want {
+				t.Fatalf("Outcome=%q, want %q; decision=%+v", got.Outcome, tt.want, got)
+			}
+		})
+	}
+}
+
+func TestEvaluateTraceIncludesSemanticMatcherInfo(t *testing.T) {
+	p := NewPipeline(PipelineSpec{
+		Permission: PermissionSpec{
+			Deny: []PermissionRuleSpec{{
+				Match: MatchSpec{Command: "git", Semantic: &SemanticMatchSpec{Verb: "push", Force: boolPtr(true)}},
+			}},
+		},
+	}, Source{})
+
+	got, err := Evaluate(p, "git push --force origin main")
+	if err != nil {
+		t.Fatalf("Evaluate() error = %v", err)
+	}
+	if len(got.Trace) == 0 {
+		t.Fatalf("trace empty")
+	}
+	last := got.Trace[len(got.Trace)-1]
+	if last.Parser != "git" || last.SemanticParser != "git" || !last.SemanticMatch {
+		t.Fatalf("trace step missing parser/semantic info: %+v", last)
+	}
+	if !containsString(last.SemanticFields, "verb") || !containsString(last.SemanticFields, "force") {
+		t.Fatalf("SemanticFields=%#v, want verb and force", last.SemanticFields)
+	}
+}
+
 func TestEvaluateStructuredAllowFailsClosedOnUnsafeShellExpressions(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -1230,6 +1362,59 @@ func TestValidatePermissionRuleRequiresMessageForUnsafeAllow(t *testing.T) {
 	}, "allow")
 	if len(issues) == 0 {
 		t.Fatal("expected validation issues")
+	}
+}
+
+func TestValidateSemanticMatchRules(t *testing.T) {
+	tests := []struct {
+		name  string
+		spec  PipelineSpec
+		issue string
+	}{
+		{
+			name: "semantic without command",
+			spec: PipelineSpec{Permission: PermissionSpec{Deny: []PermissionRuleSpec{{
+				Match: MatchSpec{Semantic: &SemanticMatchSpec{Verb: "push"}},
+			}}}},
+			issue: "permission.deny[0].match.command must be set when semantic is used",
+		},
+		{
+			name: "command_in with semantic",
+			spec: PipelineSpec{Permission: PermissionSpec{Deny: []PermissionRuleSpec{{
+				Match: MatchSpec{CommandIn: []string{"git", "gh"}, Semantic: &SemanticMatchSpec{Verb: "push"}},
+			}}}},
+			issue: "permission.deny[0].match.command_in cannot be used with semantic",
+		},
+		{
+			name: "non git command",
+			spec: PipelineSpec{Permission: PermissionSpec{Deny: []PermissionRuleSpec{{
+				Match: MatchSpec{Command: "ls", Semantic: &SemanticMatchSpec{Verb: "push"}},
+			}}}},
+			issue: "permission.deny[0].match.semantic is only supported for command: git",
+		},
+		{
+			name: "subcommand with semantic verb",
+			spec: PipelineSpec{Permission: PermissionSpec{Deny: []PermissionRuleSpec{{
+				Match: MatchSpec{Command: "git", Subcommand: "push", Semantic: &SemanticMatchSpec{Verb: "push"}},
+			}}}},
+			issue: "permission.deny[0].match.subcommand cannot be used with semantic.verb",
+		},
+		{
+			name: "rewrite semantic",
+			spec: PipelineSpec{Rewrite: []RewriteStepSpec{{
+				Match:            MatchSpec{Command: "git", Semantic: &SemanticMatchSpec{Verb: "push"}},
+				StripCommandPath: true,
+			}}},
+			issue: "rewrite[0].match.semantic is not supported; semantic match is currently permission-only",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			issues := ValidatePipeline(tt.spec)
+			if !containsString(issues, tt.issue) {
+				t.Fatalf("issues=%#v, want %q", issues, tt.issue)
+			}
+		})
 	}
 }
 

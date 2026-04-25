@@ -129,6 +129,10 @@ Supported fields:
 - `env_requires`
 - `env_missing`
 
+Rewrite selectors must not use `semantic`. Semantic matchers are currently
+permission-only because rewrite changes command shape before permission
+evaluation.
+
 `args_contains` and `args_prefixes` are legacy raw-word matchers. They inspect
 the command words after the executable token, before command-specific semantic
 argument parsing. This preserves compatibility for commands such as
@@ -207,6 +211,44 @@ deny:
       pass:
         - "git diff HEAD~1"
 ```
+
+### Permission semantic match
+
+Structured permission `match` may include `semantic` only when `match.command`
+is an exact command discriminator. `command_in` plus `semantic` is invalid
+because the semantic schema would be ambiguous. `semantic` is an internal member
+of `match`; it cannot be combined with top-level `pattern` or `patterns`.
+
+For `command: git`, the Git semantic schema is:
+
+- string selectors: `verb`, `remote`, `branch`, `ref`
+- string-list selectors: `verb_in`, `remote_in`, `branch_in`, `ref_in`
+- boolean selectors: `force`, `hard`, `recursive`, `include_ignored`,
+  `cached`, `staged`
+- flag selectors: `flags_contains`, `flags_prefixes`
+
+Example:
+
+```yaml
+deny:
+  - match:
+      command: git
+      semantic:
+        verb: clean
+        force: true
+        recursive: true
+        include_ignored: true
+    message: "destructive git clean is blocked"
+```
+
+Git semantic parsing is best-effort static parsing of the command argv. It
+does not query repository state; ambiguous operands are left conservative or
+classified by common CLI convention. `GenericParser` never satisfies
+`match.semantic`, so a command-specific parser must provide semantic data.
+Unsupported semantic fields, unsupported value types, `semantic` without
+`command`, non-Git commands using Git fields, and rewrite selectors with
+`semantic` are validation errors. Future commands such as `kubectl`, `aws`, or
+`gh` must add their own command-specific semantic schema and verification.
 
 For `permission.allow`, `pattern` and `patterns` fail closed to `ask` unless
 the command is safe for evaluation. Syntax parse errors, diagnostics, unknown
