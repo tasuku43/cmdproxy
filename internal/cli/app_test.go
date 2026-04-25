@@ -46,6 +46,23 @@ func runClaudeHookTest(t *testing.T, spec hookEnvSpec) hookPayload {
 	return typed
 }
 
+func traceHasEffect(trace any, name string, effect string) bool {
+	steps, ok := trace.([]any)
+	if !ok {
+		return false
+	}
+	for _, step := range steps {
+		entry, ok := step.(map[string]any)
+		if !ok {
+			continue
+		}
+		if entry["name"] == name && entry["effect"] == effect {
+			return true
+		}
+	}
+	return false
+}
+
 func runClaudeHookMapTest(t *testing.T, spec hookEnvSpec) map[string]any {
 	t.Helper()
 	home := t.TempDir()
@@ -305,14 +322,15 @@ test:
 	}
 }
 
-func TestRunHookClaudeSettingsAllowUpgradesAskToAllow(t *testing.T) {
+func TestRunHookClaudeMigrationCompatSettingsAllowUpgradesAskToAllow(t *testing.T) {
 	home := t.TempDir()
 	writeClaudeSettings(t, home, `{
   "permissions": {
     "allow": ["Bash(git status -s)"]
   }
 }`)
-	writeUserConfig(t, home, `permission:
+	writeUserConfig(t, home, `claude_permission_merge_mode: migration_compat
+permission:
   ask:
     - match:
         command: git
@@ -377,6 +395,78 @@ test:
 	}
 	if payload.Cmdproxy["outcome"] != "ask" {
 		t.Fatalf("outcome=%v payload=%+v", payload.Cmdproxy["outcome"], payload)
+	}
+	if !traceHasEffect(payload.Cmdproxy["trace"], "claude_permission_merge_mode", "strict") {
+		t.Fatalf("trace should include strict merge mode, payload=%+v", payload)
+	}
+}
+
+func TestRunHookClaudeDefaultMergeDoesNotUpgradeAskToAllow(t *testing.T) {
+	payload := runClaudeHookTest(t, hookEnvSpec{
+		UserConfig: `permission:
+  ask:
+    - match:
+        command: git
+        subcommand: status
+      test:
+        ask:
+          - "git status"
+        pass:
+          - "git diff"
+test:
+  - in: "git status"
+    decision: ask
+`,
+		ClaudeSettings: `{
+  "permissions": {
+    "allow": ["Bash(git status)"]
+  }
+}`,
+		Command: "git status",
+	})
+	if _, ok := payload.HookSpecificOutput["permissionDecision"]; ok {
+		t.Fatalf("default strict mode should keep ask, payload=%+v", payload)
+	}
+	if payload.Cmdproxy["outcome"] != "ask" {
+		t.Fatalf("outcome=%v payload=%+v", payload.Cmdproxy["outcome"], payload)
+	}
+	if !traceHasEffect(payload.Cmdproxy["trace"], "claude_permission_merge_mode", "strict") {
+		t.Fatalf("trace should include default strict merge mode, payload=%+v", payload)
+	}
+}
+
+func TestRunHookClaudeMigrationCompatExplicitlyUpgradesAskToAllow(t *testing.T) {
+	payload := runClaudeHookTest(t, hookEnvSpec{
+		UserConfig: `claude_permission_merge_mode: migration_compat
+permission:
+  ask:
+    - match:
+        command: git
+        subcommand: status
+      test:
+        ask:
+          - "git status"
+        pass:
+          - "git diff"
+test:
+  - in: "git status"
+    decision: ask
+`,
+		ClaudeSettings: `{
+  "permissions": {
+    "allow": ["Bash(git status)"]
+  }
+}`,
+		Command: "git status",
+	})
+	if payload.HookSpecificOutput["permissionDecision"] != "allow" {
+		t.Fatalf("migration_compat should upgrade ask to allow, payload=%+v", payload)
+	}
+	if payload.Cmdproxy["outcome"] != "allow" {
+		t.Fatalf("outcome=%v payload=%+v", payload.Cmdproxy["outcome"], payload)
+	}
+	if !traceHasEffect(payload.Cmdproxy["trace"], "claude_permission_merge_mode", "migration_compat") {
+		t.Fatalf("trace should include migration_compat merge mode, payload=%+v", payload)
 	}
 }
 
@@ -479,7 +569,7 @@ test:
 			wantPermissionField: true,
 		},
 		{
-			name: "settings allow upgrades ask",
+			name: "settings allow does not upgrade ask by default",
 			cmdproxyPermission: `permission:
   ask:
     - match:
@@ -500,8 +590,8 @@ test:
   }
 }`,
 			command:             "git status",
-			wantDecision:        "allow",
-			wantPermissionField: true,
+			wantDecision:        "ask",
+			wantPermissionField: false,
 		},
 		{
 			name: "settings deny beats cc-bash-proxy allow",
@@ -645,7 +735,8 @@ test:
 
 func TestRunHookClaudeMergesGlobalAndLocalPolicyAndSettings(t *testing.T) {
 	payload := runClaudeHookTest(t, hookEnvSpec{
-		UserConfig: `rewrite:
+		UserConfig: `claude_permission_merge_mode: migration_compat
+rewrite:
   - match:
       command: aws
       args_contains: ["--profile"]

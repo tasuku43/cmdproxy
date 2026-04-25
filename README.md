@@ -130,7 +130,7 @@ unreviewed config change can become active during a hook invocation.
 ### Permission Merge Rule
 
 `cc-bash-proxy` and Claude settings are merged with an explicit mode. The
-default is `migration_compat` to preserve existing migration behavior.
+default is `strict` for security-first behavior.
 
 Set it at the top level of `cc-bash-proxy.yml`:
 
@@ -140,14 +140,15 @@ claude_permission_merge_mode: strict
 
 Supported values:
 
-- `migration_compat`: current coexistence behavior
+- `migration_compat`: legacy coexistence behavior; explicit opt-in only
 - `strict`: `deny > ask > allow`; `ask` is never upgraded to `allow`
 - `cc_bash_proxy_authoritative`: ignore Claude `allow` and `ask`, but still
   honor Claude `deny`
 
-For new security-first setups, prefer `strict`. `migration_compat` exists for
-adopting `cc-bash-proxy` without immediately breaking existing Claude settings
-allow lists, and `doctor` reports it as a warning.
+Security-first setups should use the default `strict` mode or explicitly set
+`cc_bash_proxy_authoritative`. `migration_compat` exists only for legacy
+migration when existing Claude settings allow lists must keep their historical
+effect, and `doctor` reports it as a warning.
 
 ### Compound Shell Commands
 
@@ -256,7 +257,15 @@ Claude settings are interpreted as four states:
 - `allow`
 - `abstain` (no matching rule)
 
-For `migration_compat`, the final rule is:
+The default `strict` merge mode uses this final rule:
+
+- any `deny` always forces `deny`
+- `ask` wins over `allow`
+- Claude `allow` never upgrades a `cc-bash-proxy` `ask` to `allow`
+- Claude `abstain` keeps the `cc-bash-proxy` decision
+- if both sides abstain, the final result is `ask`
+
+For explicit `migration_compat`, the final rule is:
 
 - Claude `deny` always forces `deny`
 - Claude `ask` forces `ask` unless `cc-bash-proxy` already denied

@@ -155,11 +155,15 @@ already decided the permission outcome.
 
 Claude settings merge behavior is controlled by `claude_permission_merge_mode`:
 
-- `migration_compat` is the default and preserves the existing coexistence
-  behavior, including Claude `allow` upgrading `cc-bash-proxy` `ask`
-- `strict` applies `deny > ask > allow`, so `ask` is never upgraded to `allow`
+- `strict` is the default and applies `deny > ask > allow`, so `ask` is never
+  upgraded to `allow`
+- `migration_compat` is explicit opt-in for legacy coexistence behavior,
+  including Claude `allow` upgrading `cc-bash-proxy` `ask`
 - `cc_bash_proxy_authoritative` ignores Claude `allow` and `ask`, but still
   honors Claude `deny`
+
+The hook trace includes the effective Claude permission merge mode for every
+Claude permission bridge evaluation.
 
 ## 8. Testing Model
 

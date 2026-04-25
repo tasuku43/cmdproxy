@@ -38,24 +38,35 @@ func ApplyPermissionBridgeWithMode(tool string, decision policy.Decision, cwd st
 
 func applyPermissionBridge(decision policy.Decision, cwd string, home string, mode string) policy.Decision {
 	verdict := CheckCommand(decision.Command, cwd, home)
-	switch normalizeMergeMode(mode) {
+	mergeMode := normalizeMergeMode(mode)
+	decision.Trace = append(decision.Trace, policy.TraceStep{
+		Action:  "permission",
+		Name:    "claude_permission_merge_mode",
+		Effect:  mergeMode,
+		Message: "Claude permission merge mode: " + mergeMode,
+	})
+	switch mergeMode {
 	case MergeModeStrict:
 		return applyStrictPermissionBridge(decision, verdict)
 	case MergeModeCCBashProxyAuthoritative:
 		return applyAuthoritativePermissionBridge(decision, verdict)
-	default:
+	case MergeModeMigrationCompat:
 		return applyMigrationCompatPermissionBridge(decision, verdict)
+	default:
+		return applyStrictPermissionBridge(decision, verdict)
 	}
 }
 
 func normalizeMergeMode(mode string) string {
 	switch strings.TrimSpace(mode) {
+	case MergeModeMigrationCompat:
+		return MergeModeMigrationCompat
 	case MergeModeStrict:
 		return MergeModeStrict
 	case MergeModeCCBashProxyAuthoritative:
 		return MergeModeCCBashProxyAuthoritative
 	default:
-		return MergeModeMigrationCompat
+		return MergeModeStrict
 	}
 }
 

@@ -147,12 +147,14 @@ func AddVerifiedArtifactCheck(report Report, status configrepo.EffectiveArtifact
 
 func claudePermissionMergeMode(p policy.Pipeline) string {
 	switch strings.TrimSpace(p.ClaudePermissionMergeMode) {
+	case claude.MergeModeMigrationCompat:
+		return claude.MergeModeMigrationCompat
 	case claude.MergeModeStrict:
 		return claude.MergeModeStrict
 	case claude.MergeModeCCBashProxyAuthoritative:
 		return claude.MergeModeCCBashProxyAuthoritative
 	default:
-		return claude.MergeModeMigrationCompat
+		return claude.MergeModeStrict
 	}
 }
 

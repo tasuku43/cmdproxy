@@ -84,6 +84,9 @@ Unknown top-level keys are invalid.
 - `strict`
 - `cc_bash_proxy_authoritative`
 
+When omitted, the effective mode is `strict`. `migration_compat` is a legacy
+mode and is used only when explicitly configured.
+
 ## 3. Rewrite Section
 
 `rewrite` is an ordered array of rewrite steps.
