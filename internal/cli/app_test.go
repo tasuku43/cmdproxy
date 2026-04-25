@@ -542,6 +542,12 @@ func TestRunHookClaudePermissionMergeMatrix(t *testing.T) {
 		command             string
 		wantDecision        string
 		wantPermissionField bool
+		wantExplicit        bool
+		wantReason          string
+		wantTrace           []struct {
+			name   string
+			effect string
+		}
 	}{
 		{
 			name: "deny beats allow",
@@ -567,6 +573,8 @@ test:
 			command:             "git status",
 			wantDecision:        "deny",
 			wantPermissionField: true,
+			wantExplicit:        true,
+			wantReason:          "rule_match",
 		},
 		{
 			name: "settings allow does not upgrade ask by default",
@@ -592,6 +600,43 @@ test:
 			command:             "git status",
 			wantDecision:        "ask",
 			wantPermissionField: false,
+			wantExplicit:        true,
+			wantReason:          "rule_match",
+			wantTrace: []struct {
+				name   string
+				effect string
+			}{{name: "claude_settings", effect: "allow"}},
+		},
+		{
+			name: "settings allow fills cc-bash-proxy no match in strict mode",
+			cmdproxyPermission: `permission:
+  allow:
+    - match:
+        command: aws
+        subcommand: sts
+      test:
+        allow:
+          - "aws sts get-caller-identity"
+        pass:
+          - "git status"
+test:
+  - in: "aws sts get-caller-identity"
+    decision: allow
+`,
+			claudeSettings: `{
+  "permissions": {
+    "allow": ["Bash(git status)"]
+  }
+}`,
+			command:             "git status",
+			wantDecision:        "allow",
+			wantPermissionField: true,
+			wantExplicit:        true,
+			wantReason:          "claude_settings",
+			wantTrace: []struct {
+				name   string
+				effect string
+			}{{name: "no_match", effect: "abstain"}, {name: "claude_settings", effect: "allow"}},
 		},
 		{
 			name: "settings deny beats cc-bash-proxy allow",
@@ -617,6 +662,8 @@ test:
 			command:             "git status",
 			wantDecision:        "deny",
 			wantPermissionField: true,
+			wantExplicit:        true,
+			wantReason:          "claude_settings",
 		},
 		{
 			name: "explicit ask beats allow",
@@ -642,6 +689,39 @@ test:
 			command:             "git status",
 			wantDecision:        "ask",
 			wantPermissionField: false,
+			wantExplicit:        true,
+			wantReason:          "claude_settings",
+		},
+		{
+			name: "settings ask fills cc-bash-proxy no match",
+			cmdproxyPermission: `permission:
+  allow:
+    - match:
+        command: aws
+        subcommand: sts
+      test:
+        allow:
+          - "aws sts get-caller-identity"
+        pass:
+          - "git status"
+test:
+  - in: "aws sts get-caller-identity"
+    decision: allow
+`,
+			claudeSettings: `{
+  "permissions": {
+    "ask": ["Bash(git status)"]
+  }
+}`,
+			command:             "git status",
+			wantDecision:        "ask",
+			wantPermissionField: false,
+			wantExplicit:        true,
+			wantReason:          "claude_settings",
+			wantTrace: []struct {
+				name   string
+				effect string
+			}{{name: "no_match", effect: "abstain"}, {name: "claude_settings", effect: "ask"}},
 		},
 		{
 			name: "cc-bash-proxy allow plus settings abstain stays allow",
@@ -663,6 +743,8 @@ test:
 			command:             "git status",
 			wantDecision:        "allow",
 			wantPermissionField: true,
+			wantExplicit:        true,
+			wantReason:          "rule_match",
 		},
 		{
 			name: "both abstain become ask",
@@ -684,6 +766,12 @@ test:
 			command:             "git status",
 			wantDecision:        "ask",
 			wantPermissionField: false,
+			wantExplicit:        false,
+			wantReason:          "default_fallback",
+			wantTrace: []struct {
+				name   string
+				effect string
+			}{{name: "no_match", effect: "abstain"}, {name: "claude_settings", effect: "abstain"}, {name: "default", effect: "ask"}},
 		},
 		{
 			name: "cc-bash-proxy ask plus settings abstain stays ask",
@@ -705,6 +793,8 @@ test:
 			command:             "git status",
 			wantDecision:        "ask",
 			wantPermissionField: false,
+			wantExplicit:        true,
+			wantReason:          "rule_match",
 		},
 	}
 
@@ -721,13 +811,22 @@ test:
 				if !has || got != tt.wantDecision {
 					t.Fatalf("permissionDecision=%v has=%v payload=%+v", got, has, payload)
 				}
-				return
-			}
-			if has {
+			} else if has {
 				t.Fatalf("unexpected permissionDecision=%v payload=%+v", got, payload)
 			}
 			if payload.Cmdproxy["outcome"] != tt.wantDecision {
 				t.Fatalf("outcome=%v payload=%+v", payload.Cmdproxy["outcome"], payload)
+			}
+			if payload.Cmdproxy["explicit"] != tt.wantExplicit {
+				t.Fatalf("explicit=%v want=%v payload=%+v", payload.Cmdproxy["explicit"], tt.wantExplicit, payload)
+			}
+			if tt.wantReason != "" && payload.Cmdproxy["reason"] != tt.wantReason {
+				t.Fatalf("reason=%v want=%v payload=%+v", payload.Cmdproxy["reason"], tt.wantReason, payload)
+			}
+			for _, want := range tt.wantTrace {
+				if !traceHasEffect(payload.Cmdproxy["trace"], want.name, want.effect) {
+					t.Fatalf("trace missing %s/%s payload=%+v", want.name, want.effect, payload)
+				}
 			}
 		})
 	}

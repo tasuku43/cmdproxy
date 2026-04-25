@@ -106,7 +106,11 @@ supported raw allow path and the command remains safe for evaluation.
 
 The merge mode matrix must show where the modes differ. In particular, only
 `migration_compat` may upgrade a `cc-bash-proxy` `ask` to `allow` from Claude
-settings, and no mode may upgrade an existing `deny` to `allow`.
+settings, and no mode may upgrade an existing `deny` to `allow`. The matrix
+must also cover `cc-bash-proxy` `abstain`: in `strict`, Claude `allow`, `ask`,
+and `deny` are honored when `cc-bash-proxy` abstains, while both sides
+abstaining falls back to final `ask`. E2E hook tests must assert trace
+distinguishes `no_match` from final fallback `default` ask.
 
 ### Rewrite
 

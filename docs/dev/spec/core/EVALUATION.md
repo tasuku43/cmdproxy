@@ -160,20 +160,29 @@ for each hook invocation.
 - `ask`: omit `permissionDecision` so Claude prompts
 - `deny`: emit `permissionDecision: "deny"`
 
+The internal permission verdict also supports `abstain`, meaning no
+`cc-bash-proxy` permission rule matched. `abstain` is a merge input, not a hook
+output. The final fallback to `ask` is applied only after the Claude settings
+merge, and only when both `cc-bash-proxy` and Claude settings abstain.
+
 If `--rtk` is enabled, the `rtk` rewrite runs only after `cc-bash-proxy` has
 already decided the permission outcome.
 
 Claude settings merge behavior is controlled by `claude_permission_merge_mode`:
 
-- `strict` is the default and applies `deny > ask > allow`, so `ask` is never
-  upgraded to `allow`
+- `strict` is the default and applies explicit `deny > ask > allow`; Claude
+  `allow` does not upgrade an explicit `cc-bash-proxy` `ask`, but it is honored
+  when `cc-bash-proxy` abstains
 - `migration_compat` is explicit opt-in for legacy coexistence behavior,
   including Claude `allow` upgrading `cc-bash-proxy` `ask`
 - `cc_bash_proxy_authoritative` ignores Claude `allow` and `ask`, but still
-  honors Claude `deny`
+  honors Claude `deny`; if `cc-bash-proxy` also abstains, the final fallback is
+  `ask`
 
 The hook trace includes the effective Claude permission merge mode for every
-Claude permission bridge evaluation.
+Claude permission bridge evaluation. Trace output records `no_match` for
+`cc-bash-proxy` abstain and `default` for final fallback ask, so explicit ask
+rules and fallback ask are distinguishable.
 
 ## 8. Testing Model
 

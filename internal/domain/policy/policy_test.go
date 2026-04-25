@@ -557,11 +557,12 @@ func TestEvaluateGitStatusAllowDoesNotMatchNonStatusOrUnsafeShell(t *testing.T) 
 	tests := []struct {
 		name    string
 		command string
+		want    string
 	}{
-		{name: "different subcommand", command: "git -C repo diff"},
-		{name: "double dash before status", command: "git -C repo -- status"},
-		{name: "compound status and diff", command: "git status && git diff"},
-		{name: "pipeline status", command: "git status | sh"},
+		{name: "different subcommand", command: "git -C repo diff", want: "abstain"},
+		{name: "double dash before status", command: "git -C repo -- status", want: "abstain"},
+		{name: "compound status and diff", command: "git status && git diff", want: "ask"},
+		{name: "pipeline status", command: "git status | sh", want: "ask"},
 	}
 
 	for _, tt := range tests {
@@ -570,8 +571,8 @@ func TestEvaluateGitStatusAllowDoesNotMatchNonStatusOrUnsafeShell(t *testing.T) 
 			if err != nil {
 				t.Fatalf("Evaluate() error = %v", err)
 			}
-			if got.Outcome != "ask" {
-				t.Fatalf("Evaluate(%q).Outcome = %q, want ask; decision=%+v", tt.command, got.Outcome, got)
+			if got.Outcome != tt.want {
+				t.Fatalf("Evaluate(%q).Outcome = %q, want %q; decision=%+v", tt.command, got.Outcome, tt.want, got)
 			}
 		})
 	}
@@ -791,8 +792,14 @@ func TestEvaluateRawAllowPatternWithoutUnsafeShellDoesNotAllowSimpleCommand(t *t
 	if err != nil {
 		t.Fatalf("Evaluate() error = %v", err)
 	}
-	if got.Outcome != "ask" {
-		t.Fatalf("Outcome = %q, want ask; decision=%+v", got.Outcome, got)
+	if got.Outcome != "abstain" {
+		t.Fatalf("Outcome = %q, want abstain; decision=%+v", got.Outcome, got)
+	}
+	if got.Explicit {
+		t.Fatalf("Explicit = true, want false; decision=%+v", got)
+	}
+	if got.Reason != "no_match" {
+		t.Fatalf("Reason = %q, want no_match; decision=%+v", got.Reason, got)
 	}
 }
 

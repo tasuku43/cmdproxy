@@ -139,6 +139,8 @@ func (e *ValidationError) Error() string {
 
 type Decision struct {
 	Outcome         string
+	Explicit        bool
+	Reason          string
 	Command         string
 	OriginalCommand string
 	Message         string
@@ -354,52 +356,53 @@ func Evaluate(p Pipeline, command string) (Decision, error) {
 
 	if rule, ok := firstPreparedRawPermissionMatch(prepared.Deny, current); ok {
 		trace = append(trace, permissionTraceStep("deny", permissionRuleTypeRaw, rule))
-		return Decision{Outcome: "deny", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
+		return Decision{Outcome: "deny", Explicit: true, Reason: "rule_match", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
 	}
 	if rule, cmd, ok := firstPreparedStructuredPermissionMatch(prepared.Deny, current); ok {
 		trace = append(trace, permissionTraceStepForCommand("deny", permissionRuleTypeStructured, rule, cmd))
-		return Decision{Outcome: "deny", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
+		return Decision{Outcome: "deny", Explicit: true, Reason: "rule_match", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
 	}
 	if !safety.Safe {
 		if decision, ok := evaluateCommandPlanComposition(prepared.Deny, prepared.Ask, prepared.Allow, plan, false, false); ok {
 			trace = append(trace, decision.Trace...)
-			return Decision{Outcome: decision.Outcome, Command: current, OriginalCommand: command, Message: decision.Message, Trace: trace}, nil
+			return Decision{Outcome: decision.Outcome, Explicit: true, Reason: "composition", Command: current, OriginalCommand: command, Message: decision.Message, Trace: trace}, nil
 		}
 	}
 	if rule, ok := firstPreparedRawPermissionMatch(prepared.Ask, current); ok {
 		trace = append(trace, permissionTraceStep("ask", permissionRuleTypeRaw, rule))
-		return Decision{Outcome: "ask", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
+		return Decision{Outcome: "ask", Explicit: true, Reason: "rule_match", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
 	}
 	if rule, cmd, ok := firstPreparedStructuredPermissionMatch(prepared.Ask, current); ok {
 		trace = append(trace, permissionTraceStepForCommand("ask", permissionRuleTypeStructured, rule, cmd))
-		return Decision{Outcome: "ask", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
+		return Decision{Outcome: "ask", Explicit: true, Reason: "rule_match", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
 	}
 	if !safety.Safe {
 		if decision, ok := evaluateCommandPlanComposition(prepared.Deny, prepared.Ask, prepared.Allow, plan, true, false); ok {
 			trace = append(trace, decision.Trace...)
-			return Decision{Outcome: decision.Outcome, Command: current, OriginalCommand: command, Message: decision.Message, Trace: trace}, nil
+			return Decision{Outcome: decision.Outcome, Explicit: true, Reason: "composition", Command: current, OriginalCommand: command, Message: decision.Message, Trace: trace}, nil
 		}
-		return Decision{Outcome: "ask", Command: current, OriginalCommand: command, Trace: trace}, nil
+		trace = append(trace, TraceStep{Action: "permission", Effect: "ask", Name: "fail_closed", Reason: strings.Join(safety.Reasons, ",")})
+		return Decision{Outcome: "ask", Explicit: true, Reason: "fail_closed", Command: current, OriginalCommand: command, Trace: trace}, nil
 	}
 	if rule, cmd, ok := firstPreparedStructuredAllowPermissionMatch(prepared.Allow, current); ok {
 		trace = append(trace, permissionTraceStepForCommand("allow", permissionRuleTypeStructured, rule, cmd))
-		return Decision{Outcome: "allow", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
+		return Decision{Outcome: "allow", Explicit: true, Reason: "rule_match", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
 	}
 	if decision, ok := evaluateCommandPlanComposition(prepared.Deny, prepared.Ask, prepared.Allow, plan, false, true); ok {
 		trace = append(trace, decision.Trace...)
-		return Decision{Outcome: decision.Outcome, Command: current, OriginalCommand: command, Message: decision.Message, Trace: trace}, nil
+		return Decision{Outcome: decision.Outcome, Explicit: true, Reason: "composition", Command: current, OriginalCommand: command, Message: decision.Message, Trace: trace}, nil
 	}
 	if rule, ok := firstPreparedRawAllowPermissionMatch(prepared.Allow, current); ok {
 		trace = append(trace, permissionTraceStep("allow", permissionRuleTypeRaw, rule))
-		return Decision{Outcome: "allow", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
+		return Decision{Outcome: "allow", Explicit: true, Reason: "rule_match", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
 	}
 	if decision, ok := evaluateCommandPlanComposition(prepared.Deny, prepared.Ask, prepared.Allow, plan, true, true); ok {
 		trace = append(trace, decision.Trace...)
-		return Decision{Outcome: decision.Outcome, Command: current, OriginalCommand: command, Message: decision.Message, Trace: trace}, nil
+		return Decision{Outcome: decision.Outcome, Explicit: true, Reason: "composition", Command: current, OriginalCommand: command, Message: decision.Message, Trace: trace}, nil
 	}
 
-	trace = append(trace, TraceStep{Action: "permission", Effect: "ask", Name: "default"})
-	return Decision{Outcome: "ask", Command: current, OriginalCommand: command, Trace: trace}, nil
+	trace = append(trace, TraceStep{Action: "permission", Effect: "abstain", Name: "no_match", Reason: "no permission rule matched"})
+	return Decision{Outcome: "abstain", Reason: "no_match", Command: current, OriginalCommand: command, Trace: trace}, nil
 }
 
 func boolPtr(v bool) *bool {

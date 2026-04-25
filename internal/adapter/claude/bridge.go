@@ -83,6 +83,8 @@ func applyMigrationCompatPermissionBridge(decision policy.Decision, verdict Perm
 			decision.Message = "blocked by Claude settings migration rule"
 		}
 		decision.Outcome = "deny"
+		decision.Explicit = true
+		decision.Reason = "claude_settings"
 	case PermissionAllow:
 		if decision.Outcome == "deny" {
 			return decision
@@ -94,6 +96,8 @@ func applyMigrationCompatPermissionBridge(decision policy.Decision, verdict Perm
 			Message: "Claude settings allow matched during migration",
 		})
 		decision.Outcome = "allow"
+		decision.Explicit = true
+		decision.Reason = "claude_settings"
 	case PermissionAsk:
 		if decision.Outcome == "deny" {
 			return decision
@@ -105,6 +109,8 @@ func applyMigrationCompatPermissionBridge(decision policy.Decision, verdict Perm
 			Message: "Claude settings explicitly require confirmation during migration",
 		})
 		decision.Outcome = "ask"
+		decision.Explicit = true
+		decision.Reason = "claude_settings"
 	case PermissionDefault:
 		decision.Trace = append(decision.Trace, policy.TraceStep{
 			Action:  "permission",
@@ -112,15 +118,7 @@ func applyMigrationCompatPermissionBridge(decision policy.Decision, verdict Perm
 			Effect:  "abstain",
 			Message: "Claude settings did not define a matching permission during migration",
 		})
-		if decision.Outcome == "" {
-			decision.Trace = append(decision.Trace, policy.TraceStep{
-				Action:  "permission",
-				Name:    "default",
-				Effect:  "ask",
-				Message: "no explicit permission source matched; falling back to ask",
-			})
-			decision.Outcome = "ask"
-		}
+		decision = applyFinalAskFallback(decision)
 	}
 	return decision
 }
@@ -163,11 +161,11 @@ func applyAuthoritativePermissionBridge(decision policy.Decision, verdict Permis
 			Effect:  string(verdict),
 			Message: "Claude settings allow/ask ignored in cc_bash_proxy_authoritative merge mode",
 		})
-		return decision
+		return applyFinalAskFallback(decision)
 	case PermissionDefault:
 		return applyClaudeDefault(decision, "Claude settings did not define a matching permission in cc_bash_proxy_authoritative merge mode")
 	default:
-		return decision
+		return applyFinalAskFallback(decision)
 	}
 }
 
@@ -182,6 +180,8 @@ func applyClaudeDeny(decision policy.Decision, message string) policy.Decision {
 		decision.Message = "blocked by Claude settings"
 	}
 	decision.Outcome = "deny"
+	decision.Explicit = true
+	decision.Reason = "claude_settings"
 	return decision
 }
 
@@ -193,6 +193,8 @@ func applyClaudeAsk(decision policy.Decision, message string) policy.Decision {
 		Message: message,
 	})
 	decision.Outcome = "ask"
+	decision.Explicit = true
+	decision.Reason = "claude_settings"
 	return decision
 }
 
@@ -204,6 +206,8 @@ func applyClaudeAllow(decision policy.Decision, message string) policy.Decision 
 		Message: message,
 	})
 	decision.Outcome = "allow"
+	decision.Explicit = true
+	decision.Reason = "claude_settings"
 	return decision
 }
 
@@ -214,14 +218,22 @@ func applyClaudeDefault(decision policy.Decision, message string) policy.Decisio
 		Effect:  "abstain",
 		Message: message,
 	})
-	if decision.Outcome == "" {
-		decision.Trace = append(decision.Trace, policy.TraceStep{
-			Action:  "permission",
-			Name:    "default",
-			Effect:  "ask",
-			Message: "no explicit permission source matched; falling back to ask",
-		})
-		decision.Outcome = "ask"
+	return applyFinalAskFallback(decision)
+}
+
+func applyFinalAskFallback(decision policy.Decision) policy.Decision {
+	if decision.Outcome != "" && decision.Outcome != "abstain" {
+		return decision
 	}
+	decision.Trace = append(decision.Trace, policy.TraceStep{
+		Action:  "permission",
+		Name:    "default",
+		Effect:  "ask",
+		Message: "no explicit permission source matched; falling back to ask",
+		Reason:  "default_fallback",
+	})
+	decision.Outcome = "ask"
+	decision.Explicit = false
+	decision.Reason = "default_fallback"
 	return decision
 }

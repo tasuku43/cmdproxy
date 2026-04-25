@@ -141,7 +141,8 @@ claude_permission_merge_mode: strict
 Supported values:
 
 - `migration_compat`: legacy coexistence behavior; explicit opt-in only
-- `strict`: `deny > ask > allow`; `ask` is never upgraded to `allow`
+- `strict`: explicit `deny > ask > allow`; `ask` is never upgraded to `allow`,
+  but Claude `allow` is honored when `cc-bash-proxy` abstains
 - `cc_bash_proxy_authoritative`: ignore Claude `allow` and `ask`, but still
   honor Claude `deny`
 
@@ -285,12 +286,18 @@ Examples:
 - `cat <(git status)`
   - asks by default even when `cat` and `git status` are individually allowed
 
-Claude settings are interpreted as four states:
+Both `cc-bash-proxy` and Claude settings are interpreted as four internal
+states:
 
 - `deny`
 - `ask`
 - `allow`
 - `abstain` (no matching rule)
+
+`abstain` is not returned to Claude Code. The final fallback to `ask` is applied
+only after merging, and only when both sides abstain. Trace output records
+`no_match` for a `cc-bash-proxy` abstain and `default` for the final fallback
+ask, so explicit ask rules and fallback ask remain distinguishable.
 
 The default `strict` merge mode uses this final rule:
 
@@ -308,7 +315,11 @@ For explicit `migration_compat`, the final rule is:
 - Claude `abstain` keeps the `cc-bash-proxy` decision
 - if both sides abstain, the final result is `ask`
 
-The important combinations are:
+For `cc_bash_proxy_authoritative`, Claude `allow` and `ask` are treated as
+ignored input. A `cc-bash-proxy` abstain therefore still falls through to the
+final fallback ask unless Claude settings explicitly deny.
+
+The important `strict` combinations are:
 
 | `cc-bash-proxy` | Claude settings | Final |
 |---|---|---|
@@ -316,7 +327,7 @@ The important combinations are:
 | `deny` | `allow` | `deny` |
 | `deny` | `ask` / `abstain` | `deny` |
 | `ask` | `deny` | `deny` |
-| `ask` | `allow` | `allow` |
+| `ask` | `allow` | `ask` |
 | `ask` | `ask` | `ask` |
 | `ask` | `abstain` | `ask` |
 | `allow` | `deny` | `deny` |

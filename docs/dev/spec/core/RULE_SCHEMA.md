@@ -87,6 +87,13 @@ Unknown top-level keys are invalid.
 When omitted, the effective mode is `strict`. `migration_compat` is a legacy
 mode and is used only when explicitly configured.
 
+Permission merging uses four internal verdict states: `deny`, `ask`, `allow`,
+and `abstain`. `abstain` means no matching permission rule exists on that side.
+The final fallback to `ask` is applied only after merging and only when both
+`cc-bash-proxy` and Claude settings abstain. In `strict` mode, Claude `allow`
+does not override an explicit `cc-bash-proxy` `ask`, but it does apply when
+`cc-bash-proxy` abstains.
+
 ## 3. Rewrite Section
 
 `rewrite` is an ordered array of rewrite steps.

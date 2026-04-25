@@ -85,8 +85,10 @@ func hookPayload(decision policy.Decision, originalCommand string) map[string]an
 		payload := map[string]any{
 			"hookSpecificOutput": hookOutput,
 			"cc-bash-proxy": map[string]any{
-				"outcome": decision.Outcome,
-				"trace":   decision.Trace,
+				"outcome":  decision.Outcome,
+				"explicit": decision.Explicit,
+				"reason":   decision.Reason,
+				"trace":    decision.Trace,
 			},
 		}
 		if message, ok := buildRewriteSystemMessage(decision); ok {
@@ -105,8 +107,10 @@ func hookPayload(decision policy.Decision, originalCommand string) map[string]an
 				"permissionDecisionReason": reason,
 			},
 			"cc-bash-proxy": map[string]any{
-				"outcome": "deny",
-				"trace":   decision.Trace,
+				"outcome":  "deny",
+				"explicit": decision.Explicit,
+				"reason":   decision.Reason,
+				"trace":    decision.Trace,
 			},
 		}
 	default:
