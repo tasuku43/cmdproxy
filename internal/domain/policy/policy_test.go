@@ -3,6 +3,8 @@ package policy
 import (
 	"strconv"
 	"testing"
+
+	commandpkg "github.com/tasuku43/cc-bash-proxy/internal/domain/command"
 )
 
 func TestEvaluateRewriteThenAllow(t *testing.T) {
@@ -116,6 +118,29 @@ func TestEvaluateGitArgsContainsMatchesGlobalOptionRawWords(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Evaluate() error = %v", err)
 	}
+	if got.Outcome != "ask" {
+		t.Fatalf("Outcome = %q, want ask; decision=%+v", got.Outcome, got)
+	}
+}
+
+func TestGenericParserSemanticGuardPreventsDenyToAllowRegression(t *testing.T) {
+	plan := commandpkg.ParseWithRegistry("git -C repo status", commandpkg.NewCommandParserRegistry())
+	if len(plan.Commands) != 1 {
+		t.Fatalf("len(Commands) = %d, want 1", len(plan.Commands))
+	}
+	cmd := plan.Commands[0]
+	if cmd.Parser != "generic" || cmd.SemanticParser != "" {
+		t.Fatalf("parser state = (%q, %q), want generic/no semantic parser", cmd.Parser, cmd.SemanticParser)
+	}
+
+	p := NewPipeline(PipelineSpec{
+		Permission: PermissionSpec{
+			Deny:  []PermissionRuleSpec{{Match: MatchSpec{Command: "git", Subcommand: "status"}}},
+			Allow: []PermissionRuleSpec{{Match: MatchSpec{Command: "git"}}},
+		},
+	}, Source{})
+
+	got := evaluatePreparedCommand(p.prepared.Deny, p.prepared.Ask, p.prepared.Allow, cmd)
 	if got.Outcome != "ask" {
 		t.Fatalf("Outcome = %q, want ask; decision=%+v", got.Outcome, got)
 	}

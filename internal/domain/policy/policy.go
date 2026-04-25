@@ -126,23 +126,24 @@ type Decision struct {
 }
 
 type TraceStep struct {
-	Action       string   `json:"action"`
-	Name         string   `json:"name,omitempty"`
-	Effect       string   `json:"effect,omitempty"`
-	RuleType     string   `json:"rule_type,omitempty"`
-	From         string   `json:"from,omitempty"`
-	To           string   `json:"to,omitempty"`
-	Message      string   `json:"message,omitempty"`
-	Reason       string   `json:"reason,omitempty"`
-	Command      string   `json:"command,omitempty"`
-	CommandIndex *int     `json:"command_index,omitempty"`
-	Parser       string   `json:"parser,omitempty"`
-	Program      string   `json:"program,omitempty"`
-	ActionPath   []string `json:"action_path,omitempty"`
-	Shape        string   `json:"shape,omitempty"`
-	Relaxed      bool     `json:"relaxed,omitempty"`
-	Continue     bool     `json:"continue,omitempty"`
-	Source       *Source  `json:"source,omitempty"`
+	Action         string   `json:"action"`
+	Name           string   `json:"name,omitempty"`
+	Effect         string   `json:"effect,omitempty"`
+	RuleType       string   `json:"rule_type,omitempty"`
+	From           string   `json:"from,omitempty"`
+	To             string   `json:"to,omitempty"`
+	Message        string   `json:"message,omitempty"`
+	Reason         string   `json:"reason,omitempty"`
+	Command        string   `json:"command,omitempty"`
+	CommandIndex   *int     `json:"command_index,omitempty"`
+	Parser         string   `json:"parser,omitempty"`
+	SemanticParser string   `json:"semantic_parser,omitempty"`
+	Program        string   `json:"program,omitempty"`
+	ActionPath     []string `json:"action_path,omitempty"`
+	Shape          string   `json:"shape,omitempty"`
+	Relaxed        bool     `json:"relaxed,omitempty"`
+	Continue       bool     `json:"continue,omitempty"`
+	Source         *Source  `json:"source,omitempty"`
 }
 
 const (
@@ -477,6 +478,9 @@ func evaluatePreparedCommand(deny []preparedPermissionRule, ask []preparedPermis
 	if rule, ok := firstPreparedCommandMatch(ask, cmd); ok {
 		return commandDecision{Outcome: "ask", Rule: rule, Matched: true, RuleType: permissionRuleTypeStructured, Command: cmd}
 	}
+	if hasUnresolvedSemanticGuard(deny, cmd) || hasUnresolvedSemanticGuard(ask, cmd) {
+		return commandDecision{Outcome: "ask", Command: cmd}
+	}
 	if rule, ok := firstPreparedCommandAllowMatch(allow, cmd); ok {
 		return commandDecision{Outcome: "allow", Rule: rule, Matched: true, RuleType: permissionRuleTypeStructured, Command: cmd}
 	}
@@ -501,16 +505,17 @@ func compositionTrace(plan commandpkg.CommandPlan, decisions []commandDecision, 
 		index := i
 		cmd := commandDecision.Command
 		trace = append(trace, TraceStep{
-			Action:       "permission",
-			Name:         "composition.command",
-			Effect:       commandDecision.Outcome,
-			RuleType:     commandDecision.RuleType,
-			Command:      cmd.Raw,
-			CommandIndex: &index,
-			Parser:       cmd.Parser,
-			Program:      cmd.Program,
-			ActionPath:   append([]string(nil), cmd.ActionPath...),
-			Source:       sourcePtr(commandDecision.Rule.Source),
+			Action:         "permission",
+			Name:           "composition.command",
+			Effect:         commandDecision.Outcome,
+			RuleType:       commandDecision.RuleType,
+			Command:        cmd.Raw,
+			CommandIndex:   &index,
+			Parser:         cmd.Parser,
+			SemanticParser: cmd.SemanticParser,
+			Program:        cmd.Program,
+			ActionPath:     append([]string(nil), cmd.ActionPath...),
+			Source:         sourcePtr(commandDecision.Rule.Source),
 		})
 	}
 	trace = append(trace, TraceStep{
@@ -545,6 +550,48 @@ func firstPreparedCommandAllowMatch(rules []preparedPermissionRule, cmd commandp
 		}
 	}
 	return PermissionRuleSpec{}, false
+}
+
+func hasUnresolvedSemanticGuard(rules []preparedPermissionRule, cmd commandpkg.Command) bool {
+	if cmd.SemanticParser != "" {
+		return false
+	}
+	for _, rule := range rules {
+		if !rule.Selector.hasStructuredSelector() {
+			continue
+		}
+		if matchRequiresSemantic(rule.Selector.Match) && matchStructuralScopeMatches(rule.Selector.Match, cmd) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchRequiresSemantic(match MatchSpec) bool {
+	return match.Subcommand != ""
+}
+
+func matchStructuralScopeMatches(match MatchSpec, cmd commandpkg.Command) bool {
+	if match.Command != "" && cmd.Program != match.Command {
+		return false
+	}
+	if len(match.CommandIn) > 0 && !containsString(match.CommandIn, cmd.Program) {
+		return false
+	}
+	if match.CommandIsAbsolutePath && !invocation.IsAbsoluteCommand(cmd.ProgramToken) {
+		return false
+	}
+	for _, env := range match.EnvRequires {
+		if _, ok := cmd.Env[env]; !ok {
+			return false
+		}
+	}
+	for _, env := range match.EnvMissing {
+		if _, ok := cmd.Env[env]; ok {
+			return false
+		}
+	}
+	return true
 }
 
 func allowRuleCanMatch(rule PermissionRuleSpec, command string) bool {
@@ -742,9 +789,19 @@ func (m MatchSpec) matches(cmd commandpkg.Command) bool {
 
 func commandSubcommand(cmd commandpkg.Command) string {
 	if len(cmd.ActionPath) == 0 {
-		return ""
+		return structuralSubcommand(cmd)
 	}
 	return cmd.ActionPath[0]
+}
+
+func structuralSubcommand(cmd commandpkg.Command) string {
+	for _, word := range cmd.RawWords {
+		if strings.HasPrefix(word, "-") && word != "-" {
+			continue
+		}
+		return word
+	}
+	return ""
 }
 
 func commandMatchArgs(cmd commandpkg.Command) []string {

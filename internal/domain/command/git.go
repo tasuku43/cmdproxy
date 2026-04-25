@@ -8,61 +8,56 @@ func (GitParser) Program() string {
 	return "git"
 }
 
-func (GitParser) Parse(inv Invocation) (Command, bool) {
-	if inv.Program != "git" {
+func (GitParser) Parse(base Command) (Command, bool) {
+	if base.Program != "git" {
 		return Command{}, false
 	}
 
-	cmd := Command{
-		Raw:          inv.Raw,
-		Program:      inv.Program,
-		ProgramToken: inv.ProgramToken,
-		Env:          inv.Env,
-		RawWords:     append([]string(nil), inv.Words...),
-		Args:         []string{},
-		Parser:       GitParser{}.Program(),
-	}
+	cmd := base
+	cmd.Parser = GitParser{}.Program()
+	cmd.SemanticParser = GitParser{}.Program()
+	cmd.Args = []string{}
 
 	i := 0
-	for i < len(inv.Words) {
-		word := inv.Words[i]
+	for i < len(base.RawWords) {
+		word := base.RawWords[i]
 		switch {
 		case word == "-C":
-			if i+1 >= len(inv.Words) {
-				cmd.ActionPath = append(cmd.ActionPath, inv.Words[i:]...)
+			if i+1 >= len(base.RawWords) {
+				cmd.ActionPath = append(cmd.ActionPath, base.RawWords[i:]...)
 				return cmd, true
 			}
-			value := inv.Words[i+1]
+			value := base.RawWords[i+1]
 			cmd.GlobalOptions = append(cmd.GlobalOptions, Option{Name: "-C", Value: value, HasValue: true, Position: i})
 			cmd.WorkingDirectory = value
 			i += 2
 		case word == "-c":
-			if i+1 >= len(inv.Words) {
-				cmd.ActionPath = append(cmd.ActionPath, inv.Words[i:]...)
+			if i+1 >= len(base.RawWords) {
+				cmd.ActionPath = append(cmd.ActionPath, base.RawWords[i:]...)
 				return cmd, true
 			}
-			cmd.GlobalOptions = append(cmd.GlobalOptions, Option{Name: "-c", Value: inv.Words[i+1], HasValue: true, Position: i})
+			cmd.GlobalOptions = append(cmd.GlobalOptions, Option{Name: "-c", Value: base.RawWords[i+1], HasValue: true, Position: i})
 			i += 2
 		case isGitGlobalOptionWithValue(word, "--git-dir"):
-			value, consumed := gitOptionValue(word, "--git-dir", inv.Words, i)
+			value, consumed := gitOptionValue(word, "--git-dir", base.RawWords, i)
 			if !consumed {
-				cmd.ActionPath = append(cmd.ActionPath, inv.Words[i:]...)
+				cmd.ActionPath = append(cmd.ActionPath, base.RawWords[i:]...)
 				return cmd, true
 			}
 			cmd.GlobalOptions = append(cmd.GlobalOptions, Option{Name: "--git-dir", Value: value, HasValue: true, Position: i})
 			i += gitConsumedWords(word)
 		case isGitGlobalOptionWithValue(word, "--work-tree"):
-			value, consumed := gitOptionValue(word, "--work-tree", inv.Words, i)
+			value, consumed := gitOptionValue(word, "--work-tree", base.RawWords, i)
 			if !consumed {
-				cmd.ActionPath = append(cmd.ActionPath, inv.Words[i:]...)
+				cmd.ActionPath = append(cmd.ActionPath, base.RawWords[i:]...)
 				return cmd, true
 			}
 			cmd.GlobalOptions = append(cmd.GlobalOptions, Option{Name: "--work-tree", Value: value, HasValue: true, Position: i})
 			i += gitConsumedWords(word)
 		case isGitGlobalOptionWithValue(word, "--namespace"):
-			value, consumed := gitOptionValue(word, "--namespace", inv.Words, i)
+			value, consumed := gitOptionValue(word, "--namespace", base.RawWords, i)
 			if !consumed {
-				cmd.ActionPath = append(cmd.ActionPath, inv.Words[i:]...)
+				cmd.ActionPath = append(cmd.ActionPath, base.RawWords[i:]...)
 				return cmd, true
 			}
 			cmd.GlobalOptions = append(cmd.GlobalOptions, Option{Name: "--namespace", Value: value, HasValue: true, Position: i})
@@ -71,7 +66,7 @@ func (GitParser) Parse(inv Invocation) (Command, bool) {
 			cmd.GlobalOptions = append(cmd.GlobalOptions, Option{Name: word, Position: i})
 			i++
 		default:
-			cmd.ActionPath, cmd.Options, cmd.Args = splitGitAction(inv.Words[i:], i)
+			cmd.ActionPath, cmd.Options, cmd.Args = splitGitAction(base.RawWords[i:], i)
 			return cmd, true
 		}
 	}

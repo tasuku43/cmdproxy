@@ -1,6 +1,9 @@
 package command
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestParseCommandPlanSimpleGitStatus(t *testing.T) {
 	plan := Parse("git status")
@@ -207,12 +210,12 @@ func TestParserRegistryFallsBackToGenericParser(t *testing.T) {
 	if cmd.Parser != "generic" {
 		t.Fatalf("Parser = %q, want generic", cmd.Parser)
 	}
-	if len(cmd.ActionPath) != 1 || cmd.ActionPath[0] != "status" {
-		t.Fatalf("ActionPath = %#v, want [status]", cmd.ActionPath)
+	if len(cmd.ActionPath) != 0 {
+		t.Fatalf("ActionPath = %#v, want empty for generic parser", cmd.ActionPath)
 	}
 }
 
-func TestGenericParserDoesNotInferOptionValueArity(t *testing.T) {
+func TestGenericParserBuildsOnlyStructuralLayer(t *testing.T) {
 	cmd, ok := GenericParser{}.Parse(Invocation{
 		Raw:          "tool --profile dev status --verbose",
 		ProgramToken: "tool",
@@ -222,14 +225,18 @@ func TestGenericParserDoesNotInferOptionValueArity(t *testing.T) {
 	if !ok {
 		t.Fatal("GenericParser.Parse() ok = false, want true")
 	}
-	if len(cmd.GlobalOptions) != 1 || cmd.GlobalOptions[0] != (Option{Name: "--profile", Position: 0}) {
-		t.Fatalf("GlobalOptions = %#v, want [--profile]", cmd.GlobalOptions)
+	if len(cmd.GlobalOptions) != 0 {
+		t.Fatalf("GlobalOptions = %#v, want empty for generic parser", cmd.GlobalOptions)
 	}
-	if len(cmd.ActionPath) != 2 || cmd.ActionPath[0] != "dev" || cmd.ActionPath[1] != "status" {
-		t.Fatalf("ActionPath = %#v, want [dev status]", cmd.ActionPath)
+	if len(cmd.ActionPath) != 0 {
+		t.Fatalf("ActionPath = %#v, want empty for generic parser", cmd.ActionPath)
 	}
-	if len(cmd.Options) != 1 || cmd.Options[0] != (Option{Name: "--verbose", Position: 3}) {
-		t.Fatalf("Options = %#v, want [--verbose]", cmd.Options)
+	if len(cmd.Args) != 0 {
+		t.Fatalf("Args = %#v, want empty for generic parser", cmd.Args)
+	}
+	wantRawOptions := []Option{{Name: "--profile", Position: 0}, {Name: "--verbose", Position: 3}}
+	if !reflect.DeepEqual(cmd.RawOptions, wantRawOptions) {
+		t.Fatalf("RawOptions = %#v, want %#v", cmd.RawOptions, wantRawOptions)
 	}
 }
 
@@ -241,13 +248,10 @@ func (p testParser) Program() string {
 	return p.program
 }
 
-func (p testParser) Parse(inv Invocation) (Command, bool) {
-	return Command{
-		Raw:          inv.Raw,
-		Program:      inv.Program,
-		ProgramToken: inv.ProgramToken,
-		Args:         append([]string(nil), inv.Words...),
-		ActionPath:   []string{"dispatched"},
-		Parser:       "test-" + p.program,
-	}, true
+func (p testParser) Parse(base Command) (Command, bool) {
+	base.Args = append([]string(nil), base.RawWords...)
+	base.ActionPath = []string{"dispatched"}
+	base.Parser = "test-" + p.program
+	base.SemanticParser = "test-" + p.program
+	return base, true
 }

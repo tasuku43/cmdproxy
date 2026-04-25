@@ -42,6 +42,7 @@ The current `cc-bash-proxy` contract prioritizes:
 - Core
   - `core/COMPATIBILITY.md`: versioning and compatibility stance
   - `core/INPUT_MODEL.md`: supported stdin payloads and normalized invocation model
+  - `core/PARSER_MODEL.md`: command parser layers and match stability rules
   - `core/RULE_SCHEMA.md`: YAML schema for `rewrite`, `permission`, and `test`
   - `core/CONFIG.md`: config locations and invalid-state handling
   - `core/EVALUATION.md`: rewrite phase plus permission phase

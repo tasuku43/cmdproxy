@@ -16,12 +16,11 @@ type Invocation struct {
 
 type CommandParser interface {
 	Program() string
-	Parse(inv Invocation) (Command, bool)
+	Parse(base Command) (Command, bool)
 }
 
 type CommandParserRegistry struct {
-	parsers  map[string]CommandParser
-	fallback CommandParser
+	parsers map[string]CommandParser
 }
 
 func NewInvocation(raw string) Invocation {
@@ -41,8 +40,7 @@ func DefaultParserRegistry() *CommandParserRegistry {
 
 func NewCommandParserRegistry(parsers ...CommandParser) *CommandParserRegistry {
 	registry := &CommandParserRegistry{
-		parsers:  map[string]CommandParser{},
-		fallback: GenericParser{},
+		parsers: map[string]CommandParser{},
 	}
 	for _, parser := range parsers {
 		registry.Register(parser)
@@ -58,13 +56,20 @@ func (r *CommandParserRegistry) Register(parser CommandParser) {
 }
 
 func (r *CommandParserRegistry) Parse(inv Invocation) (Command, bool) {
+	base, ok := GenericParser{}.Parse(inv)
+	if !ok {
+		return Command{}, false
+	}
 	if r == nil {
-		return GenericParser{}.Parse(inv)
+		return base, true
 	}
 	if parser := r.parsers[inv.Program]; parser != nil {
-		return parser.Parse(inv)
+		cmd, ok := parser.Parse(base)
+		if ok {
+			return cmd, true
+		}
 	}
-	return r.fallback.Parse(inv)
+	return base, true
 }
 
 type GenericParser struct{}
@@ -77,41 +82,27 @@ func (GenericParser) Parse(inv Invocation) (Command, bool) {
 	if inv.Program == "" {
 		return Command{}, false
 	}
-	globalOptions, actionPath, options := splitGenericWords(inv.Words)
 	return Command{
-		Raw:           inv.Raw,
-		Program:       inv.Program,
-		ProgramToken:  inv.ProgramToken,
-		Env:           inv.Env,
-		GlobalOptions: globalOptions,
-		ActionPath:    actionPath,
-		Options:       options,
-		RawWords:      append([]string(nil), inv.Words...),
-		Args:          append([]string(nil), inv.Words...),
-		Parser:        GenericParser{}.Program(),
+		Raw:          inv.Raw,
+		Program:      inv.Program,
+		ProgramToken: inv.ProgramToken,
+		Env:          inv.Env,
+		RawWords:     append([]string(nil), inv.Words...),
+		RawOptions:   splitRawOptions(inv.Words),
+		Parser:       GenericParser{}.Program(),
 	}, true
 }
 
-func splitGenericWords(words []string) ([]Option, []string, []Option) {
-	var globalOptions []Option
-	actionPath := []string{}
+func splitRawOptions(words []string) []Option {
 	var options []Option
-	seenAction := false
 
 	for i, word := range words {
 		if strings.HasPrefix(word, "-") && word != "-" {
-			if seenAction {
-				options = append(options, parseOptionWord(word, i))
-			} else {
-				globalOptions = append(globalOptions, parseOptionWord(word, i))
-			}
-			continue
+			options = append(options, parseOptionWord(word, i))
 		}
-		seenAction = true
-		actionPath = append(actionPath, word)
 	}
 
-	return globalOptions, actionPath, options
+	return options
 }
 
 func parseOptionWord(word string, position int) Option {

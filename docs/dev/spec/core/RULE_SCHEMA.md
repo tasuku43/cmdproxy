@@ -133,6 +133,12 @@ argument parsing. This preserves compatibility for commands such as
 if `Command.Args` later contains only semantic positional arguments. New
 semantic argument matchers should use separate field names.
 
+`subcommand` is semantic when a command-specific parser is available. Without a
+semantic parser it uses only the first non-option raw word as a limited
+structural fallback; it does not infer option value arity. If a same-scope
+`deny` or `ask` rule needs semantic fields and no semantic parser is available,
+permission evaluation falls back to `ask` instead of allowing a broader rule.
+
 - `pattern` matches the raw command string using one RE2 expression
 - `patterns` matches the raw command string when any RE2 expression matches
 - `pattern` and `patterns` are alternatives to structured `match`

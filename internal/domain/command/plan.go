@@ -8,20 +8,25 @@ import (
 )
 
 type Command struct {
-	Raw              string
-	Program          string
-	ProgramToken     string
-	Env              map[string]string
+	// Structural layer: produced for every command before any CLI-specific parser runs.
+	Raw          string
+	Program      string
+	ProgramToken string
+	Env          map[string]string
+	RawWords     []string
+	RawOptions   []Option
+	Parser       string
+
+	// Semantic layer: optional fields added by CLI-specific parsers.
 	GlobalOptions    []Option
 	ActionPath       []string
 	Options          []Option
-	RawWords         []string
 	Args             []string
 	WorkingDirectory string
 	Namespace        string
 	ResourceType     string
 	ResourceName     string
-	Parser           string
+	SemanticParser   string
 }
 
 type Option struct {
