@@ -100,86 +100,114 @@ type MatchSpec struct {
 }
 
 type SemanticMatchSpec struct {
-	Verb                 string   `yaml:"verb" json:"verb,omitempty"`
-	VerbIn               []string `yaml:"verb_in" json:"verb_in,omitempty"`
-	Remote               string   `yaml:"remote" json:"remote,omitempty"`
-	RemoteIn             []string `yaml:"remote_in" json:"remote_in,omitempty"`
-	Branch               string   `yaml:"branch" json:"branch,omitempty"`
-	BranchIn             []string `yaml:"branch_in" json:"branch_in,omitempty"`
-	Ref                  string   `yaml:"ref" json:"ref,omitempty"`
-	RefIn                []string `yaml:"ref_in" json:"ref_in,omitempty"`
-	Force                *bool    `yaml:"force" json:"force,omitempty"`
-	Hard                 *bool    `yaml:"hard" json:"hard,omitempty"`
-	Recursive            *bool    `yaml:"recursive" json:"recursive,omitempty"`
-	IncludeIgnored       *bool    `yaml:"include_ignored" json:"include_ignored,omitempty"`
-	Cached               *bool    `yaml:"cached" json:"cached,omitempty"`
-	Staged               *bool    `yaml:"staged" json:"staged,omitempty"`
-	FlagsContains        []string `yaml:"flags_contains" json:"flags_contains,omitempty"`
-	FlagsPrefixes        []string `yaml:"flags_prefixes" json:"flags_prefixes,omitempty"`
-	Service              string   `yaml:"service" json:"service,omitempty"`
-	ServiceIn            []string `yaml:"service_in" json:"service_in,omitempty"`
-	Operation            string   `yaml:"operation" json:"operation,omitempty"`
-	OperationIn          []string `yaml:"operation_in" json:"operation_in,omitempty"`
-	Profile              string   `yaml:"profile" json:"profile,omitempty"`
-	ProfileIn            []string `yaml:"profile_in" json:"profile_in,omitempty"`
-	Region               string   `yaml:"region" json:"region,omitempty"`
-	RegionIn             []string `yaml:"region_in" json:"region_in,omitempty"`
-	EndpointURL          string   `yaml:"endpoint_url" json:"endpoint_url,omitempty"`
-	EndpointURLPrefix    string   `yaml:"endpoint_url_prefix" json:"endpoint_url_prefix,omitempty"`
-	DryRun               *bool    `yaml:"dry_run" json:"dry_run,omitempty"`
-	NoCLIPager           *bool    `yaml:"no_cli_pager" json:"no_cli_pager,omitempty"`
-	Subverb              string   `yaml:"subverb" json:"subverb,omitempty"`
-	SubverbIn            []string `yaml:"subverb_in" json:"subverb_in,omitempty"`
-	ResourceType         string   `yaml:"resource_type" json:"resource_type,omitempty"`
-	ResourceTypeIn       []string `yaml:"resource_type_in" json:"resource_type_in,omitempty"`
-	ResourceName         string   `yaml:"resource_name" json:"resource_name,omitempty"`
-	ResourceNameIn       []string `yaml:"resource_name_in" json:"resource_name_in,omitempty"`
-	Namespace            string   `yaml:"namespace" json:"namespace,omitempty"`
-	NamespaceIn          []string `yaml:"namespace_in" json:"namespace_in,omitempty"`
-	Context              string   `yaml:"context" json:"context,omitempty"`
-	ContextIn            []string `yaml:"context_in" json:"context_in,omitempty"`
-	Kubeconfig           string   `yaml:"kubeconfig" json:"kubeconfig,omitempty"`
-	AllNamespaces        *bool    `yaml:"all_namespaces" json:"all_namespaces,omitempty"`
-	Filename             string   `yaml:"filename" json:"filename,omitempty"`
-	FilenameIn           []string `yaml:"filename_in" json:"filename_in,omitempty"`
-	FilenamePrefix       string   `yaml:"filename_prefix" json:"filename_prefix,omitempty"`
-	Selector             string   `yaml:"selector" json:"selector,omitempty"`
-	SelectorContains     []string `yaml:"selector_contains" json:"selector_contains,omitempty"`
-	Container            string   `yaml:"container" json:"container,omitempty"`
-	Area                 string   `yaml:"area" json:"area,omitempty"`
-	AreaIn               []string `yaml:"area_in" json:"area_in,omitempty"`
-	Repo                 string   `yaml:"repo" json:"repo,omitempty"`
-	RepoIn               []string `yaml:"repo_in" json:"repo_in,omitempty"`
-	Hostname             string   `yaml:"hostname" json:"hostname,omitempty"`
-	HostnameIn           []string `yaml:"hostname_in" json:"hostname_in,omitempty"`
-	Web                  *bool    `yaml:"web" json:"web,omitempty"`
-	Method               string   `yaml:"method" json:"method,omitempty"`
-	MethodIn             []string `yaml:"method_in" json:"method_in,omitempty"`
-	Endpoint             string   `yaml:"endpoint" json:"endpoint,omitempty"`
-	EndpointPrefix       string   `yaml:"endpoint_prefix" json:"endpoint_prefix,omitempty"`
-	EndpointContains     []string `yaml:"endpoint_contains" json:"endpoint_contains,omitempty"`
-	Paginate             *bool    `yaml:"paginate" json:"paginate,omitempty"`
-	Input                *bool    `yaml:"input" json:"input,omitempty"`
-	Silent               *bool    `yaml:"silent" json:"silent,omitempty"`
-	IncludeHeaders       *bool    `yaml:"include_headers" json:"include_headers,omitempty"`
-	FieldKeysContains    []string `yaml:"field_keys_contains" json:"field_keys_contains,omitempty"`
-	RawFieldKeysContains []string `yaml:"raw_field_keys_contains" json:"raw_field_keys_contains,omitempty"`
-	HeaderKeysContains   []string `yaml:"header_keys_contains" json:"header_keys_contains,omitempty"`
-	PRNumber             string   `yaml:"pr_number" json:"pr_number,omitempty"`
-	Base                 string   `yaml:"base" json:"base,omitempty"`
-	Head                 string   `yaml:"head" json:"head,omitempty"`
-	Draft                *bool    `yaml:"draft" json:"draft,omitempty"`
-	Fill                 *bool    `yaml:"fill" json:"fill,omitempty"`
-	Admin                *bool    `yaml:"admin" json:"admin,omitempty"`
-	Auto                 *bool    `yaml:"auto" json:"auto,omitempty"`
-	DeleteBranch         *bool    `yaml:"delete_branch" json:"delete_branch,omitempty"`
-	MergeStrategy        string   `yaml:"merge_strategy" json:"merge_strategy,omitempty"`
-	MergeStrategyIn      []string `yaml:"merge_strategy_in" json:"merge_strategy_in,omitempty"`
-	RunID                string   `yaml:"run_id" json:"run_id,omitempty"`
-	Failed               *bool    `yaml:"failed" json:"failed,omitempty"`
-	Job                  string   `yaml:"job" json:"job,omitempty"`
-	Debug                *bool    `yaml:"debug" json:"debug,omitempty"`
-	ExitStatus           *bool    `yaml:"exit_status" json:"exit_status,omitempty"`
+	Verb                             string   `yaml:"verb" json:"verb,omitempty"`
+	VerbIn                           []string `yaml:"verb_in" json:"verb_in,omitempty"`
+	Remote                           string   `yaml:"remote" json:"remote,omitempty"`
+	RemoteIn                         []string `yaml:"remote_in" json:"remote_in,omitempty"`
+	Branch                           string   `yaml:"branch" json:"branch,omitempty"`
+	BranchIn                         []string `yaml:"branch_in" json:"branch_in,omitempty"`
+	Ref                              string   `yaml:"ref" json:"ref,omitempty"`
+	RefIn                            []string `yaml:"ref_in" json:"ref_in,omitempty"`
+	Force                            *bool    `yaml:"force" json:"force,omitempty"`
+	Hard                             *bool    `yaml:"hard" json:"hard,omitempty"`
+	Recursive                        *bool    `yaml:"recursive" json:"recursive,omitempty"`
+	IncludeIgnored                   *bool    `yaml:"include_ignored" json:"include_ignored,omitempty"`
+	Cached                           *bool    `yaml:"cached" json:"cached,omitempty"`
+	Staged                           *bool    `yaml:"staged" json:"staged,omitempty"`
+	FlagsContains                    []string `yaml:"flags_contains" json:"flags_contains,omitempty"`
+	FlagsPrefixes                    []string `yaml:"flags_prefixes" json:"flags_prefixes,omitempty"`
+	Service                          string   `yaml:"service" json:"service,omitempty"`
+	ServiceIn                        []string `yaml:"service_in" json:"service_in,omitempty"`
+	Operation                        string   `yaml:"operation" json:"operation,omitempty"`
+	OperationIn                      []string `yaml:"operation_in" json:"operation_in,omitempty"`
+	Profile                          string   `yaml:"profile" json:"profile,omitempty"`
+	ProfileIn                        []string `yaml:"profile_in" json:"profile_in,omitempty"`
+	Region                           string   `yaml:"region" json:"region,omitempty"`
+	RegionIn                         []string `yaml:"region_in" json:"region_in,omitempty"`
+	EndpointURL                      string   `yaml:"endpoint_url" json:"endpoint_url,omitempty"`
+	EndpointURLPrefix                string   `yaml:"endpoint_url_prefix" json:"endpoint_url_prefix,omitempty"`
+	DryRun                           *bool    `yaml:"dry_run" json:"dry_run,omitempty"`
+	NoCLIPager                       *bool    `yaml:"no_cli_pager" json:"no_cli_pager,omitempty"`
+	Subverb                          string   `yaml:"subverb" json:"subverb,omitempty"`
+	SubverbIn                        []string `yaml:"subverb_in" json:"subverb_in,omitempty"`
+	ResourceType                     string   `yaml:"resource_type" json:"resource_type,omitempty"`
+	ResourceTypeIn                   []string `yaml:"resource_type_in" json:"resource_type_in,omitempty"`
+	ResourceName                     string   `yaml:"resource_name" json:"resource_name,omitempty"`
+	ResourceNameIn                   []string `yaml:"resource_name_in" json:"resource_name_in,omitempty"`
+	Namespace                        string   `yaml:"namespace" json:"namespace,omitempty"`
+	NamespaceIn                      []string `yaml:"namespace_in" json:"namespace_in,omitempty"`
+	NamespaceMissing                 *bool    `yaml:"namespace_missing" json:"namespace_missing,omitempty"`
+	Context                          string   `yaml:"context" json:"context,omitempty"`
+	ContextIn                        []string `yaml:"context_in" json:"context_in,omitempty"`
+	Kubeconfig                       string   `yaml:"kubeconfig" json:"kubeconfig,omitempty"`
+	AllNamespaces                    *bool    `yaml:"all_namespaces" json:"all_namespaces,omitempty"`
+	Filename                         string   `yaml:"filename" json:"filename,omitempty"`
+	FilenameIn                       []string `yaml:"filename_in" json:"filename_in,omitempty"`
+	FilenamePrefix                   string   `yaml:"filename_prefix" json:"filename_prefix,omitempty"`
+	Selector                         string   `yaml:"selector" json:"selector,omitempty"`
+	SelectorIn                       []string `yaml:"selector_in" json:"selector_in,omitempty"`
+	SelectorContains                 []string `yaml:"selector_contains" json:"selector_contains,omitempty"`
+	SelectorMissing                  *bool    `yaml:"selector_missing" json:"selector_missing,omitempty"`
+	Container                        string   `yaml:"container" json:"container,omitempty"`
+	Environment                      string   `yaml:"environment" json:"environment,omitempty"`
+	EnvironmentIn                    []string `yaml:"environment_in" json:"environment_in,omitempty"`
+	EnvironmentMissing               *bool    `yaml:"environment_missing" json:"environment_missing,omitempty"`
+	File                             string   `yaml:"file" json:"file,omitempty"`
+	FileIn                           []string `yaml:"file_in" json:"file_in,omitempty"`
+	FilePrefix                       string   `yaml:"file_prefix" json:"file_prefix,omitempty"`
+	FileMissing                      *bool    `yaml:"file_missing" json:"file_missing,omitempty"`
+	KubeContext                      string   `yaml:"kube_context" json:"kube_context,omitempty"`
+	KubeContextIn                    []string `yaml:"kube_context_in" json:"kube_context_in,omitempty"`
+	KubeContextMissing               *bool    `yaml:"kube_context_missing" json:"kube_context_missing,omitempty"`
+	Interactive                      *bool    `yaml:"interactive" json:"interactive,omitempty"`
+	Wait                             *bool    `yaml:"wait" json:"wait,omitempty"`
+	WaitForJobs                      *bool    `yaml:"wait_for_jobs" json:"wait_for_jobs,omitempty"`
+	SkipDiff                         *bool    `yaml:"skip_diff" json:"skip_diff,omitempty"`
+	SkipNeeds                        *bool    `yaml:"skip_needs" json:"skip_needs,omitempty"`
+	IncludeNeeds                     *bool    `yaml:"include_needs" json:"include_needs,omitempty"`
+	IncludeTransitiveNeeds           *bool    `yaml:"include_transitive_needs" json:"include_transitive_needs,omitempty"`
+	Purge                            *bool    `yaml:"purge" json:"purge,omitempty"`
+	Cascade                          string   `yaml:"cascade" json:"cascade,omitempty"`
+	CascadeIn                        []string `yaml:"cascade_in" json:"cascade_in,omitempty"`
+	DeleteWait                       *bool    `yaml:"delete_wait" json:"delete_wait,omitempty"`
+	StateValuesFile                  string   `yaml:"state_values_file" json:"state_values_file,omitempty"`
+	StateValuesFileIn                []string `yaml:"state_values_file_in" json:"state_values_file_in,omitempty"`
+	StateValuesSetKeysContains       []string `yaml:"state_values_set_keys_contains" json:"state_values_set_keys_contains,omitempty"`
+	StateValuesSetStringKeysContains []string `yaml:"state_values_set_string_keys_contains" json:"state_values_set_string_keys_contains,omitempty"`
+	Area                             string   `yaml:"area" json:"area,omitempty"`
+	AreaIn                           []string `yaml:"area_in" json:"area_in,omitempty"`
+	Repo                             string   `yaml:"repo" json:"repo,omitempty"`
+	RepoIn                           []string `yaml:"repo_in" json:"repo_in,omitempty"`
+	Hostname                         string   `yaml:"hostname" json:"hostname,omitempty"`
+	HostnameIn                       []string `yaml:"hostname_in" json:"hostname_in,omitempty"`
+	Web                              *bool    `yaml:"web" json:"web,omitempty"`
+	Method                           string   `yaml:"method" json:"method,omitempty"`
+	MethodIn                         []string `yaml:"method_in" json:"method_in,omitempty"`
+	Endpoint                         string   `yaml:"endpoint" json:"endpoint,omitempty"`
+	EndpointPrefix                   string   `yaml:"endpoint_prefix" json:"endpoint_prefix,omitempty"`
+	EndpointContains                 []string `yaml:"endpoint_contains" json:"endpoint_contains,omitempty"`
+	Paginate                         *bool    `yaml:"paginate" json:"paginate,omitempty"`
+	Input                            *bool    `yaml:"input" json:"input,omitempty"`
+	Silent                           *bool    `yaml:"silent" json:"silent,omitempty"`
+	IncludeHeaders                   *bool    `yaml:"include_headers" json:"include_headers,omitempty"`
+	FieldKeysContains                []string `yaml:"field_keys_contains" json:"field_keys_contains,omitempty"`
+	RawFieldKeysContains             []string `yaml:"raw_field_keys_contains" json:"raw_field_keys_contains,omitempty"`
+	HeaderKeysContains               []string `yaml:"header_keys_contains" json:"header_keys_contains,omitempty"`
+	PRNumber                         string   `yaml:"pr_number" json:"pr_number,omitempty"`
+	Base                             string   `yaml:"base" json:"base,omitempty"`
+	Head                             string   `yaml:"head" json:"head,omitempty"`
+	Draft                            *bool    `yaml:"draft" json:"draft,omitempty"`
+	Fill                             *bool    `yaml:"fill" json:"fill,omitempty"`
+	Admin                            *bool    `yaml:"admin" json:"admin,omitempty"`
+	Auto                             *bool    `yaml:"auto" json:"auto,omitempty"`
+	DeleteBranch                     *bool    `yaml:"delete_branch" json:"delete_branch,omitempty"`
+	MergeStrategy                    string   `yaml:"merge_strategy" json:"merge_strategy,omitempty"`
+	MergeStrategyIn                  []string `yaml:"merge_strategy_in" json:"merge_strategy_in,omitempty"`
+	RunID                            string   `yaml:"run_id" json:"run_id,omitempty"`
+	Failed                           *bool    `yaml:"failed" json:"failed,omitempty"`
+	Job                              string   `yaml:"job" json:"job,omitempty"`
+	Debug                            *bool    `yaml:"debug" json:"debug,omitempty"`
+	ExitStatus                       *bool    `yaml:"exit_status" json:"exit_status,omitempty"`
 }
 
 type Source struct {
@@ -242,6 +270,13 @@ type TraceStep struct {
 	GhHostname          string   `json:"gh_hostname,omitempty"`
 	GhMethod            string   `json:"gh_method,omitempty"`
 	GhEndpoint          string   `json:"gh_endpoint,omitempty"`
+	HelmfileVerb        string   `json:"helmfile_verb,omitempty"`
+	HelmfileEnvironment string   `json:"helmfile_environment,omitempty"`
+	HelmfileFile        string   `json:"helmfile_file,omitempty"`
+	HelmfileNamespace   string   `json:"helmfile_namespace,omitempty"`
+	HelmfileKubeContext string   `json:"helmfile_kube_context,omitempty"`
+	HelmfileSelectors   []string `json:"helmfile_selectors,omitempty"`
+	HelmfileInteractive *bool    `json:"helmfile_interactive,omitempty"`
 	FromShape           string   `json:"from_shape,omitempty"`
 	FromShapeFlags      []string `json:"from_shape_flags,omitempty"`
 	FromSafe            *bool    `json:"from_safe,omitempty"`
@@ -571,6 +606,15 @@ func permissionTraceStepForCommand(effect string, ruleType string, rule Permissi
 		step.GhMethod = cmd.Gh.Method
 		step.GhEndpoint = cmd.Gh.Endpoint
 	}
+	if cmd.Helmfile != nil {
+		step.HelmfileVerb = cmd.Helmfile.Verb
+		step.HelmfileEnvironment = cmd.Helmfile.Environment
+		step.HelmfileFile = firstString(cmd.Helmfile.Files)
+		step.HelmfileNamespace = cmd.Helmfile.Namespace
+		step.HelmfileKubeContext = cmd.Helmfile.KubeContext
+		step.HelmfileSelectors = append([]string(nil), cmd.Helmfile.Selectors...)
+		step.HelmfileInteractive = boolPtr(cmd.Helmfile.Interactive)
+	}
 	if rule.Match.Semantic != nil {
 		step.SemanticMatch = true
 		step.SemanticFields = rule.Match.Semantic.fieldsUsed()
@@ -814,6 +858,13 @@ func compositionTrace(plan commandpkg.CommandPlan, decisions []commandDecision, 
 			GhHostname:          ghTraceHostname(cmd),
 			GhMethod:            ghTraceMethod(cmd),
 			GhEndpoint:          ghTraceEndpoint(cmd),
+			HelmfileVerb:        helmfileTraceVerb(cmd),
+			HelmfileEnvironment: helmfileTraceEnvironment(cmd),
+			HelmfileFile:        helmfileTraceFile(cmd),
+			HelmfileNamespace:   helmfileTraceNamespace(cmd),
+			HelmfileKubeContext: helmfileTraceKubeContext(cmd),
+			HelmfileSelectors:   helmfileTraceSelectors(cmd),
+			HelmfileInteractive: helmfileTraceInteractive(cmd),
 			Program:             cmd.Program,
 			ActionPath:          append([]string(nil), cmd.ActionPath...),
 			Source:              sourcePtr(commandDecision.Rule.Source),
@@ -943,6 +994,55 @@ func ghTraceEndpoint(cmd commandpkg.Command) string {
 		return ""
 	}
 	return cmd.Gh.Endpoint
+}
+
+func helmfileTraceVerb(cmd commandpkg.Command) string {
+	if cmd.Helmfile == nil {
+		return ""
+	}
+	return cmd.Helmfile.Verb
+}
+
+func helmfileTraceEnvironment(cmd commandpkg.Command) string {
+	if cmd.Helmfile == nil {
+		return ""
+	}
+	return cmd.Helmfile.Environment
+}
+
+func helmfileTraceFile(cmd commandpkg.Command) string {
+	if cmd.Helmfile == nil {
+		return ""
+	}
+	return firstString(cmd.Helmfile.Files)
+}
+
+func helmfileTraceNamespace(cmd commandpkg.Command) string {
+	if cmd.Helmfile == nil {
+		return ""
+	}
+	return cmd.Helmfile.Namespace
+}
+
+func helmfileTraceKubeContext(cmd commandpkg.Command) string {
+	if cmd.Helmfile == nil {
+		return ""
+	}
+	return cmd.Helmfile.KubeContext
+}
+
+func helmfileTraceSelectors(cmd commandpkg.Command) []string {
+	if cmd.Helmfile == nil {
+		return nil
+	}
+	return append([]string(nil), cmd.Helmfile.Selectors...)
+}
+
+func helmfileTraceInteractive(cmd commandpkg.Command) *bool {
+	if cmd.Helmfile == nil {
+		return nil
+	}
+	return boolPtr(cmd.Helmfile.Interactive)
 }
 
 func firstPreparedCommandMatch(rules []preparedPermissionRule, cmd commandpkg.Command) (PermissionRuleSpec, bool) {
@@ -1227,6 +1327,10 @@ func (m MatchSpec) matches(cmd commandpkg.Command) bool {
 			}
 		case "gh":
 			if !m.Semantic.matchesGh(cmd) {
+				return false
+			}
+		case "helmfile":
+			if !m.Semantic.matchesHelmfile(cmd) {
 				return false
 			}
 		default:
@@ -1582,6 +1686,137 @@ func (s SemanticMatchSpec) matchesGh(cmd commandpkg.Command) bool {
 	return true
 }
 
+func (s SemanticMatchSpec) matchesHelmfile(cmd commandpkg.Command) bool {
+	if cmd.SemanticParser != "helmfile" || cmd.Helmfile == nil {
+		return false
+	}
+	h := cmd.Helmfile
+	if s.Verb != "" && h.Verb != s.Verb {
+		return false
+	}
+	if len(s.VerbIn) > 0 && !containsString(s.VerbIn, h.Verb) {
+		return false
+	}
+	if s.Environment != "" && h.Environment != s.Environment {
+		return false
+	}
+	if len(s.EnvironmentIn) > 0 && !containsString(s.EnvironmentIn, h.Environment) {
+		return false
+	}
+	if s.EnvironmentMissing != nil && (h.Environment == "") != *s.EnvironmentMissing {
+		return false
+	}
+	if s.File != "" && !containsString(h.Files, s.File) {
+		return false
+	}
+	if len(s.FileIn) > 0 && !containsAnyString(h.Files, s.FileIn) {
+		return false
+	}
+	if s.FilePrefix != "" && !containsPrefix(h.Files, s.FilePrefix) {
+		return false
+	}
+	if s.FileMissing != nil && (len(h.Files) == 0) != *s.FileMissing {
+		return false
+	}
+	if s.Namespace != "" && h.Namespace != s.Namespace {
+		return false
+	}
+	if len(s.NamespaceIn) > 0 && !containsString(s.NamespaceIn, h.Namespace) {
+		return false
+	}
+	if s.NamespaceMissing != nil && (h.Namespace == "") != *s.NamespaceMissing {
+		return false
+	}
+	if s.KubeContext != "" && h.KubeContext != s.KubeContext {
+		return false
+	}
+	if len(s.KubeContextIn) > 0 && !containsString(s.KubeContextIn, h.KubeContext) {
+		return false
+	}
+	if s.KubeContextMissing != nil && (h.KubeContext == "") != *s.KubeContextMissing {
+		return false
+	}
+	if s.Selector != "" && !containsString(h.Selectors, s.Selector) {
+		return false
+	}
+	if len(s.SelectorIn) > 0 && !containsAnyString(h.Selectors, s.SelectorIn) {
+		return false
+	}
+	for _, value := range s.SelectorContains {
+		if !containsSubstring(h.Selectors, value) {
+			return false
+		}
+	}
+	if s.SelectorMissing != nil && (len(h.Selectors) == 0) != *s.SelectorMissing {
+		return false
+	}
+	if s.Interactive != nil && h.Interactive != *s.Interactive {
+		return false
+	}
+	if s.DryRun != nil {
+		if h.DryRun == nil || *h.DryRun != *s.DryRun {
+			return false
+		}
+	}
+	if s.Wait != nil && h.Wait != *s.Wait {
+		return false
+	}
+	if s.WaitForJobs != nil && h.WaitForJobs != *s.WaitForJobs {
+		return false
+	}
+	if s.SkipDiff != nil && h.SkipDiff != *s.SkipDiff {
+		return false
+	}
+	if s.SkipNeeds != nil && h.SkipNeeds != *s.SkipNeeds {
+		return false
+	}
+	if s.IncludeNeeds != nil && h.IncludeNeeds != *s.IncludeNeeds {
+		return false
+	}
+	if s.IncludeTransitiveNeeds != nil && h.IncludeTransitiveNeeds != *s.IncludeTransitiveNeeds {
+		return false
+	}
+	if s.Purge != nil && h.Purge != *s.Purge {
+		return false
+	}
+	if s.Cascade != "" && h.Cascade != s.Cascade {
+		return false
+	}
+	if len(s.CascadeIn) > 0 && !containsString(s.CascadeIn, h.Cascade) {
+		return false
+	}
+	if s.DeleteWait != nil && h.DeleteWait != *s.DeleteWait {
+		return false
+	}
+	if s.StateValuesFile != "" && !containsString(h.StateValuesFiles, s.StateValuesFile) {
+		return false
+	}
+	if len(s.StateValuesFileIn) > 0 && !containsAnyString(h.StateValuesFiles, s.StateValuesFileIn) {
+		return false
+	}
+	for _, key := range s.StateValuesSetKeysContains {
+		if !containsString(h.StateValuesSetKeys, key) {
+			return false
+		}
+	}
+	for _, key := range s.StateValuesSetStringKeysContains {
+		if !containsString(h.StateValuesSetStringKeys, key) {
+			return false
+		}
+	}
+	for _, flag := range s.FlagsContains {
+		if !containsString(h.Flags, flag) {
+			return false
+		}
+	}
+	for _, prefix := range s.FlagsPrefixes {
+		if !containsPrefix(h.Flags, prefix) {
+			return false
+		}
+	}
+	return true
+}
+
 func (s SemanticMatchSpec) fieldsUsed() []string {
 	var fields []string
 	if s.Verb != "" {
@@ -1692,6 +1927,9 @@ func (s SemanticMatchSpec) fieldsUsed() []string {
 	if len(s.NamespaceIn) > 0 {
 		fields = append(fields, "namespace_in")
 	}
+	if s.NamespaceMissing != nil {
+		fields = append(fields, "namespace_missing")
+	}
 	if s.Context != "" {
 		fields = append(fields, "context")
 	}
@@ -1716,11 +1954,92 @@ func (s SemanticMatchSpec) fieldsUsed() []string {
 	if s.Selector != "" {
 		fields = append(fields, "selector")
 	}
+	if len(s.SelectorIn) > 0 {
+		fields = append(fields, "selector_in")
+	}
 	if len(s.SelectorContains) > 0 {
 		fields = append(fields, "selector_contains")
 	}
+	if s.SelectorMissing != nil {
+		fields = append(fields, "selector_missing")
+	}
 	if s.Container != "" {
 		fields = append(fields, "container")
+	}
+	if s.Environment != "" {
+		fields = append(fields, "environment")
+	}
+	if len(s.EnvironmentIn) > 0 {
+		fields = append(fields, "environment_in")
+	}
+	if s.EnvironmentMissing != nil {
+		fields = append(fields, "environment_missing")
+	}
+	if s.File != "" {
+		fields = append(fields, "file")
+	}
+	if len(s.FileIn) > 0 {
+		fields = append(fields, "file_in")
+	}
+	if s.FilePrefix != "" {
+		fields = append(fields, "file_prefix")
+	}
+	if s.FileMissing != nil {
+		fields = append(fields, "file_missing")
+	}
+	if s.KubeContext != "" {
+		fields = append(fields, "kube_context")
+	}
+	if len(s.KubeContextIn) > 0 {
+		fields = append(fields, "kube_context_in")
+	}
+	if s.KubeContextMissing != nil {
+		fields = append(fields, "kube_context_missing")
+	}
+	if s.Interactive != nil {
+		fields = append(fields, "interactive")
+	}
+	if s.Wait != nil {
+		fields = append(fields, "wait")
+	}
+	if s.WaitForJobs != nil {
+		fields = append(fields, "wait_for_jobs")
+	}
+	if s.SkipDiff != nil {
+		fields = append(fields, "skip_diff")
+	}
+	if s.SkipNeeds != nil {
+		fields = append(fields, "skip_needs")
+	}
+	if s.IncludeNeeds != nil {
+		fields = append(fields, "include_needs")
+	}
+	if s.IncludeTransitiveNeeds != nil {
+		fields = append(fields, "include_transitive_needs")
+	}
+	if s.Purge != nil {
+		fields = append(fields, "purge")
+	}
+	if s.Cascade != "" {
+		fields = append(fields, "cascade")
+	}
+	if len(s.CascadeIn) > 0 {
+		fields = append(fields, "cascade_in")
+	}
+	if s.DeleteWait != nil {
+		fields = append(fields, "delete_wait")
+	}
+	if s.StateValuesFile != "" {
+		fields = append(fields, "state_values_file")
+	}
+	if len(s.StateValuesFileIn) > 0 {
+		fields = append(fields, "state_values_file_in")
+	}
+	if len(s.StateValuesSetKeysContains) > 0 {
+		fields = append(fields, "state_values_set_keys_contains")
+	}
+	if len(s.StateValuesSetStringKeysContains) > 0 {
+		fields = append(fields, "state_values_set_string_keys_contains")
 	}
 	if s.Area != "" {
 		fields = append(fields, "area")
@@ -1996,28 +2315,33 @@ func validateMatchSpec(prefix string, match MatchSpec, allowSemantic bool) []str
 		}
 		switch match.Command {
 		case "git":
-			if hasAWSSemanticFields(*match.Semantic) || hasKubectlOnlySemanticFields(*match.Semantic) || hasGhNonSharedSemanticFields(*match.Semantic) {
+			if hasAWSSemanticFields(*match.Semantic) || hasKubectlOnlySemanticFields(*match.Semantic) || hasGhNonSharedSemanticFields(*match.Semantic) || hasHelmfileOnlySemanticFields(*match.Semantic) {
 				issues = append(issues, prefix+".semantic contains fields not supported for command: git")
 			}
 			issues = append(issues, ValidateGitSemanticMatchSpec(prefix+".semantic", *match.Semantic)...)
 		case "aws":
-			if hasGitSemanticFields(*match.Semantic) || hasKubectlOnlySemanticFields(*match.Semantic) || hasGhSemanticFields(*match.Semantic) {
+			if hasGitSemanticFields(*match.Semantic) || hasKubectlOnlySemanticFields(*match.Semantic) || hasGhSemanticFields(*match.Semantic) || hasHelmfileSemanticFields(*match.Semantic) {
 				issues = append(issues, prefix+".semantic contains fields not supported for command: aws")
 			}
 			issues = append(issues, ValidateAWSSemanticMatchSpec(prefix+".semantic", *match.Semantic)...)
 		case "kubectl":
-			if hasGitOnlySemanticFields(*match.Semantic) || hasAWSOnlySemanticFields(*match.Semantic) || hasGhNonSharedSemanticFields(*match.Semantic) {
+			if hasGitOnlySemanticFields(*match.Semantic) || hasAWSOnlySemanticFields(*match.Semantic) || hasGhNonSharedSemanticFields(*match.Semantic) || hasHelmfileOnlySemanticFields(*match.Semantic) {
 				issues = append(issues, prefix+".semantic contains fields not supported for command: kubectl")
 			}
 			issues = append(issues, ValidateKubectlSemanticMatchSpec(prefix+".semantic", *match.Semantic)...)
 		case "gh":
-			if hasGitOnlySemanticFields(*match.Semantic) || hasAWSOnlySemanticFields(*match.Semantic) || hasKubectlOnlySemanticFields(*match.Semantic) || match.Semantic.DryRun != nil || match.Semantic.Recursive != nil || match.Semantic.Hard != nil || match.Semantic.IncludeIgnored != nil || match.Semantic.Cached != nil || match.Semantic.Staged != nil {
+			if hasGitOnlySemanticFields(*match.Semantic) || hasAWSOnlySemanticFields(*match.Semantic) || hasKubectlOnlySemanticFields(*match.Semantic) || hasHelmfileSemanticFields(*match.Semantic) || match.Semantic.DryRun != nil || match.Semantic.Recursive != nil || match.Semantic.Hard != nil || match.Semantic.IncludeIgnored != nil || match.Semantic.Cached != nil || match.Semantic.Staged != nil {
 				issues = append(issues, prefix+".semantic contains fields not supported for command: gh")
 			}
 			issues = append(issues, ValidateGhSemanticMatchSpec(prefix+".semantic", *match.Semantic)...)
+		case "helmfile":
+			if hasGitOnlySemanticFields(*match.Semantic) || hasAWSOnlySemanticFields(*match.Semantic) || hasKubectlOnlySemanticFieldsForHelmfile(*match.Semantic) || hasGhNonSharedSemanticFields(*match.Semantic) || match.Semantic.Force != nil || match.Semantic.Recursive != nil || match.Semantic.Hard != nil || match.Semantic.IncludeIgnored != nil || match.Semantic.Cached != nil || match.Semantic.Staged != nil || match.Semantic.NoCLIPager != nil {
+				issues = append(issues, prefix+".semantic contains fields not supported for command: helmfile")
+			}
+			issues = append(issues, ValidateHelmfileSemanticMatchSpec(prefix+".semantic", *match.Semantic)...)
 		case "":
 		default:
-			issues = append(issues, prefix+".semantic is only supported for command: git, command: aws, command: kubectl, or command: gh")
+			issues = append(issues, prefix+".semantic is only supported for command: git, command: aws, command: kubectl, command: gh, or command: helmfile")
 		}
 	}
 	return issues
@@ -2171,6 +2495,42 @@ func ValidateGhSemanticMatchSpec(prefix string, semantic SemanticMatchSpec) []st
 	return issues
 }
 
+func ValidateHelmfileSemanticMatchSpec(prefix string, semantic SemanticMatchSpec) []string {
+	var issues []string
+	if IsZeroSemanticMatchSpec(semantic) {
+		issues = append(issues, prefix+" must not be empty")
+	}
+	for name, value := range map[string]string{
+		"verb":              semantic.Verb,
+		"environment":       semantic.Environment,
+		"file":              semantic.File,
+		"file_prefix":       semantic.FilePrefix,
+		"namespace":         semantic.Namespace,
+		"kube_context":      semantic.KubeContext,
+		"selector":          semantic.Selector,
+		"cascade":           semantic.Cascade,
+		"state_values_file": semantic.StateValuesFile,
+	} {
+		if strings.TrimSpace(value) == "" && value != "" {
+			issues = append(issues, prefix+"."+name+" must be non-empty")
+		}
+	}
+	issues = append(issues, validateNonEmptyStrings(prefix+".verb_in", semantic.VerbIn)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".environment_in", semantic.EnvironmentIn)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".file_in", semantic.FileIn)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".namespace_in", semantic.NamespaceIn)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".kube_context_in", semantic.KubeContextIn)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".selector_in", semantic.SelectorIn)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".selector_contains", semantic.SelectorContains)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".cascade_in", semantic.CascadeIn)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".state_values_file_in", semantic.StateValuesFileIn)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".state_values_set_keys_contains", semantic.StateValuesSetKeysContains)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".state_values_set_string_keys_contains", semantic.StateValuesSetStringKeysContains)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".flags_contains", semantic.FlagsContains)...)
+	issues = append(issues, validateNonEmptyStrings(prefix+".flags_prefixes", semantic.FlagsPrefixes)...)
+	return issues
+}
+
 func ValidateRewriteTest(prefix string, test RewriteTestSpec) []string {
 	var issues []string
 	if len(test) == 0 {
@@ -2281,7 +2641,7 @@ func IsZeroMatchSpec(match MatchSpec) bool {
 }
 
 func IsZeroSemanticMatchSpec(semantic SemanticMatchSpec) bool {
-	return !hasGitSemanticFields(semantic) && !hasAWSSemanticFields(semantic) && !hasKubectlSemanticFields(semantic) && !hasGhSemanticFields(semantic) &&
+	return !hasGitSemanticFields(semantic) && !hasAWSSemanticFields(semantic) && !hasKubectlSemanticFields(semantic) && !hasGhSemanticFields(semantic) && !hasHelmfileSemanticFields(semantic) &&
 		len(semantic.FlagsContains) == 0 &&
 		len(semantic.FlagsPrefixes) == 0
 }
@@ -2356,6 +2716,23 @@ func hasKubectlOnlySemanticFields(semantic SemanticMatchSpec) bool {
 		semantic.Container != ""
 }
 
+func hasKubectlOnlySemanticFieldsForHelmfile(semantic SemanticMatchSpec) bool {
+	return semantic.Subverb != "" ||
+		len(semantic.SubverbIn) > 0 ||
+		semantic.ResourceType != "" ||
+		len(semantic.ResourceTypeIn) > 0 ||
+		semantic.ResourceName != "" ||
+		len(semantic.ResourceNameIn) > 0 ||
+		semantic.Context != "" ||
+		len(semantic.ContextIn) > 0 ||
+		semantic.Kubeconfig != "" ||
+		semantic.AllNamespaces != nil ||
+		semantic.Filename != "" ||
+		len(semantic.FilenameIn) > 0 ||
+		semantic.FilenamePrefix != "" ||
+		semantic.Container != ""
+}
+
 func hasGhSemanticFields(semantic SemanticMatchSpec) bool {
 	return semantic.Area != "" ||
 		len(semantic.AreaIn) > 0 ||
@@ -2409,6 +2786,51 @@ func hasGhNonSharedSemanticFields(semantic SemanticMatchSpec) bool {
 		len(semantic.HostnameIn) > 0 ||
 		semantic.Web != nil ||
 		hasGhOnlySemanticFields(semantic)
+}
+
+func hasHelmfileSemanticFields(semantic SemanticMatchSpec) bool {
+	return semantic.Verb != "" ||
+		len(semantic.VerbIn) > 0 ||
+		semantic.Namespace != "" ||
+		len(semantic.NamespaceIn) > 0 ||
+		semantic.NamespaceMissing != nil ||
+		semantic.Selector != "" ||
+		len(semantic.SelectorIn) > 0 ||
+		len(semantic.SelectorContains) > 0 ||
+		semantic.SelectorMissing != nil ||
+		semantic.DryRun != nil ||
+		hasHelmfileOnlySemanticFields(semantic)
+}
+
+func hasHelmfileOnlySemanticFields(semantic SemanticMatchSpec) bool {
+	return semantic.Environment != "" ||
+		len(semantic.EnvironmentIn) > 0 ||
+		semantic.EnvironmentMissing != nil ||
+		semantic.NamespaceMissing != nil ||
+		semantic.File != "" ||
+		len(semantic.FileIn) > 0 ||
+		semantic.FilePrefix != "" ||
+		semantic.FileMissing != nil ||
+		semantic.KubeContext != "" ||
+		len(semantic.KubeContextIn) > 0 ||
+		semantic.KubeContextMissing != nil ||
+		len(semantic.SelectorIn) > 0 ||
+		semantic.SelectorMissing != nil ||
+		semantic.Interactive != nil ||
+		semantic.Wait != nil ||
+		semantic.WaitForJobs != nil ||
+		semantic.SkipDiff != nil ||
+		semantic.SkipNeeds != nil ||
+		semantic.IncludeNeeds != nil ||
+		semantic.IncludeTransitiveNeeds != nil ||
+		semantic.Purge != nil ||
+		semantic.Cascade != "" ||
+		len(semantic.CascadeIn) > 0 ||
+		semantic.DeleteWait != nil ||
+		semantic.StateValuesFile != "" ||
+		len(semantic.StateValuesFileIn) > 0 ||
+		len(semantic.StateValuesSetKeysContains) > 0 ||
+		len(semantic.StateValuesSetStringKeysContains) > 0
 }
 
 func IsZeroMoveFlagToEnvSpec(spec MoveFlagToEnvSpec) bool {
@@ -2483,4 +2905,11 @@ func containsSubstring(values []string, substr string) bool {
 		}
 	}
 	return false
+}
+
+func firstString(values []string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	return values[0]
 }

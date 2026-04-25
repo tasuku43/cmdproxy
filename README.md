@@ -194,12 +194,13 @@ the raw command; use structured `match` rules for normal allow cases.
 Structured permission `match` supports command-specific semantic matching. The
 `match.command` value is the discriminator for the `semantic` schema; do not
 nest another command key under `semantic`; for example, use `semantic.service`,
-not `semantic.aws.service`, `semantic.kubectl.verb`, or `semantic.gh.area`.
-Today `command: git`, `command: aws`, `command: kubectl`, and `command: gh`
-have semantic schemas. Semantic matching is best-effort static parsing from
-argv, is not attempted by the `GenericParser` fallback, and unsupported fields
-or value types fail during `verify`. Semantic matching is permission-only and
-cannot be used in rewrite selectors or with raw `pattern` / `patterns`.
+not `semantic.aws.service`, `semantic.kubectl.verb`, `semantic.gh.area`, or
+`semantic.helmfile.verb`. Today `command: git`, `command: aws`,
+`command: kubectl`, `command: gh`, and `command: helmfile` have semantic
+schemas. Semantic matching is best-effort static parsing from argv, is not
+attempted by the `GenericParser` fallback, and unsupported fields or value
+types fail during `verify`. Semantic matching is permission-only and cannot be
+used in rewrite selectors or with raw `pattern` / `patterns`.
 
 ```yaml
 permission:
@@ -249,6 +250,14 @@ permission:
           admin: true
       message: "admin PR merge is blocked"
 
+    - match:
+        command: helmfile
+        semantic:
+          verb_in: [sync, apply, destroy, delete]
+          environment_in: [prod, production]
+          interactive: false
+      message: "non-interactive helmfile mutation in production is blocked"
+
   ask:
     - match:
         command: aws
@@ -262,6 +271,13 @@ permission:
           area: pr
           verb_in: [create, merge, close, reopen, review, ready, update-branch]
       message: "PR mutation requires confirmation"
+
+    - match:
+        command: helmfile
+        semantic:
+          verb: sync
+          selector_missing: true
+      message: "helmfile sync without selector requires confirmation"
 
   allow:
     - match:
@@ -287,6 +303,11 @@ permission:
         semantic:
           area: run
           verb_in: [view, list, watch]
+
+    - match:
+        command: helmfile
+        semantic:
+          verb_in: [diff, template, build, list, lint, status]
 ```
 
 Fail-closed means `allow` rules are ignored when parsing or shell-shape analysis
@@ -578,6 +599,34 @@ matches; `create`, `merge`, `close`, `reopen`, `review`, `ready`, and
 `gh run` supports `run_id`, booleans `failed`, `debug`, `force`,
 `exit_status`, and `job`. `view`, `list`, and `watch` are typical read-only
 matches; `cancel`, `delete`, and `rerun` change GitHub Actions state.
+
+For `command: helmfile`, `match.semantic` may use `verb`, `verb_in`,
+`environment`, `environment_in`, `environment_missing`, `file`, `file_in`,
+`file_prefix`, `file_missing`, `namespace`, `namespace_in`,
+`namespace_missing`, `kube_context`, `kube_context_in`,
+`kube_context_missing`, selector fields `selector`, `selector_in`,
+`selector_contains`, `selector_missing`, booleans `interactive`, `dry_run`,
+`wait`, `wait_for_jobs`, `skip_diff`, `skip_needs`, `include_needs`,
+`include_transitive_needs`, `purge`, `delete_wait`, deletion fields `cascade`
+and `cascade_in`, state values fields `state_values_file`,
+`state_values_file_in`, `state_values_set_keys_contains`,
+`state_values_set_string_keys_contains`, plus `flags_contains` and
+`flags_prefixes`.
+
+The helmfile parser reads only static CLI argv; it does not read
+`helmfile.yaml` or infer hook/plugin side effects. Options may appear before or
+after the verb. `-e`, `--environment`, and `--environment=...` set
+`environment`, with explicit CLI values overriding `HELMFILE_ENVIRONMENT`.
+An omitted environment remains unknown; it is not treated as `default`.
+`-f` / `--file`, `-n` / `--namespace`, `--kube-context`, and `-l` /
+`--selector` populate their matching fields. Omitted `--interactive` is treated
+as `interactive: false`; omitted `--dry-run` remains unknown, so
+`dry_run: true` matches only an explicit `--dry-run`.
+
+Typical mutation guards use `sync`, `apply`, `destroy`, and deprecated
+`delete`. Typical read-only or dry-run-oriented matches use `diff`, `template`,
+`build`, `list`, `lint`, and `status`, but static parsing does not prove that
+hooks or plugins are side-effect free.
 
 `semantic` requires exact `match.command`; `command_in` with `semantic` is
 invalid. `subcommand` with `semantic` is invalid because command-specific

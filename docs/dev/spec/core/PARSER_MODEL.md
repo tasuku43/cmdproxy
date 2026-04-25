@@ -79,7 +79,10 @@ A CLI-specific parser adds meaning for one program family.
 For example, `GitParser` understands supported git global options, identifies
 the git action path, and separates git command options from positional args.
 `GhParser` identifies GitHub CLI areas and verbs, with deeper static semantics
-for `gh api`, `gh pr`, and `gh run`.
+for `gh api`, `gh pr`, and `gh run`. `HelmfileParser` identifies the
+helmfile verb and static CLI targets such as environment, state files,
+namespace, kube context, selectors, and safety flags without reading
+`helmfile.yaml`.
 
 Adding a new parser must not change the meaning of existing parser output or
 existing raw-word matchers. It may only improve semantic precision for its own
@@ -110,5 +113,6 @@ CLI-specific semantics also set `SemanticParser`.
 
 `match.semantic` is interpreted by exact `match.command`. For example,
 `command: gh` uses the gh semantic schema directly under `semantic`; nested
-forms such as `semantic.gh.area` are invalid. Semantic matchers are
+forms such as `semantic.gh.area` or `semantic.helmfile.verb` are invalid.
+Semantic matchers are
 permission-only and are not supported for rewrite selectors.

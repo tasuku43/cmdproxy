@@ -227,8 +227,8 @@ because the semantic schema would be ambiguous. `semantic` is an internal member
 of `match`; it cannot be combined with top-level `pattern` or `patterns`.
 Do not nest another command key under `semantic`: `semantic.service` is valid
 for AWS rules and `semantic.verb` is valid for kubectl rules, while
-`semantic.aws.service`, `semantic.kubectl.verb`, or `semantic.gh.area` is
-invalid.
+`semantic.aws.service`, `semantic.kubectl.verb`, `semantic.gh.area`, or
+`semantic.helmfile.verb` is invalid.
 
 For `command: git`, the Git semantic schema is:
 
@@ -418,6 +418,86 @@ for `gh pr checkout`.
 For `gh run`, `verb` is the subcommand after `run`. `view`, `list`, and
 `watch` are typical read-only verbs. `cancel`, `delete`, and `rerun` change
 GitHub Actions state.
+
+For `command: helmfile`, the helmfile semantic schema is:
+
+- string selectors: `verb`, `environment`, `file`, `file_prefix`,
+  `namespace`, `kube_context`, `selector`, `cascade`, `state_values_file`
+- string-list selectors: `verb_in`, `environment_in`, `file_in`,
+  `namespace_in`, `kube_context_in`, `selector_in`, `selector_contains`,
+  `cascade_in`, `state_values_file_in`,
+  `state_values_set_keys_contains`, `state_values_set_string_keys_contains`
+- missing selectors: `environment_missing`, `file_missing`,
+  `namespace_missing`, `kube_context_missing`, `selector_missing`
+- boolean selectors: `interactive`, `dry_run`, `wait`, `wait_for_jobs`,
+  `skip_diff`, `skip_needs`, `include_needs`,
+  `include_transitive_needs`, `purge`, `delete_wait`
+- flag selectors: `flags_contains`, `flags_prefixes`
+
+Example:
+
+```yaml
+permission:
+  deny:
+    - match:
+        command: helmfile
+        semantic:
+          verb_in:
+            - sync
+            - apply
+            - destroy
+            - delete
+          environment_in:
+            - prod
+            - production
+          interactive: false
+      message: "non-interactive helmfile mutation in production is blocked"
+
+  ask:
+    - match:
+        command: helmfile
+        semantic:
+          verb: sync
+          selector_missing: true
+      message: "helmfile sync without selector requires confirmation"
+
+  allow:
+    - match:
+        command: helmfile
+        semantic:
+          verb_in:
+            - diff
+            - template
+            - build
+            - list
+            - lint
+            - status
+```
+
+Helmfile semantic parsing statically reads `helmfile` argv only; it does not
+read `helmfile.yaml` and does not infer hook or plugin side effects. Options
+may appear before or after the verb. The first non-flag token after consuming
+known flag values is `verb`. `-e`, `--environment`, and `--environment=...`
+set `environment`; explicit CLI values override `HELMFILE_ENVIRONMENT`.
+If no environment is provided, `environment` is unknown and is not treated as
+`default`. `-f` / `--file` populate file selectors. `-n` / `--namespace`
+sets `namespace`. `--kube-context` sets `kube_context`. `-l` / `--selector`
+populates selector selectors and may appear multiple times.
+
+`-i` / `--interactive` sets `interactive` to true; otherwise `interactive` is
+false for policy matching. `--dry-run` sets `dry_run` to true; otherwise
+`dry_run` is unknown and `dry_run: true` does not match. `--wait`,
+`--wait-for-jobs`, `--skip-diff`, `--skip-needs`, `--include-needs`,
+`--include-transitive-needs`, `--purge`, `--cascade`, and `--delete-wait`
+populate their matching fields. `--state-values-file`,
+`--state-values-set`, and `--state-values-set-string` populate the state value
+selectors; set-style selectors compare extracted keys before `=`.
+
+`sync`, `apply`, `destroy`, and deprecated `delete` are mutation-oriented
+verbs and typically require `ask` or `deny` in sensitive environments.
+`diff`, `template`, `build`, `list`, `lint`, and `status` are typical
+read-only or dry-run-oriented verbs, but static parsing cannot prove that
+hooks or plugins are side-effect free.
 
 Unsupported semantic fields, unsupported value types, `semantic` without exact
 `command`, `command_in` with `semantic`, `subcommand` with `semantic`, command

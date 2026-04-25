@@ -570,6 +570,58 @@ test:
 `,
 			want: "field kubectl not found",
 		},
+		{
+			name: "unknown helmfile semantic field",
+			body: `permission:
+  deny:
+    - match:
+        command: helmfile
+        semantic:
+          service: sts
+      test:
+        deny: ["helmfile sync"]
+        pass: ["helmfile diff"]
+test:
+  - in: "helmfile sync"
+    decision: deny
+`,
+			want: "semantic contains fields not supported for command: helmfile",
+		},
+		{
+			name: "unsupported helmfile semantic type",
+			body: `permission:
+  deny:
+    - match:
+        command: helmfile
+        semantic:
+          interactive: "true"
+      test:
+        deny: ["helmfile destroy"]
+        pass: ["helmfile diff"]
+test:
+  - in: "helmfile destroy"
+    decision: deny
+`,
+			want: "cannot unmarshal !!str `true` into bool",
+		},
+		{
+			name: "nested helmfile semantic key",
+			body: `permission:
+  deny:
+    - match:
+        command: helmfile
+        semantic:
+          helmfile:
+            verb: sync
+      test:
+        deny: ["helmfile sync"]
+        pass: ["helmfile diff"]
+test:
+  - in: "helmfile sync"
+    decision: deny
+`,
+			want: "field helmfile not found",
+		},
 	}
 
 	for _, tt := range tests {

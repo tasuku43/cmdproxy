@@ -521,6 +521,66 @@ func TestPermissionRuleMatchesGhSemantic(t *testing.T) {
 	}
 }
 
+func TestPermissionRuleMatchesHelmfileSemantic(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+		match   MatchSpec
+		want    bool
+	}{
+		{
+			name:    "sync prod",
+			command: "helmfile -e prod sync",
+			match:   MatchSpec{Command: "helmfile", Semantic: &SemanticMatchSpec{Verb: "sync", Environment: "prod"}},
+			want:    true,
+		},
+		{
+			name:    "selector contains",
+			command: "helmfile --selector app=foo apply",
+			match:   MatchSpec{Command: "helmfile", Semantic: &SemanticMatchSpec{Verb: "apply", SelectorContains: []string{"app=foo"}}},
+			want:    true,
+		},
+		{
+			name:    "destroy non interactive",
+			command: "helmfile destroy",
+			match:   MatchSpec{Command: "helmfile", Semantic: &SemanticMatchSpec{Verb: "destroy", Interactive: boolPtr(false)}},
+			want:    true,
+		},
+		{
+			name:    "wrong verb",
+			command: "helmfile diff",
+			match:   MatchSpec{Command: "helmfile", Semantic: &SemanticMatchSpec{Verb: "sync"}},
+			want:    false,
+		},
+		{
+			name:    "missing environment",
+			command: "helmfile sync",
+			match:   MatchSpec{Command: "helmfile", Semantic: &SemanticMatchSpec{Environment: "prod"}},
+			want:    false,
+		},
+		{
+			name:    "selector not missing",
+			command: "helmfile -l app=foo sync",
+			match:   MatchSpec{Command: "helmfile", Semantic: &SemanticMatchSpec{SelectorMissing: boolPtr(true)}},
+			want:    false,
+		},
+		{
+			name:    "generic fallback does not satisfy helmfile semantic",
+			command: "unknown sync",
+			match:   MatchSpec{Command: "unknown", Semantic: &SemanticMatchSpec{Environment: "prod"}},
+			want:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.match.MatchMatches(tt.command); got != tt.want {
+				t.Fatalf("MatchMatches(%q)=%v, want %v", tt.command, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestMatchSpecAWSSemanticRequiresAWSParserData(t *testing.T) {
 	match := MatchSpec{Command: "aws", Semantic: &SemanticMatchSpec{Service: "sts"}}
 	cmd := commandpkg.Command{
@@ -544,6 +604,19 @@ func TestMatchSpecGhSemanticRequiresGhParserData(t *testing.T) {
 	}
 	if match.matches(cmd) {
 		t.Fatal("generic parser command satisfied gh semantic match")
+	}
+}
+
+func TestMatchSpecHelmfileSemanticRequiresHelmfileParserData(t *testing.T) {
+	match := MatchSpec{Command: "helmfile", Semantic: &SemanticMatchSpec{Environment: "prod"}}
+	cmd := commandpkg.Command{
+		Raw:      "helmfile -e prod sync",
+		Program:  "helmfile",
+		RawWords: []string{"-e", "prod", "sync"},
+		Parser:   "generic",
+	}
+	if match.matches(cmd) {
+		t.Fatal("generic parser command satisfied helmfile semantic match")
 	}
 }
 
@@ -706,6 +779,90 @@ func TestEvaluateKubectlSemanticPermissionOutcomes(t *testing.T) {
 				t.Fatalf("Outcome=%q, want %q; decision=%+v", got.Outcome, tt.want, got)
 			}
 		})
+	}
+}
+
+func TestEvaluateHelmfileSemanticPermissionOutcomes(t *testing.T) {
+	p := NewPipeline(PipelineSpec{
+		Permission: PermissionSpec{
+			Deny: []PermissionRuleSpec{
+				{
+					Match:   MatchSpec{Command: "helmfile", Semantic: &SemanticMatchSpec{VerbIn: []string{"sync", "apply", "destroy", "delete"}, EnvironmentIn: []string{"prod", "production"}, Interactive: boolPtr(false)}},
+					Message: "non-interactive helmfile mutation in production is blocked",
+				},
+				{
+					Match:   MatchSpec{Command: "helmfile", Semantic: &SemanticMatchSpec{Verb: "destroy", EnvironmentIn: []string{"prod", "production"}}},
+					Message: "helmfile destroy in production is blocked",
+				},
+			},
+			Ask: []PermissionRuleSpec{
+				{
+					Match:   MatchSpec{Command: "helmfile", Semantic: &SemanticMatchSpec{VerbIn: []string{"sync", "apply", "destroy", "delete"}}},
+					Message: "helmfile mutation requires confirmation",
+				},
+				{
+					Match:   MatchSpec{Command: "helmfile", Semantic: &SemanticMatchSpec{Verb: "sync", SelectorMissing: boolPtr(true)}},
+					Message: "helmfile sync without selector requires confirmation",
+				},
+			},
+			Allow: []PermissionRuleSpec{{
+				Match: MatchSpec{Command: "helmfile", Semantic: &SemanticMatchSpec{VerbIn: []string{"diff", "template", "build", "list", "lint", "status"}}},
+			}},
+		},
+	}, Source{})
+
+	tests := []struct {
+		command string
+		want    string
+	}{
+		{command: "helmfile -e prod sync", want: "deny"},
+		{command: "helmfile sync", want: "ask"},
+		{command: "helmfile diff", want: "allow"},
+		{command: "helmfile -e prod destroy", want: "deny"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.command, func(t *testing.T) {
+			got, err := Evaluate(p, tt.command)
+			if err != nil {
+				t.Fatalf("Evaluate() error = %v", err)
+			}
+			if got.Outcome != tt.want {
+				t.Fatalf("Outcome=%q, want %q; decision=%+v", got.Outcome, tt.want, got)
+			}
+		})
+	}
+}
+
+func TestEvaluateTraceIncludesHelmfileSemanticInfo(t *testing.T) {
+	p := NewPipeline(PipelineSpec{
+		Permission: PermissionSpec{
+			Deny: []PermissionRuleSpec{{
+				Match: MatchSpec{Command: "helmfile", Semantic: &SemanticMatchSpec{Verb: "sync", Environment: "prod", File: "helmfile.prod.yaml", Namespace: "prod", KubeContext: "prod-cluster", SelectorContains: []string{"app=foo"}, Interactive: boolPtr(false)}},
+			}},
+		},
+	}, Source{})
+
+	got, err := Evaluate(p, "helmfile -e prod -f helmfile.prod.yaml --kube-context prod-cluster -n prod -l app=foo sync")
+	if err != nil {
+		t.Fatalf("Evaluate() error = %v", err)
+	}
+	if len(got.Trace) == 0 {
+		t.Fatalf("trace empty")
+	}
+	last := got.Trace[len(got.Trace)-1]
+	if last.Parser != "helmfile" || last.SemanticParser != "helmfile" || !last.SemanticMatch {
+		t.Fatalf("trace step missing parser/semantic info: %+v", last)
+	}
+	if last.HelmfileVerb != "sync" || last.HelmfileEnvironment != "prod" || last.HelmfileFile != "helmfile.prod.yaml" || last.HelmfileNamespace != "prod" || last.HelmfileKubeContext != "prod-cluster" || last.HelmfileInteractive == nil || *last.HelmfileInteractive {
+		t.Fatalf("trace step missing helmfile semantic info: %+v", last)
+	}
+	if !containsString(last.HelmfileSelectors, "app=foo") {
+		t.Fatalf("HelmfileSelectors=%#v, want app=foo", last.HelmfileSelectors)
+	}
+	for _, field := range []string{"verb", "environment", "file", "namespace", "kube_context", "selector_contains", "interactive"} {
+		if !containsString(last.SemanticFields, field) {
+			t.Fatalf("SemanticFields=%#v, want %q", last.SemanticFields, field)
+		}
 	}
 }
 
@@ -1836,7 +1993,7 @@ func TestValidateSemanticMatchRules(t *testing.T) {
 			spec: PipelineSpec{Permission: PermissionSpec{Deny: []PermissionRuleSpec{{
 				Match: MatchSpec{Command: "ls", Semantic: &SemanticMatchSpec{Verb: "push"}},
 			}}}},
-			issue: "permission.deny[0].match.semantic is only supported for command: git, command: aws, command: kubectl, or command: gh",
+			issue: "permission.deny[0].match.semantic is only supported for command: git, command: aws, command: kubectl, command: gh, or command: helmfile",
 		},
 		{
 			name: "git command with aws semantic fields",
@@ -1891,6 +2048,27 @@ func TestValidateSemanticMatchRules(t *testing.T) {
 			name: "gh subcommand with semantic",
 			spec: PipelineSpec{Permission: PermissionSpec{Deny: []PermissionRuleSpec{{
 				Match: MatchSpec{Command: "gh", Subcommand: "api", Semantic: &SemanticMatchSpec{Area: "api"}},
+			}}}},
+			issue: "permission.deny[0].match.subcommand cannot be used with semantic",
+		},
+		{
+			name: "git command with helmfile semantic fields",
+			spec: PipelineSpec{Permission: PermissionSpec{Deny: []PermissionRuleSpec{{
+				Match: MatchSpec{Command: "git", Semantic: &SemanticMatchSpec{Environment: "prod"}},
+			}}}},
+			issue: "permission.deny[0].match.semantic contains fields not supported for command: git",
+		},
+		{
+			name: "helmfile command with aws semantic fields",
+			spec: PipelineSpec{Permission: PermissionSpec{Deny: []PermissionRuleSpec{{
+				Match: MatchSpec{Command: "helmfile", Semantic: &SemanticMatchSpec{Service: "sts"}},
+			}}}},
+			issue: "permission.deny[0].match.semantic contains fields not supported for command: helmfile",
+		},
+		{
+			name: "helmfile subcommand with semantic",
+			spec: PipelineSpec{Permission: PermissionSpec{Deny: []PermissionRuleSpec{{
+				Match: MatchSpec{Command: "helmfile", Subcommand: "sync", Semantic: &SemanticMatchSpec{Verb: "sync"}},
 			}}}},
 			issue: "permission.deny[0].match.subcommand cannot be used with semantic",
 		},

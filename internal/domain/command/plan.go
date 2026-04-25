@@ -31,6 +31,7 @@ type Command struct {
 	AWS              *AWSSemantic
 	Kubectl          *KubectlSemantic
 	Gh               *GhSemantic
+	Helmfile         *HelmfileSemantic
 }
 
 type Option struct {
@@ -116,6 +117,30 @@ type GhSemantic struct {
 	Debug          bool
 	ExitStatus     bool
 	Flags          []string
+}
+
+type HelmfileSemantic struct {
+	Verb                     string
+	Environment              string
+	Files                    []string
+	Namespace                string
+	KubeContext              string
+	Selectors                []string
+	Interactive              bool
+	DryRun                   *bool
+	Wait                     bool
+	WaitForJobs              bool
+	SkipDiff                 bool
+	SkipNeeds                bool
+	IncludeNeeds             bool
+	IncludeTransitiveNeeds   bool
+	Purge                    bool
+	Cascade                  string
+	DeleteWait               bool
+	StateValuesFiles         []string
+	StateValuesSetKeys       []string
+	StateValuesSetStringKeys []string
+	Flags                    []string
 }
 
 func (c Command) HasOption(name string) bool {
