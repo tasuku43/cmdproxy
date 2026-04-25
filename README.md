@@ -152,16 +152,37 @@ allow lists, and `doctor` reports it as a warning.
 
 ### Compound Shell Commands
 
-`cc-bash-proxy` treats shell operators as command composition. A structured
-allow rule for `git status` does not allow `git status && rm -rf /tmp/x`.
+`cc-bash-proxy` treats shell operators as command composition. Commands such as
+`cmd1 && cmd2`, `cmd1; cmd2`, `cmd1 || cmd2`, and `cmd1 | cmd2` are compound
+commands.
 
-For `&&`, `;`, `||`, and pipelines, each extracted command is evaluated
-independently. The whole command is allowed only when every extracted command is
-allowed, denied when any extracted command is denied, and asks otherwise. The
-pipeline behavior is Claude-Code-compatible: `git status | sh` requires both
-`git status` and `sh` to be individually allowed. Background, redirection,
-subshell, and unknown shapes ask by default unless an extracted command is
-denied.
+For Claude Code compatibility, `cc-bash-proxy` does not allow a broad raw
+command pattern to grant permission across shell operators. Instead, the shell
+input is parsed into a `CommandPlan` containing individual `Command` entries,
+and each command is evaluated independently. A structured allow rule for
+`cmd1` never implicitly allows `cmd2`.
+
+After every extracted command is evaluated, the whole compound command decision
+is derived from the `CommandPlan` shape:
+
+- all commands are `allow` => `allow`
+- any command is `deny` => `deny`
+- otherwise => `ask`
+
+Examples:
+
+- `git status && git diff`
+  - allowed only when both `git status` and `git diff` are allowed
+- `git status && rm -rf /tmp/x`
+  - an allow rule for `git status` does not allow `rm -rf /tmp/x`
+- `git status && rm -rf /tmp/x`
+  - denied when `rm -rf /tmp/x` matches a deny rule
+
+The pipeline behavior is also Claude-Code-compatible: `git status | sh`
+requires both `git status` and `sh` to be individually allowed. This is
+intentionally conservative because the right side of a pipeline can interpret
+or execute data produced by the left side. Background, redirection, subshell,
+and unknown shapes ask by default unless an extracted command is denied.
 
 Claude settings are interpreted as four states:
 
