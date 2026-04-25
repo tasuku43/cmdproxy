@@ -311,25 +311,15 @@ func IsShellCommand(token string) bool {
 	return isShellCommand(token)
 }
 
-func isSafeSingleCommand(command string) bool {
-	if command == "" {
-		return false
-	}
-	disallowed := []string{"&&", ";", "|", "$(", "`", "\n"}
-	for _, token := range disallowed {
-		if strings.Contains(command, token) {
-			return false
-		}
-	}
-	return true
-}
-
+// IsSafeSingleCommand reports whether command is safe to treat as one command.
+//
+// Deprecated: use IsASTSafeSimpleCommand for safety-sensitive decisions.
 func IsSafeSingleCommand(command string) bool {
-	return isSafeSingleCommand(command)
+	return IsASTSafeSimpleCommand(command)
 }
 
 func Classify(command string) CommandClass {
-	if !isASTSafeSimpleCommand(command) {
+	if !IsASTSafeSimpleCommand(command) {
 		return CommandClassUnsafeCompound
 	}
 
@@ -364,7 +354,11 @@ func IsStructuredSafeForAllow(command string) bool {
 	}
 }
 
-func isASTSafeSimpleCommand(command string) bool {
+// IsASTSafeSimpleCommand is the shell-safety gate for allow-list matching.
+// It accepts exactly one simple command made of literal/quoted words and
+// plain assignments. Shell control flow, redirection, substitutions,
+// background execution, heredocs, and comments fail closed.
+func IsASTSafeSimpleCommand(command string) bool {
 	if hasUnquotedComment(command) {
 		return false
 	}
@@ -481,7 +475,7 @@ func isShellDashCUnsafe(parsed Parsed) bool {
 	if len(parsed.Args) < 2 || parsed.Args[0] != "-c" {
 		return false
 	}
-	return !isASTSafeSimpleCommand(parsed.Args[1])
+	return !IsASTSafeSimpleCommand(parsed.Args[1])
 }
 
 func hasUnquotedComment(command string) bool {

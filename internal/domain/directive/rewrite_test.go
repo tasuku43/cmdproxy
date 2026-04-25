@@ -3,13 +3,61 @@ package directive
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/tasuku43/cc-bash-proxy/internal/domain/invocation"
 )
 
 func TestUnwrapShellDashC(t *testing.T) {
 	got, ok := UnwrapShellDashC("bash -c 'git status'")
 	if !ok || got != "git status" {
 		t.Fatalf("got %q ok=%v", got, ok)
+	}
+}
+
+func TestUnwrapShellDashCRejectsUnsafePayloads(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+	}{
+		{name: "and list", command: "bash -c 'git status && git diff'"},
+		{name: "redirect", command: "bash -c 'git status > /tmp/out'"},
+		{name: "command substitution", command: "bash -c 'git status $(whoami)'"},
+		{name: "process substitution", command: "bash -c 'cat <(whoami)'"},
+		{name: "heredoc", command: "bash -c 'cat <<EOF\nhi\nEOF'"},
+		{name: "background", command: "bash -c 'git status &'"},
+		{name: "comment", command: "bash -c 'git status # harmless'"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got, ok := UnwrapShellDashC(tt.command); ok {
+				t.Fatalf("UnwrapShellDashC(%q) = %q, true; want false", tt.command, got)
+			}
+		})
+	}
+}
+
+func TestUnwrapShellDashCAgreesWithClassifyPayloadSafety(t *testing.T) {
+	tests := []string{
+		"git status",
+		"git status && git diff",
+		"git status > /tmp/out",
+		"git status $(whoami)",
+		"cat <(whoami)",
+		"cat <<EOF\nhi\nEOF",
+		"git status &",
+		"git status # harmless",
+	}
+
+	for _, payload := range tests {
+		command := "bash -c " + shellQuoteForTest(payload)
+		_, unwrapped := UnwrapShellDashC(command)
+		classifiedSafe := invocation.Classify(command) != invocation.CommandClassUnsafeCompound
+		if unwrapped != classifiedSafe {
+			t.Fatalf("payload %q: UnwrapShellDashC ok=%v, Classify safe=%v", payload, unwrapped, classifiedSafe)
+		}
 	}
 }
 
@@ -141,4 +189,8 @@ func writeExecutable(t *testing.T, dir string, name string) string {
 		t.Fatal(err)
 	}
 	return path
+}
+
+func shellQuoteForTest(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", `'"'"'`) + "'"
 }

@@ -19,7 +19,7 @@ func UnwrapShellDashC(command string) (string, bool) {
 		return "", false
 	}
 	payload := strings.TrimSpace(parsed.Args[1])
-	if payload == "" || !invocation.IsSafeSingleCommand(payload) {
+	if payload == "" || !invocation.IsASTSafeSimpleCommand(payload) {
 		return "", false
 	}
 	return payload, true

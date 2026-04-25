@@ -64,6 +64,29 @@ func TestIsSafeSingleCommandRejectsCompoundPayload(t *testing.T) {
 	}
 }
 
+func TestIsASTSafeSimpleCommandRejectsUnsafeShellForms(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+	}{
+		{name: "and list", command: "git status && git diff"},
+		{name: "redirect", command: "git status > /tmp/out"},
+		{name: "command substitution", command: "git status $(whoami)"},
+		{name: "process substitution", command: "cat <(whoami)"},
+		{name: "heredoc", command: "cat <<EOF\nhi\nEOF"},
+		{name: "background", command: "git status &"},
+		{name: "comment", command: "git status # harmless"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if IsASTSafeSimpleCommand(tt.command) {
+				t.Fatalf("IsASTSafeSimpleCommand(%q) = true, want false", tt.command)
+			}
+		})
+	}
+}
+
 func TestClassify(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -82,6 +105,11 @@ func TestClassify(t *testing.T) {
 		{name: "comment", command: "git status # harmless", want: CommandClassUnsafeCompound},
 		{name: "bash c unsafe", command: "bash -c 'git status && rm -rf /tmp/x'", want: CommandClassUnsafeCompound},
 		{name: "bash c redirect", command: "bash -c 'git status > /tmp/out'", want: CommandClassUnsafeCompound},
+		{name: "bash c command substitution", command: "bash -c 'git status $(whoami)'", want: CommandClassUnsafeCompound},
+		{name: "bash c process substitution", command: "bash -c 'cat <(whoami)'", want: CommandClassUnsafeCompound},
+		{name: "bash c heredoc", command: "bash -c 'cat <<EOF\nhi\nEOF'", want: CommandClassUnsafeCompound},
+		{name: "bash c background", command: "bash -c 'git status &'", want: CommandClassUnsafeCompound},
+		{name: "bash c comment", command: "bash -c 'git status # harmless'", want: CommandClassUnsafeCompound},
 	}
 
 	for _, tt := range tests {

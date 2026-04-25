@@ -92,6 +92,8 @@ func ParseWithRegistry(raw string, registry *CommandParserRegistry) CommandPlan 
 
 	plan.Commands = walker.commands
 	plan.Shape = walker.shape.finalize()
+	// CommandPlan describes shell shape and CLI semantics; invocation owns the
+	// safety gate used by allow-list matching.
 	plan.SafeForStructuredAllow = plan.Shape.Kind == ShellShapeSimple &&
 		len(plan.Commands) == 1 &&
 		len(plan.Diagnostics) == 0 &&
