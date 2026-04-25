@@ -1037,6 +1037,117 @@ test:
 	}
 }
 
+func TestRunHookClaudeBashPrefixAllowDoesNotAuthorizeCompoundRightSide(t *testing.T) {
+	payload := runClaudeHookTest(t, hookEnvSpec{
+		UserConfig: `permission:
+  allow:
+    - match:
+        command: git
+        subcommand: status
+      test:
+        allow:
+          - "git status"
+        pass:
+          - "git diff"
+test:
+  - in: "git status && rm -rf /tmp/x"
+    decision: ask
+`,
+		ClaudeSettings: `{
+  "permissions": {
+    "allow": ["Bash(git status *)"]
+  }
+}`,
+		Command: "git status && rm -rf /tmp/x",
+	})
+	if _, ok := payload.HookSpecificOutput["permissionDecision"]; ok {
+		t.Fatalf("payload = %+v", payload)
+	}
+	if payload.Cmdproxy["outcome"] != "ask" {
+		t.Fatalf("payload = %+v", payload)
+	}
+}
+
+func TestRunHookAllowsCompoundWhenEveryCommandIsIndividuallyAllowed(t *testing.T) {
+	payload := runClaudeHookTest(t, hookEnvSpec{
+		UserConfig: `permission:
+  allow:
+    - match:
+        command: git
+        subcommand: status
+      test:
+        allow:
+          - "git status"
+        pass:
+          - "git diff"
+    - match:
+        command: git
+        subcommand: diff
+      test:
+        allow:
+          - "git diff"
+        pass:
+          - "git status"
+    - match:
+        command: git
+        subcommand: log
+      test:
+        allow:
+          - "git log"
+        pass:
+          - "git status"
+test:
+  - in: "git status && git diff && git log"
+    decision: allow
+  - in: "git status; git diff; git log"
+    decision: allow
+  - in: "git status || git diff || git log"
+    decision: allow
+`,
+		Command: "git status && git diff && git log",
+	})
+	if payload.HookSpecificOutput["permissionDecision"] != "allow" {
+		t.Fatalf("payload = %+v", payload)
+	}
+	if payload.Cmdproxy["outcome"] != "allow" {
+		t.Fatalf("payload = %+v", payload)
+	}
+}
+
+func TestRunHookDeniesCompoundWhenAnyCommandIsDenied(t *testing.T) {
+	payload := runClaudeHookTest(t, hookEnvSpec{
+		UserConfig: `permission:
+  deny:
+    - match:
+        command: rm
+      test:
+        deny:
+          - "rm -rf /tmp/x"
+        pass:
+          - "git status"
+  allow:
+    - match:
+        command: git
+        subcommand: status
+      test:
+        allow:
+          - "git status"
+        pass:
+          - "git diff"
+test:
+  - in: "git status && rm -rf /tmp/x"
+    decision: deny
+`,
+		Command: "git status && rm -rf /tmp/x",
+	})
+	if payload.HookSpecificOutput["permissionDecision"] != "deny" {
+		t.Fatalf("payload = %+v", payload)
+	}
+	if payload.Cmdproxy["outcome"] != "deny" {
+		t.Fatalf("payload = %+v", payload)
+	}
+}
+
 func TestVerifyStatus(t *testing.T) {
 	report := doctoring.Report{
 		Checks: []doctoring.Check{

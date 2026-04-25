@@ -197,6 +197,15 @@ list, redirect, or unsafe `bash -c` payload. Set `allow_unsafe_shell: true`
 only for intentionally trusted shell shapes, and include a `message` explaining
 that trust boundary.
 
+Compound commands are evaluated through `CommandPlan.Commands` plus
+`CommandPlan.Shape`, not by matching the raw command string across shell
+operators. For `and_list`, `sequence`, `or_list`, and `pipeline`, every
+extracted command must be individually allowed for the whole command to be
+allowed; any denied extracted command denies the whole command; otherwise the
+whole command asks. This includes pipelines by design for Claude Code
+compatibility. `background`, `redirect`, `subshell`, and unknown shapes ask by
+default unless an extracted command is denied.
+
 ### Permission `test`
 
 ```yaml

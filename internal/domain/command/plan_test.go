@@ -47,6 +47,39 @@ func TestParseCommandPlanAndListExtractsCommandsButFailsClosed(t *testing.T) {
 	assertNoShellConnectorMetadata(t, plan.Commands)
 }
 
+func TestParseCommandPlanMultiCommandListsExtractAllCommands(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		kind ShellShapeKind
+		want []string
+	}{
+		{name: "three and list", raw: "git status && git diff && git log", kind: ShellShapeAndList, want: []string{"git status", "git diff", "git log"}},
+		{name: "four sequence semicolon", raw: "git status; git diff; git log; git branch", kind: ShellShapeSequence, want: []string{"git status", "git diff", "git log", "git branch"}},
+		{name: "newline sequence", raw: "git status\ngit diff\ngit log", kind: ShellShapeSequence, want: []string{"git status", "git diff", "git log"}},
+		{name: "three or list", raw: "git status || git diff || git log", kind: ShellShapeOrList, want: []string{"git status", "git diff", "git log"}},
+		{name: "pipe all", raw: "git status |& sh", kind: ShellShapePipeline, want: []string{"git status", "sh"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			plan := Parse(tt.raw)
+			if plan.Shape.Kind != tt.kind {
+				t.Fatalf("Shape.Kind = %q, want %q", plan.Shape.Kind, tt.kind)
+			}
+			if len(plan.Commands) != len(tt.want) {
+				t.Fatalf("len(Commands) = %d, want %d", len(plan.Commands), len(tt.want))
+			}
+			for i, want := range tt.want {
+				if plan.Commands[i].Raw != want {
+					t.Fatalf("Commands[%d].Raw = %q, want %q; commands=%+v", i, plan.Commands[i].Raw, want, plan.Commands)
+				}
+			}
+			assertNoShellConnectorMetadata(t, plan.Commands)
+		})
+	}
+}
+
 func TestParseCommandPlanPipelineExtractsCommandsButFailsClosed(t *testing.T) {
 	plan := Parse("git status | sh")
 

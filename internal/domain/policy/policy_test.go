@@ -304,7 +304,7 @@ func TestEvaluateGitStatusAllowDoesNotMatchNonStatusOrUnsafeShell(t *testing.T) 
 	}
 }
 
-func TestEvaluateCompoundGitCommandsFailClosedAcrossAllowCoverage(t *testing.T) {
+func TestEvaluateCompoundGitCommandsComposeIndividualCommandDecisions(t *testing.T) {
 	gitRule := func(subcommand string) PermissionRuleSpec {
 		return PermissionRuleSpec{Match: MatchSpec{Command: "git", Subcommand: subcommand}}
 	}
@@ -313,41 +313,67 @@ func TestEvaluateCompoundGitCommandsFailClosedAcrossAllowCoverage(t *testing.T) 
 		name    string
 		command string
 		allow   []PermissionRuleSpec
+		want    string
 	}{
 		{
 			name:    "left allowed right not allowed",
 			command: "git status && git diff",
 			allow:   []PermissionRuleSpec{gitRule("status")},
+			want:    "ask",
 		},
 		{
 			name:    "left not allowed right allowed",
 			command: "git status && git diff",
 			allow:   []PermissionRuleSpec{gitRule("diff")},
+			want:    "ask",
 		},
 		{
 			name:    "both allowed and list",
 			command: "git status && git diff",
 			allow:   []PermissionRuleSpec{gitRule("status"), gitRule("diff")},
+			want:    "allow",
 		},
 		{
 			name:    "both allowed with git global options",
 			command: "git -C repo status && git --no-pager diff",
 			allow:   []PermissionRuleSpec{gitRule("status"), gitRule("diff")},
+			want:    "allow",
 		},
 		{
 			name:    "both allowed or list",
 			command: "git status || git diff",
 			allow:   []PermissionRuleSpec{gitRule("status"), gitRule("diff")},
+			want:    "allow",
 		},
 		{
 			name:    "both allowed sequence",
 			command: "git status; git diff",
 			allow:   []PermissionRuleSpec{gitRule("status"), gitRule("diff")},
+			want:    "allow",
 		},
 		{
 			name:    "both allowed pipeline",
 			command: "git status | git diff",
 			allow:   []PermissionRuleSpec{gitRule("status"), gitRule("diff")},
+			want:    "allow",
+		},
+		{
+			name:    "three command and list allowed",
+			command: "git status && git diff && git log",
+			allow:   []PermissionRuleSpec{gitRule("status"), gitRule("diff"), gitRule("log")},
+			want:    "allow",
+		},
+		{
+			name:    "four command sequence allowed",
+			command: "git status; git diff; git log; git branch",
+			allow:   []PermissionRuleSpec{gitRule("status"), gitRule("diff"), gitRule("log"), gitRule("branch")},
+			want:    "allow",
+		},
+		{
+			name:    "four command and list asks when one command is unknown",
+			command: "git status && git diff && unknown-command && git log",
+			allow:   []PermissionRuleSpec{gitRule("status"), gitRule("diff"), gitRule("log")},
+			want:    "ask",
 		},
 	}
 
@@ -361,40 +387,43 @@ func TestEvaluateCompoundGitCommandsFailClosedAcrossAllowCoverage(t *testing.T) 
 			if err != nil {
 				t.Fatalf("Evaluate() error = %v", err)
 			}
-			if got.Outcome != "ask" {
-				t.Fatalf("Evaluate(%q).Outcome = %q, want ask; decision=%+v", tt.command, got.Outcome, got)
+			if got.Outcome != tt.want {
+				t.Fatalf("Evaluate(%q).Outcome = %q, want %q; decision=%+v", tt.command, got.Outcome, tt.want, got)
 			}
 		})
 	}
 }
 
-func TestEvaluateCompositionAllowForAndListWhenExplicitlyEnabled(t *testing.T) {
+func TestEvaluateCompoundDenyWinsOverAllowedCommands(t *testing.T) {
 	p := NewPipeline(PipelineSpec{
 		Permission: PermissionSpec{
 			Allow: []PermissionRuleSpec{
 				{Match: MatchSpec{Command: "git", Subcommand: "status"}},
-				{Match: MatchSpec{Command: "git", Subcommand: "diff"}},
 			},
-			Composition: CompositionPermissionSpec{Allow: []string{"and_list"}},
+			Deny: []PermissionRuleSpec{
+				{Match: MatchSpec{Command: "rm"}},
+			},
 		},
 	}, Source{})
 
-	got, err := Evaluate(p, "git status && git diff")
+	got, err := Evaluate(p, "git status && rm -rf /tmp/x")
 	if err != nil {
 		t.Fatalf("Evaluate() error = %v", err)
 	}
-	if got.Outcome != "allow" {
-		t.Fatalf("Outcome = %q, want allow; decision=%+v", got.Outcome, got)
+	if got.Outcome != "deny" {
+		t.Fatalf("Outcome = %q, want deny; decision=%+v", got.Outcome, got)
 	}
 }
 
-func TestEvaluateCompositionAllowRequiresEveryCommandAllowed(t *testing.T) {
+func TestEvaluateCompoundAskWinsUnlessACommandIsDenied(t *testing.T) {
 	p := NewPipeline(PipelineSpec{
 		Permission: PermissionSpec{
 			Allow: []PermissionRuleSpec{
 				{Match: MatchSpec{Command: "git", Subcommand: "status"}},
 			},
-			Composition: CompositionPermissionSpec{Allow: []string{"and_list"}},
+			Ask: []PermissionRuleSpec{
+				{Match: MatchSpec{Command: "git", Subcommand: "diff"}},
+			},
 		},
 	}, Source{})
 
@@ -407,27 +436,25 @@ func TestEvaluateCompositionAllowRequiresEveryCommandAllowed(t *testing.T) {
 	}
 }
 
-func TestEvaluateCompositionAllowForSequenceWhenExplicitlyEnabled(t *testing.T) {
+func TestEvaluateCompoundDoesNotInferAllowFromLeftSideRawRule(t *testing.T) {
 	p := NewPipeline(PipelineSpec{
 		Permission: PermissionSpec{
 			Allow: []PermissionRuleSpec{
 				{Match: MatchSpec{Command: "git", Subcommand: "status"}},
-				{Match: MatchSpec{Command: "git", Subcommand: "diff"}},
 			},
-			Composition: CompositionPermissionSpec{Allow: []string{"sequence"}},
 		},
 	}, Source{})
 
-	got, err := Evaluate(p, "git status; git diff")
+	got, err := Evaluate(p, "git status && rm -rf /tmp/x")
 	if err != nil {
 		t.Fatalf("Evaluate() error = %v", err)
 	}
-	if got.Outcome != "allow" {
-		t.Fatalf("Outcome = %q, want allow; decision=%+v", got.Outcome, got)
+	if got.Outcome != "ask" {
+		t.Fatalf("Outcome = %q, want ask; decision=%+v", got.Outcome, got)
 	}
 }
 
-func TestEvaluatePipelineCompositionAsksByDefaultEvenWhenCommandsAllowed(t *testing.T) {
+func TestEvaluatePipelineCompositionAllowsWhenEveryCommandAllowed(t *testing.T) {
 	p := NewPipeline(PipelineSpec{
 		Permission: PermissionSpec{
 			Allow: []PermissionRuleSpec{
@@ -441,8 +468,37 @@ func TestEvaluatePipelineCompositionAsksByDefaultEvenWhenCommandsAllowed(t *test
 	if err != nil {
 		t.Fatalf("Evaluate() error = %v", err)
 	}
-	if got.Outcome != "ask" {
-		t.Fatalf("Outcome = %q, want ask; decision=%+v", got.Outcome, got)
+	if got.Outcome != "allow" {
+		t.Fatalf("Outcome = %q, want allow; decision=%+v", got.Outcome, got)
+	}
+}
+
+func TestEvaluateConservativeShellShapesAskEvenWhenCommandAllowed(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+	}{
+		{name: "background", command: "git status &"},
+		{name: "redirect", command: "git status > /tmp/out"},
+		{name: "subshell", command: "(git status)"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewPipeline(PipelineSpec{
+				Permission: PermissionSpec{
+					Allow: []PermissionRuleSpec{{Match: MatchSpec{Command: "git", Subcommand: "status"}}},
+				},
+			}, Source{})
+
+			got, err := Evaluate(p, tt.command)
+			if err != nil {
+				t.Fatalf("Evaluate() error = %v", err)
+			}
+			if got.Outcome != "ask" {
+				t.Fatalf("Outcome = %q, want ask; decision=%+v", got.Outcome, got)
+			}
+		})
 	}
 }
 

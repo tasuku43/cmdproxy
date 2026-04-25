@@ -150,6 +150,19 @@ For new security-first setups, prefer `strict`. `migration_compat` exists for
 adopting `cc-bash-proxy` without immediately breaking existing Claude settings
 allow lists, and `doctor` reports it as a warning.
 
+### Compound Shell Commands
+
+`cc-bash-proxy` treats shell operators as command composition. A structured
+allow rule for `git status` does not allow `git status && rm -rf /tmp/x`.
+
+For `&&`, `;`, `||`, and pipelines, each extracted command is evaluated
+independently. The whole command is allowed only when every extracted command is
+allowed, denied when any extracted command is denied, and asks otherwise. The
+pipeline behavior is Claude-Code-compatible: `git status | sh` requires both
+`git status` and `sh` to be individually allowed. Background, redirection,
+subshell, and unknown shapes ask by default unless an extracted command is
+denied.
+
 Claude settings are interpreted as four states:
 
 - `deny`

@@ -294,11 +294,15 @@ func Evaluate(p Pipeline, command string) (Decision, error) {
 		trace = append(trace, TraceStep{Action: "permission", Effect: "allow", Message: rule.Message, Source: sourcePtr(rule.Source)})
 		return Decision{Outcome: "allow", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
 	}
-	if compositionAllowCanMatch(p.Permission.Composition, current) {
-		if rule, ok := firstPreparedCompositionAllowMatch(prepared.Deny, prepared.Ask, prepared.Allow, current); ok {
-			trace = append(trace, TraceStep{Action: "permission", Effect: "allow", Name: "composition", Message: rule.Message, Source: sourcePtr(rule.Source)})
-			return Decision{Outcome: "allow", Command: current, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
-		}
+	if decision, ok := evaluateCommandPlanComposition(prepared.Deny, prepared.Ask, prepared.Allow, current); ok {
+		trace = append(trace, TraceStep{
+			Action:  "permission",
+			Effect:  decision.Outcome,
+			Name:    "composition",
+			Message: decision.Message,
+			Source:  sourcePtr(decision.Source),
+		})
+		return Decision{Outcome: decision.Outcome, Command: current, OriginalCommand: command, Message: decision.Message, Trace: trace}, nil
 	}
 
 	trace = append(trace, TraceStep{Action: "permission", Effect: "ask", Name: "default"})
@@ -326,28 +330,88 @@ func firstPreparedAllowPermissionMatch(rules []preparedPermissionRule, command s
 	return PermissionRuleSpec{}, false
 }
 
-func firstPreparedCompositionAllowMatch(deny []preparedPermissionRule, ask []preparedPermissionRule, allow []preparedPermissionRule, raw string) (PermissionRuleSpec, bool) {
+type commandDecision struct {
+	Outcome string
+	Rule    PermissionRuleSpec
+}
+
+type compositionDecision struct {
+	Outcome string
+	Message string
+	Source  Source
+}
+
+func evaluateCommandPlanComposition(deny []preparedPermissionRule, ask []preparedPermissionRule, allow []preparedPermissionRule, raw string) (compositionDecision, bool) {
 	plan := commandpkg.Parse(raw)
-	if len(plan.Commands) == 0 {
-		return PermissionRuleSpec{}, false
+	if plan.Shape.Kind == commandpkg.ShellShapeSimple || len(plan.Commands) == 0 {
+		return compositionDecision{}, false
 	}
-	var first PermissionRuleSpec
-	for i, cmd := range plan.Commands {
-		if _, ok := firstPreparedCommandMatch(deny, cmd); ok {
-			return PermissionRuleSpec{}, false
-		}
-		if _, ok := firstPreparedCommandMatch(ask, cmd); ok {
-			return PermissionRuleSpec{}, false
-		}
-		rule, ok := firstPreparedCommandAllowMatch(allow, cmd)
-		if !ok {
-			return PermissionRuleSpec{}, false
-		}
-		if i == 0 {
-			first = rule
+
+	decisions := make([]commandDecision, 0, len(plan.Commands))
+	for _, cmd := range plan.Commands {
+		decisions = append(decisions, evaluatePreparedCommand(deny, ask, allow, cmd))
+	}
+
+	if decision, ok := firstCommandDecision(decisions, "deny"); ok {
+		return compositionDecision{
+			Outcome: "deny",
+			Message: decision.Rule.Message,
+			Source:  decision.Rule.Source,
+		}, true
+	}
+	if decision, ok := firstCommandDecision(decisions, "ask"); ok {
+		return compositionDecision{
+			Outcome: "ask",
+			Message: decision.Rule.Message,
+			Source:  decision.Rule.Source,
+		}, true
+	}
+
+	allAllowed := true
+	for _, decision := range decisions {
+		if decision.Outcome != "allow" {
+			allAllowed = false
+			break
 		}
 	}
-	return first, true
+	if !allAllowed {
+		return compositionDecision{}, false
+	}
+
+	switch plan.Shape.Kind {
+	case commandpkg.ShellShapeAndList, commandpkg.ShellShapeSequence, commandpkg.ShellShapeOrList, commandpkg.ShellShapePipeline:
+		return compositionDecision{
+			Outcome: "allow",
+			Message: decisions[0].Rule.Message,
+			Source:  decisions[0].Rule.Source,
+		}, true
+	case commandpkg.ShellShapeBackground, commandpkg.ShellShapeRedirect, commandpkg.ShellShapeSubshell, commandpkg.ShellShapeUnknown:
+		return compositionDecision{}, false
+	default:
+		return compositionDecision{}, false
+	}
+}
+
+func evaluatePreparedCommand(deny []preparedPermissionRule, ask []preparedPermissionRule, allow []preparedPermissionRule, cmd commandpkg.Command) commandDecision {
+	if rule, ok := firstPreparedCommandMatch(deny, cmd); ok {
+		return commandDecision{Outcome: "deny", Rule: rule}
+	}
+	if rule, ok := firstPreparedCommandMatch(ask, cmd); ok {
+		return commandDecision{Outcome: "ask", Rule: rule}
+	}
+	if rule, ok := firstPreparedCommandAllowMatch(allow, cmd); ok {
+		return commandDecision{Outcome: "allow", Rule: rule}
+	}
+	return commandDecision{Outcome: "ask"}
+}
+
+func firstCommandDecision(decisions []commandDecision, outcome string) (commandDecision, bool) {
+	for _, decision := range decisions {
+		if decision.Outcome == outcome {
+			return decision, true
+		}
+	}
+	return commandDecision{}, false
 }
 
 func firstPreparedCommandMatch(rules []preparedPermissionRule, cmd commandpkg.Command) (PermissionRuleSpec, bool) {
@@ -376,45 +440,6 @@ func allowRuleCanMatch(rule PermissionRuleSpec, command string) bool {
 		return true
 	}
 	return invocation.IsStructuredSafeForAllow(command)
-}
-
-func compositionAllowCanMatch(spec CompositionPermissionSpec, raw string) bool {
-	plan := commandpkg.Parse(raw)
-	if !compositionShapeAllowed(spec, plan.Shape.Kind) {
-		return false
-	}
-	if plan.Shape.Kind == commandpkg.ShellShapeSimple {
-		return false
-	}
-	return len(plan.Commands) > 0 && !plan.Shape.HasBackground && !plan.Shape.HasRedirection && !plan.Shape.HasCommandSubstitution
-}
-
-func compositionShapeAllowed(spec CompositionPermissionSpec, kind commandpkg.ShellShapeKind) bool {
-	for _, allowed := range spec.Allow {
-		switch strings.TrimSpace(allowed) {
-		case string(commandpkg.ShellShapeSimple):
-			if kind == commandpkg.ShellShapeSimple {
-				return true
-			}
-		case string(commandpkg.ShellShapeAndList):
-			if kind == commandpkg.ShellShapeAndList {
-				return true
-			}
-		case string(commandpkg.ShellShapeSequence):
-			if kind == commandpkg.ShellShapeSequence {
-				return true
-			}
-		case string(commandpkg.ShellShapeOrList):
-			if kind == commandpkg.ShellShapeOrList {
-				return true
-			}
-		case string(commandpkg.ShellShapePipeline):
-			if kind == commandpkg.ShellShapePipeline {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func applyRewriteStep(step RewriteStepSpec, command string) (string, bool) {

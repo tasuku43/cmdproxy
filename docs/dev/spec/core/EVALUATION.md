@@ -155,3 +155,27 @@ Because the contract is pipeline-based:
 - `deny -> ask -> allow` is part of the public behavior
 - tests can deterministically assert both rewrite shape and final permission
   outcome
+
+## 10. Compound Command Composition
+
+Permission evaluation uses `CommandPlan.Commands` and `CommandPlan.Shape` for
+compound shell expressions. Allow rules are never matched against the raw
+compound string across shell operators.
+
+For `simple`, the existing structured allow behavior applies.
+
+For `and_list`, `sequence`, `or_list`, and `pipeline`, each extracted command is
+evaluated independently:
+
+- allow if every extracted command is individually `allow`
+- deny if any extracted command is individually `deny`
+- otherwise ask
+
+The pipeline policy is intentionally Claude-Code-compatible: `git status | sh`
+is allowed only when both `git status` and `sh` are individually allowed. A rule
+for the left side of a pipeline does not authorize the right side.
+
+For `background`, `redirect`, `subshell`, and `unknown`, the default remains
+ask unless an extracted command is denied. These shapes keep their shell
+composition metadata on `CommandPlan.Shape`; individual `Command` objects do not
+store operator metadata.

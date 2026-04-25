@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/tasuku43/cc-bash-proxy/internal/domain/invocation"
+	commandpkg "github.com/tasuku43/cc-bash-proxy/internal/domain/command"
 )
 
 const (
@@ -38,7 +38,8 @@ func ProjectRoot(cwd string) string {
 }
 
 func checkCommandWithRules(cmd string, denyRules []string, askRules []string, allowRules []string) PermissionVerdict {
-	segments := splitCompoundCommand(cmd)
+	plan := commandpkg.Parse(cmd)
+	segments := commandSegmentsForPermission(cmd, plan)
 	anyAsk := false
 	allSegmentsAllowed := true
 	sawSegment := false
@@ -80,7 +81,7 @@ func checkCommandWithRules(cmd string, denyRules []string, askRules []string, al
 	if anyAsk {
 		return PermissionAsk
 	}
-	if sawSegment && allSegmentsAllowed && len(allowRules) > 0 {
+	if sawSegment && allSegmentsAllowed && len(allowRules) > 0 && claudeCompositionAllows(plan.Shape.Kind) {
 		return PermissionAllow
 	}
 	return PermissionDefault
@@ -170,25 +171,24 @@ func extractBashPattern(rule string) string {
 	return rule
 }
 
-func splitCompoundCommand(cmd string) []string {
-	tokens := invocation.Tokens(cmd)
-	var segments []string
-	var current []string
-	for _, token := range tokens {
-		switch token {
-		case "&&", "||", ";", "|":
-			if len(current) > 0 {
-				segments = append(segments, strings.Join(current, " "))
-				current = nil
-			}
-		default:
-			current = append(current, token)
-		}
+func commandSegmentsForPermission(raw string, plan commandpkg.CommandPlan) []string {
+	if plan.Shape.Kind == commandpkg.ShellShapeSimple {
+		return []string{raw}
 	}
-	if len(current) > 0 {
-		segments = append(segments, strings.Join(current, " "))
+	segments := make([]string, 0, len(plan.Commands))
+	for _, cmd := range plan.Commands {
+		segments = append(segments, cmd.Raw)
 	}
 	return segments
+}
+
+func claudeCompositionAllows(kind commandpkg.ShellShapeKind) bool {
+	switch kind {
+	case commandpkg.ShellShapeSimple, commandpkg.ShellShapeAndList, commandpkg.ShellShapeSequence, commandpkg.ShellShapeOrList, commandpkg.ShellShapePipeline:
+		return true
+	default:
+		return false
+	}
 }
 
 func commandMatchesPattern(cmd string, pattern string) bool {
