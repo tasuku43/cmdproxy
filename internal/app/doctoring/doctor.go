@@ -124,16 +124,7 @@ func Run(loaded configrepo.Loaded, tool string, cwd string, home string) Report 
 
 	if tool == claude.Tool {
 		claudeSettings := filepath.Join(home, ".claude", "settings.json")
-		if _, err := os.Stat(claudeSettings); err == nil {
-			data, readErr := os.ReadFile(claudeSettings)
-			if readErr == nil && strings.Contains(string(data), "cc-bash-proxy hook") && strings.Contains(string(data), "\"matcher\": \"Bash\"") {
-				checks = append(checks, Check{ID: "install.claude-registered", Category: "install", Status: StatusPass, Message: "Claude Code hook registration detected"})
-			} else {
-				checks = append(checks, Check{ID: "install.claude-registered", Category: "install", Status: StatusWarn, Message: "Claude Code settings found but cc-bash-proxy hook not detected"})
-			}
-		} else {
-			checks = append(checks, Check{ID: "install.claude-registered", Category: "install", Status: StatusWarn, Message: "Claude Code settings.json not found"})
-		}
+		checks = append(checks, claudeHookRegistrationCheck(claudeSettings))
 	}
 
 	return Report{ClaudePermissionMergeMode: mergeMode, Checks: checks}
@@ -310,6 +301,58 @@ func fmtInt(v int) string {
 	return strconv.Itoa(v)
 }
 
+func claudeHookRegistrationCheck(path string) Check {
+	check := Check{ID: "install.claude-registered", Category: "install", Status: StatusWarn}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			check.Message = "Claude Code settings.json not found"
+			return check
+		}
+		check.Message = "Claude Code settings.json could not be read: " + err.Error()
+		return check
+	}
+
+	registration, err := inspectClaudeHookRegistration(data)
+	if err != nil {
+		check.Message = "Claude Code settings.json is malformed JSON: " + err.Error()
+		return check
+	}
+	if registration.BashHookCommand != "" {
+		check.Status = StatusPass
+		if strings.Contains(registration.BashHookCommand, "--rtk") {
+			check.Message = "Claude Code Bash hook registration detected with --rtk"
+		} else {
+			check.Message = "Claude Code Bash hook registration detected without --rtk"
+		}
+		return check
+	}
+	if registration.NonBashHookCommand != "" {
+		check.Message = "cc-bash-proxy hook exists but matcher is not Bash"
+		return check
+	}
+	if registration.BashMatcher {
+		check.Message = "Bash matcher exists but cc-bash-proxy hook is missing"
+		return check
+	}
+	check.Message = "Claude Code settings found but cc-bash-proxy hook not detected"
+	return check
+}
+
+type claudeHookRegistration struct {
+	BashHookCommand    string
+	NonBashHookCommand string
+	BashMatcher        bool
+}
+
+func inspectClaudeHookRegistration(data []byte) (claudeHookRegistration, error) {
+	var payload any
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return claudeHookRegistration{}, err
+	}
+	return findClaudeHookRegistration(payload, ""), nil
+}
+
 func extractClaudeHookCommand(raw string) (string, bool) {
 	var payload any
 	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
@@ -338,4 +381,44 @@ func findHookCommand(node any) string {
 		}
 	}
 	return ""
+}
+
+func findClaudeHookRegistration(node any, inheritedMatcher string) claudeHookRegistration {
+	var result claudeHookRegistration
+	switch v := node.(type) {
+	case map[string]any:
+		matcher := inheritedMatcher
+		if value, ok := v["matcher"].(string); ok {
+			matcher = value
+			if value == "Bash" {
+				result.BashMatcher = true
+			}
+		}
+		if command, ok := v["command"].(string); ok && strings.Contains(command, "cc-bash-proxy hook") {
+			if matcher == "Bash" {
+				result.BashHookCommand = command
+			} else {
+				result.NonBashHookCommand = command
+			}
+		}
+		for _, value := range v {
+			result = mergeClaudeHookRegistration(result, findClaudeHookRegistration(value, matcher))
+		}
+	case []any:
+		for _, value := range v {
+			result = mergeClaudeHookRegistration(result, findClaudeHookRegistration(value, inheritedMatcher))
+		}
+	}
+	return result
+}
+
+func mergeClaudeHookRegistration(a claudeHookRegistration, b claudeHookRegistration) claudeHookRegistration {
+	if a.BashHookCommand == "" {
+		a.BashHookCommand = b.BashHookCommand
+	}
+	if a.NonBashHookCommand == "" {
+		a.NonBashHookCommand = b.NonBashHookCommand
+	}
+	a.BashMatcher = a.BashMatcher || b.BashMatcher
+	return a
 }

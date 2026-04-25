@@ -47,7 +47,7 @@ func VerifyStatus(report doctoring.Report, info buildinfo.Info, tool string) (bo
 			reasons = append(reasons, check.ID+": "+check.Message)
 			continue
 		}
-		if tool == claude.Tool && check.ID == "install.claude-registered" && check.Status == doctoring.StatusWarn && strings.Contains(check.Message, "settings found but") {
+		if tool == claude.Tool && check.ID == "install.claude-registered" && check.Status == doctoring.StatusWarn && !strings.Contains(check.Message, "settings.json not found") {
 			reasons = append(reasons, check.ID+": "+check.Message)
 		}
 		if tool == claude.Tool && check.ID == "install.claude-hook-path" && check.Status == doctoring.StatusWarn {
