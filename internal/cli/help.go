@@ -13,13 +13,14 @@ func writeUsage(w io.Writer) {
 	fmt.Fprint(w, `cc-bash-guard
 
 cc-bash-guard is a security-first Bash permission guard for Claude Code hooks.
+It evaluates Bash commands against policy and returns allow, ask, or deny.
 
-Typical workflow:
+Start here:
   cc-bash-guard init
   edit ~/.config/cc-bash-guard/cc-bash-guard.yml
   cc-bash-guard verify
   cc-bash-guard doctor
-  configure Claude Code to call cc-bash-guard hook
+  add the printed PreToolUse Bash snippet to Claude Code settings
 
 Usage:
   cc-bash-guard <command> [flags]
@@ -37,9 +38,13 @@ Policy model:
   Use command for semantic-supported commands.
   Use env for environment variable predicates.
   Use patterns for raw regex fallbacks and commands without semantic support.
+  Rules live under permission.deny, permission.ask, and permission.allow.
+  Decision order is deny > ask > allow; unmatched commands fall back to ask.
   cc-bash-guard evaluates commands but does not rewrite them.
 
 Learn more:
+  cc-bash-guard help init
+  cc-bash-guard help config
   cc-bash-guard help permission
   cc-bash-guard help semantic
   cc-bash-guard help semantic git
@@ -84,8 +89,16 @@ Claude Code PreToolUse hook snippet.
 Usage:
   cc-bash-guard init
 
-Typical use:
+What it does:
+  - creates a starter deny rule and test case when the config file is missing
+  - prints the user config path
+  - prints the Claude Code PreToolUse Bash hook snippet
+
+After init:
   cc-bash-guard init
+  edit ~/.config/cc-bash-guard/cc-bash-guard.yml
+  cc-bash-guard verify
+  add the printed snippet to ~/.claude/settings.json
 `)
 	case "doctor":
 		fmt.Fprint(w, `cc-bash-guard doctor
@@ -164,6 +177,8 @@ Examples:
 		fmt.Fprint(w, `cc-bash-guard help permission
 
 Permission rules are grouped into deny, ask, and allow buckets.
+Start with deny rules for dangerous commands, allow rules for known safe
+commands, and ask rules for commands that need review.
 
 Rule fields:
   command   Match a command by name and, when supported, command-specific semantic fields.
@@ -184,6 +199,8 @@ When to use each matcher:
   The semantic schema is selected by command.name.
   Use patterns for commands without semantic support or for raw regex fallbacks.
   Use env when a rule depends on variables such as AWS_PROFILE.
+  Put rules under permission.deny, permission.ask, or permission.allow.
+  Do not combine command and patterns in the same rule.
 
 Example:
   permission:
@@ -331,9 +348,19 @@ Config files live at:
   - ~/.config/cc-bash-guard/cc-bash-guard.yml
   - ./.cc-bash-guard/cc-bash-guard.yaml (project-local, optional)
 
+First-time setup:
+  cc-bash-guard init
+  edit ~/.config/cc-bash-guard/cc-bash-guard.yml
+  cc-bash-guard verify
+  cc-bash-guard doctor
+
 Top-level sections are:
   - permission: deny / ask / allow buckets
   - test: end-to-end expect cases
+
+Tests:
+  - rule-local test checks whether one rule matches or passes examples
+  - top-level test checks final allow / ask / deny decisions after all sources merge
 
 Top-level rewrite is no longer supported. cc-bash-guard never changes the
 command string it evaluates or returns to Claude. Parser-backed normalization is

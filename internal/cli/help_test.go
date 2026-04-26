@@ -30,10 +30,17 @@ func TestRootHelpOrientsNewUsers(t *testing.T) {
 	}
 	for _, want := range []string{
 		"permission guard",
+		"evaluates Bash commands against policy",
+		"Start here:",
 		"cc-bash-guard init",
 		"cc-bash-guard verify",
 		"cc-bash-guard doctor",
-		"cc-bash-guard hook",
+		"PreToolUse Bash snippet",
+		"permission.deny",
+		"deny > ask > allow",
+		"unmatched commands fall back to ask",
+		"cc-bash-guard help init",
+		"cc-bash-guard help config",
 		"cc-bash-guard help permission",
 		"cc-bash-guard help semantic",
 		"cc-bash-guard help examples",
@@ -49,6 +56,26 @@ func TestRootHelpOrientsNewUsers(t *testing.T) {
 	}
 }
 
+func TestHelpInitGivesNextSteps(t *testing.T) {
+	code, stdout, stderr := runCLIHelpTest("help", "init")
+	if code != 0 {
+		t.Fatalf("code=%d stderr=%s", code, stderr)
+	}
+	for _, want := range []string{
+		"creates a starter deny rule and test case",
+		"prints the user config path",
+		"prints the Claude Code PreToolUse Bash hook snippet",
+		"After init:",
+		"edit ~/.config/cc-bash-guard/cc-bash-guard.yml",
+		"cc-bash-guard verify",
+		"~/.claude/settings.json",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("help init missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
 func TestHelpPermissionExplainsCurrentSchema(t *testing.T) {
 	code, stdout, stderr := runCLIHelpTest("help", "permission")
 	if code != 0 {
@@ -56,6 +83,7 @@ func TestHelpPermissionExplainsCurrentSchema(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Permission rules are grouped into deny, ask, and allow buckets.",
+		"Start with deny rules",
 		"command",
 		"env",
 		"patterns",
@@ -64,11 +92,33 @@ func TestHelpPermissionExplainsCurrentSchema(t *testing.T) {
 		"command.name",
 		"Use command.semantic for commands listed",
 		"Use patterns for commands without semantic support",
+		"Put rules under permission.deny",
+		"Do not combine command and patterns",
 		"permission:",
 		"docs/user/PERMISSION_SCHEMA.md",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("help permission missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestHelpConfigSeparatesRuleAndTopLevelTests(t *testing.T) {
+	code, stdout, stderr := runCLIHelpTest("help", "config")
+	if code != 0 {
+		t.Fatalf("code=%d stderr=%s", code, stderr)
+	}
+	for _, want := range []string{
+		"First-time setup:",
+		"permission: deny / ask / allow buckets",
+		"test: end-to-end expect cases",
+		"rule-local test checks whether one rule matches or passes examples",
+		"top-level test checks final allow / ask / deny decisions",
+		"Permission source merge rule:",
+		"Decision order:",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("help config missing %q:\n%s", want, stdout)
 		}
 	}
 }
