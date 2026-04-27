@@ -63,6 +63,7 @@ Examples:
 
 Docs:
   docs/user/QUICKSTART.md
+  docs/user/THREAT_MODEL.md
 `)
 }
 
@@ -440,6 +441,7 @@ Command not being rewritten:
 
 Docs:
   docs/user/TROUBLESHOOTING.md
+  docs/user/THREAT_MODEL.md
   docs/user/AWS_GUIDELINES.md
 `)
 	case "config":

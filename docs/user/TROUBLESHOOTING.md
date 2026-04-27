@@ -1,5 +1,8 @@
 # Troubleshooting
 
+For the full security boundary, known limitations, fail-closed cases, and RTK
+integration boundary, see `docs/user/THREAT_MODEL.md`.
+
 ## Verified Artifact Missing Or Stale
 
 Run:

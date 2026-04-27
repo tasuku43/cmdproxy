@@ -2,6 +2,8 @@
 
 `cc-bash-guard` evaluates Bash commands against permission policy and returns
 `allow`, `ask`, or `deny` for Claude Code hooks. It never rewrites commands.
+Read `docs/user/THREAT_MODEL.md` for the security boundary and known
+limitations before relying on broad allow rules.
 
 ## Install And Initialize
 
@@ -126,6 +128,7 @@ cc-bash-guard help troubleshoot
 Docs:
 
 - `docs/user/PERMISSION_SCHEMA.md`
+- `docs/user/THREAT_MODEL.md`
 - `docs/user/SEMANTIC_SCHEMAS.md`
 - `docs/user/EXAMPLES.md`
 - `docs/user/TROUBLESHOOTING.md`

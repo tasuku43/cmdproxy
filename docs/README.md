@@ -3,6 +3,7 @@
 ## Choose Your Path
 
 - User docs: `docs/user/README.md`
+- Threat model: `docs/user/THREAT_MODEL.md`
 - Developer docs: `docs/dev/README.md`
 - Product concept: `docs/concepts/product-concept.md`
 - Security trust model: `docs/concepts/security-trust-model.md`

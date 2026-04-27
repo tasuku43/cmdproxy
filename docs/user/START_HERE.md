@@ -5,6 +5,7 @@ at:
 
 - `docs/user/QUICKSTART.md`
 - `docs/user/PERMISSION_SCHEMA.md`
+- `docs/user/THREAT_MODEL.md`
 - `docs/user/SEMANTIC_SCHEMAS.md`
 - `docs/user/EXAMPLES.md`
 - `docs/user/TROUBLESHOOTING.md`

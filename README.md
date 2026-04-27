@@ -11,6 +11,9 @@ covered by tests.
 evaluates permission policy, and returns `allow`, `ask`, or `deny`. The command
 string passed through the hook remains the original command.
 
+For the consolidated user-facing security boundary, see
+[`docs/user/THREAT_MODEL.md`](docs/user/THREAT_MODEL.md).
+
 If you use RTK rewriting, use `cc-bash-guard hook --rtk` as the single Bash
 hook. In that mode `cc-bash-guard` still evaluates permissions first, then
 delegates the rewrite step to the external `rtk rewrite` command. Do not

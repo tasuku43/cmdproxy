@@ -49,6 +49,7 @@ func TestRootHelpOrientsNewUsers(t *testing.T) {
 		"cc-bash-guard help examples",
 		"cc-bash-guard help troubleshoot",
 		"docs/user/QUICKSTART.md",
+		"docs/user/THREAT_MODEL.md",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("root help missing %q:\n%s", want, stdout)
@@ -422,6 +423,7 @@ func TestHelpTroubleshootCoversCommonFailures(t *testing.T) {
 		"AWS profile style",
 		"Command not being rewritten",
 		"docs/user/TROUBLESHOOTING.md",
+		"docs/user/THREAT_MODEL.md",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("help troubleshoot missing %q:\n%s", want, stdout)
@@ -471,6 +473,7 @@ func TestReadmeDocumentsNoPolicyRewriteAndRTKIntegration(t *testing.T) {
 		"`cc-bash-guard` never rewrites commands",
 		"returns `allow`, `ask`, or `deny`",
 		"If you use RTK rewriting",
+		"docs/user/THREAT_MODEL.md",
 		"`cc-bash-guard hook --rtk` as the single Bash",
 		"evaluates permissions first",
 		"external `rtk rewrite`",
