@@ -1,12 +1,13 @@
 package semantic
 
 type Schema struct {
-	Command     string    `json:"command"`
-	Description string    `json:"description"`
-	Parser      string    `json:"parser"`
-	Fields      []Field   `json:"fields"`
-	Examples    []Example `json:"examples"`
-	Notes       []string  `json:"notes,omitempty"`
+	Command      string    `json:"command"`
+	SemanticPath string    `json:"semantic_path"`
+	Description  string    `json:"description"`
+	Parser       string    `json:"parser"`
+	Fields       []Field   `json:"fields"`
+	Examples     []Example `json:"examples"`
+	Notes        []string  `json:"notes,omitempty"`
 }
 
 type Field struct {
@@ -292,17 +293,28 @@ var schemas = []Schema{
 }
 
 func AllSchemas() []Schema {
-	out := append([]Schema(nil), schemas...)
+	out := make([]Schema, 0, len(schemas))
+	for _, schema := range schemas {
+		out = append(out, withSemanticPath(schema))
+	}
 	return out
 }
 
 func Lookup(command string) (Schema, bool) {
 	for _, schema := range schemas {
 		if schema.Command == command {
-			return schema, true
+			return withSemanticPath(schema), true
 		}
 	}
 	return Schema{}, false
+}
+
+func SchemasByCommand() map[string]Schema {
+	byCommand := map[string]Schema{}
+	for _, schema := range AllSchemas() {
+		byCommand[schema.Command] = schema
+	}
+	return byCommand
 }
 
 func SupportedCommands() []string {
@@ -332,6 +344,11 @@ func IsFieldSupported(command, field string) bool {
 		}
 	}
 	return false
+}
+
+func withSemanticPath(schema Schema) Schema {
+	schema.SemanticPath = "command.semantic"
+	return schema
 }
 
 func stringField(name, description string) Field {

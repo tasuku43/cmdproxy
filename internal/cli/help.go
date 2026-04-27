@@ -258,6 +258,8 @@ Valid combinations:
 When to use each matcher:
   Use command.semantic for commands listed by cc-bash-guard help semantic.
   The semantic schema is selected by command.name.
+  Semantic fields live directly under command.semantic; no extra tool-name
+  nesting is required because command.name is the discriminator.
   Use patterns for commands without semantic support or for raw regex fallbacks.
   Use env when a rule depends on variables such as AWS_PROFILE.
   Put rules under permission.deny, permission.ask, or permission.allow.
@@ -530,6 +532,8 @@ func writeSemanticHelp(w io.Writer, args []string) error {
 
 Semantic matchers are command-specific.
 The schema is selected by command.name.
+Semantic fields live directly under command.semantic; command.name selects
+which parser namespace validates those fields.
 Supported commands are generated from the semantic schema registry.
 
 Supported commands:
@@ -571,6 +575,8 @@ Docs:
 	fmt.Fprintf(w, "Semantic schema: %s\n\n", schema.Command)
 	fmt.Fprintf(w, "Description: %s\n", schema.Description)
 	fmt.Fprintf(w, "Parser support: %s\n\n", schema.Parser)
+	fmt.Fprint(w, "YAML path: command.semantic\n")
+	fmt.Fprint(w, "Discriminator: command.name = "+schema.Command+"\n\n")
 	fmt.Fprint(w, "Fields:\n")
 	for _, field := range schema.Fields {
 		fmt.Fprintf(w, "  %-38s %-9s %s\n", field.Name, field.Type, field.Description)
@@ -585,6 +591,7 @@ Docs:
 	}
 	fmt.Fprint(w, "\nValidation rules:\n")
 	fmt.Fprint(w, "  - permission command.semantic requires exact command.name.\n")
+	fmt.Fprint(w, "  - fields are interpreted in the namespace selected by command.name.\n")
 	fmt.Fprint(w, "  - unsupported fields and unsupported value types fail verify.\n")
 	fmt.Fprint(w, "  - GenericParser fallback never satisfies semantic match.\n")
 	if len(schema.Examples) > 0 {

@@ -248,7 +248,10 @@ func runSemanticSchema(args []string, streams Streams) int {
 		return exitAllow
 	}
 	if format == "json" {
-		payload := map[string]any{"schemas": semanticpkg.AllSchemas()}
+		payload := map[string]any{
+			"schemas":            semanticpkg.AllSchemas(),
+			"schemas_by_command": semanticpkg.SchemasByCommand(),
+		}
 		if err := writeIndentedJSON(streams.Stdout, payload); err != nil {
 			writeErr(streams.Stderr, err.Error())
 			return exitError

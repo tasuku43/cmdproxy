@@ -2641,6 +2641,102 @@ func TestRegisteredSemanticFieldsAreAcceptedByValidation(t *testing.T) {
 	}
 }
 
+func TestSemanticMatchSpecProjectsToToolSpecificSpecs(t *testing.T) {
+	force := true
+	semantic := SemanticMatchSpec{
+		Verb:        "push",
+		Force:       &force,
+		Service:     "sts",
+		Operation:   "get-caller-identity",
+		Namespace:   "production",
+		Area:        "api",
+		Environment: "prod",
+		AppName:     "payments",
+	}
+
+	if got := semantic.Git(); got.Verb != "push" || got.Force == nil || !*got.Force {
+		t.Fatalf("Git() = %+v", got)
+	}
+	if got := semantic.AWS(); got.Service != "sts" || got.Operation != "get-caller-identity" {
+		t.Fatalf("AWS() = %+v", got)
+	}
+	if got := semantic.Kubectl(); got.Verb != "push" || got.Namespace != "production" {
+		t.Fatalf("Kubectl() = %+v", got)
+	}
+	if got := semantic.GH(); got.Area != "api" || got.Verb != "push" {
+		t.Fatalf("GH() = %+v", got)
+	}
+	if got := semantic.Helmfile(); got.Verb != "push" || got.Environment != "prod" {
+		t.Fatalf("Helmfile() = %+v", got)
+	}
+	if got := semantic.ArgoCD(); got.Verb != "push" || got.AppName != "payments" {
+		t.Fatalf("ArgoCD() = %+v", got)
+	}
+}
+
+func TestToolSpecificSemanticSpecsMatchLikeFlatSpec(t *testing.T) {
+	force := true
+	cases := []struct {
+		name     string
+		command  string
+		semantic SemanticMatchSpec
+		matches  func(SemanticMatchSpec, commandpkg.Command) bool
+	}{
+		{
+			name:     "git",
+			command:  "git push --force origin main",
+			semantic: SemanticMatchSpec{Verb: "push", Force: &force},
+			matches:  func(s SemanticMatchSpec, cmd commandpkg.Command) bool { return s.Git().matches(cmd) },
+		},
+		{
+			name:     "aws",
+			command:  "aws sts get-caller-identity",
+			semantic: SemanticMatchSpec{Service: "sts", Operation: "get-caller-identity"},
+			matches:  func(s SemanticMatchSpec, cmd commandpkg.Command) bool { return s.AWS().matches(cmd) },
+		},
+		{
+			name:     "kubectl",
+			command:  "kubectl delete pod nginx -n production",
+			semantic: SemanticMatchSpec{Verb: "delete", ResourceType: "pod", Namespace: "production"},
+			matches:  func(s SemanticMatchSpec, cmd commandpkg.Command) bool { return s.Kubectl().matches(cmd) },
+		},
+		{
+			name:     "gh",
+			command:  "gh api --method DELETE repos/OWNER/REPO",
+			semantic: SemanticMatchSpec{Area: "api", Method: "DELETE"},
+			matches:  func(s SemanticMatchSpec, cmd commandpkg.Command) bool { return s.GH().matches(cmd) },
+		},
+		{
+			name:     "helmfile",
+			command:  "helmfile -e prod destroy",
+			semantic: SemanticMatchSpec{Verb: "destroy", Environment: "prod"},
+			matches:  func(s SemanticMatchSpec, cmd commandpkg.Command) bool { return s.Helmfile().matches(cmd) },
+		},
+		{
+			name:     "argocd",
+			command:  "argocd app sync payments",
+			semantic: SemanticMatchSpec{Verb: "app sync", AppName: "payments"},
+			matches:  func(s SemanticMatchSpec, cmd commandpkg.Command) bool { return s.ArgoCD().matches(cmd) },
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			plan := commandpkg.Parse(tt.command)
+			if len(plan.Commands) != 1 {
+				t.Fatalf("commands = %d", len(plan.Commands))
+			}
+			cmd := plan.Commands[0]
+			if !permissionSemanticMatches(tt.name, tt.semantic, cmd) {
+				t.Fatalf("permissionSemanticMatches(%s) = false", tt.name)
+			}
+			if !tt.matches(tt.semantic, cmd) {
+				t.Fatalf("tool-specific match = false")
+			}
+		})
+	}
+}
+
 func semanticSpecWithField(t *testing.T, fieldName string, fieldType string) SemanticMatchSpec {
 	t.Helper()
 	var semantic SemanticMatchSpec

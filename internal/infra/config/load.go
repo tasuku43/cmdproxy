@@ -560,25 +560,29 @@ func validatePermissionCommandSemanticYAML(prefix string, rule *yaml.Node) []str
 	if semantic == nil {
 		return nil
 	}
+	if semantic.Kind != yaml.MappingNode {
+		return []string{fmt.Sprintf("%s.semantic must be a mapping", prefix)}
+	}
 	nameNode := yamlMapValue(command, "name")
 	name := ""
 	if nameNode != nil && nameNode.Kind == yaml.ScalarNode {
 		name = strings.TrimSpace(nameNode.Value)
 	}
 	if name == "" {
-		return nil
+		return []string{fmt.Sprintf("%s.name must be set when semantic is used", prefix)}
 	}
 	schema, ok := semanticpkg.Lookup(name)
 	if !ok {
 		return []string{fmt.Sprintf("%s.semantic is not available for command %s. Use patterns, or add a semantic schema/parser for %s. See cc-bash-guard help semantic and docs/user/SEMANTIC_SCHEMAS.md.", prefix, name, name)}
 	}
-	if semantic.Kind != yaml.MappingNode {
-		return []string{fmt.Sprintf("%s.semantic must be a mapping", prefix)}
-	}
 	fields := map[string]string{}
 	for _, field := range schema.Fields {
 		fields[field.Name] = field.Type
 	}
+	return validateSemanticFieldsYAML(prefix+".semantic", name, semantic, fields)
+}
+
+func validateSemanticFieldsYAML(prefix, name string, semantic *yaml.Node, fields map[string]string) []string {
 	var issues []string
 	for i := 0; i+1 < len(semantic.Content); i += 2 {
 		key := semantic.Content[i]
@@ -590,14 +594,14 @@ func validatePermissionCommandSemanticYAML(prefix string, rule *yaml.Node) []str
 			continue
 		}
 		if gotType, ok := semanticYAMLTypeMismatch(value, wantType); ok {
-			issues = append(issues, fmt.Sprintf("%s.semantic.%s must be %s, got %s. Command: %s.", prefix, field, wantType, gotType, name))
+			issues = append(issues, fmt.Sprintf("%s.%s must be %s, got %s. Command: %s.", prefix, field, wantType, gotType, name))
 		}
 	}
 	return issues
 }
 
 func unsupportedSemanticYAMLIssue(prefix, command, field string) string {
-	return fmt.Sprintf("%s.semantic.%s is not supported for command %s. Supported semantic fields for %s: %s. See cc-bash-guard help semantic %s or docs/user/SEMANTIC_SCHEMAS.md.", prefix, field, command, command, strings.Join(semanticpkg.FieldNames(command), ", "), command)
+	return fmt.Sprintf("%s.%s is not supported for command %s. Supported semantic fields for %s: %s. See cc-bash-guard help semantic %s or docs/user/SEMANTIC_SCHEMAS.md.", prefix, field, command, command, strings.Join(semanticpkg.FieldNames(command), ", "), command)
 }
 
 func semanticYAMLTypeMismatch(node *yaml.Node, want string) (string, bool) {

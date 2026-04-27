@@ -71,8 +71,10 @@ permission:
             - show
 ```
 
-The semantic schema is selected by `command.name`. Inspect supported commands
-with:
+The semantic schema is selected by `command.name`. Fields live directly under
+`command.semantic`; no extra tool-name nesting is required.
+
+Inspect supported commands with:
 
 ```sh
 cc-bash-guard help semantic

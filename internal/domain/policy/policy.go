@@ -216,6 +216,273 @@ type SemanticMatchSpec struct {
 	ExitStatus                       *bool    `yaml:"exit_status" json:"exit_status,omitempty"`
 }
 
+type GitSemanticSpec struct {
+	Verb            string
+	VerbIn          []string
+	Remote          string
+	RemoteIn        []string
+	Branch          string
+	BranchIn        []string
+	Ref             string
+	RefIn           []string
+	Force           *bool
+	ForceWithLease  *bool
+	ForceIfIncludes *bool
+	Hard            *bool
+	Recursive       *bool
+	IncludeIgnored  *bool
+	Cached          *bool
+	Staged          *bool
+	FlagsContains   []string
+	FlagsPrefixes   []string
+}
+
+type AWSSemanticSpec struct {
+	Service           string
+	ServiceIn         []string
+	Operation         string
+	OperationIn       []string
+	Profile           string
+	ProfileIn         []string
+	Region            string
+	RegionIn          []string
+	EndpointURL       string
+	EndpointURLPrefix string
+	DryRun            *bool
+	NoCLIPager        *bool
+	FlagsContains     []string
+	FlagsPrefixes     []string
+}
+
+type KubectlSemanticSpec struct {
+	Verb             string
+	VerbIn           []string
+	Subverb          string
+	SubverbIn        []string
+	ResourceType     string
+	ResourceTypeIn   []string
+	ResourceName     string
+	ResourceNameIn   []string
+	Namespace        string
+	NamespaceIn      []string
+	NamespaceMissing *bool
+	Context          string
+	ContextIn        []string
+	Kubeconfig       string
+	AllNamespaces    *bool
+	Filename         string
+	FilenameIn       []string
+	FilenamePrefix   string
+	Selector         string
+	SelectorIn       []string
+	SelectorContains []string
+	SelectorMissing  *bool
+	Container        string
+	DryRun           *bool
+	Force            *bool
+	Recursive        *bool
+	FlagsContains    []string
+	FlagsPrefixes    []string
+}
+
+type GHSemanticSpec struct {
+	Area                 string
+	AreaIn               []string
+	Verb                 string
+	VerbIn               []string
+	Repo                 string
+	RepoIn               []string
+	Org                  string
+	OrgIn                []string
+	EnvName              string
+	EnvNameIn            []string
+	Hostname             string
+	HostnameIn           []string
+	Web                  *bool
+	Method               string
+	MethodIn             []string
+	Endpoint             string
+	EndpointPrefix       string
+	EndpointContains     []string
+	Paginate             *bool
+	Input                *bool
+	Silent               *bool
+	IncludeHeaders       *bool
+	FieldKeysContains    []string
+	RawFieldKeysContains []string
+	HeaderKeysContains   []string
+	PRNumber             string
+	IssueNumber          string
+	SecretName           string
+	SecretNameIn         []string
+	Tag                  string
+	WorkflowName         string
+	WorkflowID           string
+	SearchType           string
+	SearchTypeIn         []string
+	QueryContains        string
+	Base                 string
+	Head                 string
+	Ref                  string
+	RefIn                []string
+	State                string
+	StateIn              []string
+	LabelIn              []string
+	AssigneeIn           []string
+	TitleContains        string
+	BodyContains         string
+	Draft                *bool
+	Prerelease           *bool
+	Latest               *bool
+	Fill                 *bool
+	Force                *bool
+	Admin                *bool
+	Auto                 *bool
+	DeleteBranch         *bool
+	MergeStrategy        string
+	MergeStrategyIn      []string
+	RunID                string
+	Failed               *bool
+	Job                  string
+	Debug                *bool
+	ExitStatus           *bool
+	FlagsContains        []string
+	FlagsPrefixes        []string
+}
+
+type HelmfileSemanticSpec struct {
+	Verb                             string
+	VerbIn                           []string
+	Environment                      string
+	EnvironmentIn                    []string
+	EnvironmentMissing               *bool
+	File                             string
+	FileIn                           []string
+	FilePrefix                       string
+	FileMissing                      *bool
+	Namespace                        string
+	NamespaceIn                      []string
+	NamespaceMissing                 *bool
+	KubeContext                      string
+	KubeContextIn                    []string
+	KubeContextMissing               *bool
+	Selector                         string
+	SelectorIn                       []string
+	SelectorContains                 []string
+	SelectorMissing                  *bool
+	Interactive                      *bool
+	DryRun                           *bool
+	Wait                             *bool
+	WaitForJobs                      *bool
+	SkipDiff                         *bool
+	SkipNeeds                        *bool
+	IncludeNeeds                     *bool
+	IncludeTransitiveNeeds           *bool
+	Purge                            *bool
+	Cascade                          string
+	CascadeIn                        []string
+	DeleteWait                       *bool
+	StateValuesFile                  string
+	StateValuesFileIn                []string
+	StateValuesSetKeysContains       []string
+	StateValuesSetStringKeysContains []string
+	FlagsContains                    []string
+	FlagsPrefixes                    []string
+}
+
+type ArgoCDSemanticSpec struct {
+	Verb          string
+	VerbIn        []string
+	AppName       string
+	AppNameIn     []string
+	Project       string
+	ProjectIn     []string
+	Revision      string
+	FlagsContains []string
+	FlagsPrefixes []string
+}
+
+func (s SemanticMatchSpec) Git() GitSemanticSpec {
+	return GitSemanticSpec{
+		Verb: s.Verb, VerbIn: s.VerbIn, Remote: s.Remote, RemoteIn: s.RemoteIn,
+		Branch: s.Branch, BranchIn: s.BranchIn, Ref: s.Ref, RefIn: s.RefIn,
+		Force: s.Force, ForceWithLease: s.ForceWithLease, ForceIfIncludes: s.ForceIfIncludes,
+		Hard: s.Hard, Recursive: s.Recursive, IncludeIgnored: s.IncludeIgnored,
+		Cached: s.Cached, Staged: s.Staged, FlagsContains: s.FlagsContains, FlagsPrefixes: s.FlagsPrefixes,
+	}
+}
+
+func (s SemanticMatchSpec) AWS() AWSSemanticSpec {
+	return AWSSemanticSpec{
+		Service: s.Service, ServiceIn: s.ServiceIn, Operation: s.Operation, OperationIn: s.OperationIn,
+		Profile: s.Profile, ProfileIn: s.ProfileIn, Region: s.Region, RegionIn: s.RegionIn,
+		EndpointURL: s.EndpointURL, EndpointURLPrefix: s.EndpointURLPrefix, DryRun: s.DryRun,
+		NoCLIPager: s.NoCLIPager, FlagsContains: s.FlagsContains, FlagsPrefixes: s.FlagsPrefixes,
+	}
+}
+
+func (s SemanticMatchSpec) Kubectl() KubectlSemanticSpec {
+	return KubectlSemanticSpec{
+		Verb: s.Verb, VerbIn: s.VerbIn, Subverb: s.Subverb, SubverbIn: s.SubverbIn,
+		ResourceType: s.ResourceType, ResourceTypeIn: s.ResourceTypeIn, ResourceName: s.ResourceName,
+		ResourceNameIn: s.ResourceNameIn, Namespace: s.Namespace, NamespaceIn: s.NamespaceIn,
+		NamespaceMissing: s.NamespaceMissing, Context: s.Context, ContextIn: s.ContextIn,
+		Kubeconfig: s.Kubeconfig, AllNamespaces: s.AllNamespaces, Filename: s.Filename,
+		FilenameIn: s.FilenameIn, FilenamePrefix: s.FilenamePrefix, Selector: s.Selector,
+		SelectorIn: s.SelectorIn, SelectorContains: s.SelectorContains, SelectorMissing: s.SelectorMissing,
+		Container: s.Container, DryRun: s.DryRun, Force: s.Force, Recursive: s.Recursive,
+		FlagsContains: s.FlagsContains, FlagsPrefixes: s.FlagsPrefixes,
+	}
+}
+
+func (s SemanticMatchSpec) GH() GHSemanticSpec {
+	return GHSemanticSpec{
+		Area: s.Area, AreaIn: s.AreaIn, Verb: s.Verb, VerbIn: s.VerbIn, Repo: s.Repo, RepoIn: s.RepoIn,
+		Org: s.Org, OrgIn: s.OrgIn, EnvName: s.EnvName, EnvNameIn: s.EnvNameIn,
+		Hostname: s.Hostname, HostnameIn: s.HostnameIn, Web: s.Web, Method: s.Method,
+		MethodIn: s.MethodIn, Endpoint: s.Endpoint, EndpointPrefix: s.EndpointPrefix,
+		EndpointContains: s.EndpointContains, Paginate: s.Paginate, Input: s.Input, Silent: s.Silent,
+		IncludeHeaders: s.IncludeHeaders, FieldKeysContains: s.FieldKeysContains,
+		RawFieldKeysContains: s.RawFieldKeysContains, HeaderKeysContains: s.HeaderKeysContains,
+		PRNumber: s.PRNumber, IssueNumber: s.IssueNumber, SecretName: s.SecretName,
+		SecretNameIn: s.SecretNameIn, Tag: s.Tag, WorkflowName: s.WorkflowName, WorkflowID: s.WorkflowID,
+		SearchType: s.SearchType, SearchTypeIn: s.SearchTypeIn, QueryContains: s.QueryContains,
+		Base: s.Base, Head: s.Head, Ref: s.Ref, RefIn: s.RefIn, State: s.State, StateIn: s.StateIn,
+		LabelIn: s.LabelIn, AssigneeIn: s.AssigneeIn, TitleContains: s.TitleContains,
+		BodyContains: s.BodyContains, Draft: s.Draft, Prerelease: s.Prerelease, Latest: s.Latest,
+		Fill: s.Fill, Force: s.Force, Admin: s.Admin, Auto: s.Auto, DeleteBranch: s.DeleteBranch,
+		MergeStrategy: s.MergeStrategy, MergeStrategyIn: s.MergeStrategyIn, RunID: s.RunID,
+		Failed: s.Failed, Job: s.Job, Debug: s.Debug, ExitStatus: s.ExitStatus,
+		FlagsContains: s.FlagsContains, FlagsPrefixes: s.FlagsPrefixes,
+	}
+}
+
+func (s SemanticMatchSpec) Helmfile() HelmfileSemanticSpec {
+	return HelmfileSemanticSpec{
+		Verb: s.Verb, VerbIn: s.VerbIn, Environment: s.Environment, EnvironmentIn: s.EnvironmentIn,
+		EnvironmentMissing: s.EnvironmentMissing, File: s.File, FileIn: s.FileIn, FilePrefix: s.FilePrefix,
+		FileMissing: s.FileMissing, Namespace: s.Namespace, NamespaceIn: s.NamespaceIn,
+		NamespaceMissing: s.NamespaceMissing, KubeContext: s.KubeContext, KubeContextIn: s.KubeContextIn,
+		KubeContextMissing: s.KubeContextMissing, Selector: s.Selector, SelectorIn: s.SelectorIn,
+		SelectorContains: s.SelectorContains, SelectorMissing: s.SelectorMissing, Interactive: s.Interactive,
+		DryRun: s.DryRun, Wait: s.Wait, WaitForJobs: s.WaitForJobs, SkipDiff: s.SkipDiff,
+		SkipNeeds: s.SkipNeeds, IncludeNeeds: s.IncludeNeeds, IncludeTransitiveNeeds: s.IncludeTransitiveNeeds,
+		Purge: s.Purge, Cascade: s.Cascade, CascadeIn: s.CascadeIn, DeleteWait: s.DeleteWait,
+		StateValuesFile: s.StateValuesFile, StateValuesFileIn: s.StateValuesFileIn,
+		StateValuesSetKeysContains:       s.StateValuesSetKeysContains,
+		StateValuesSetStringKeysContains: s.StateValuesSetStringKeysContains,
+		FlagsContains:                    s.FlagsContains, FlagsPrefixes: s.FlagsPrefixes,
+	}
+}
+
+func (s SemanticMatchSpec) ArgoCD() ArgoCDSemanticSpec {
+	return ArgoCDSemanticSpec{
+		Verb: s.Verb, VerbIn: s.VerbIn, AppName: s.AppName, AppNameIn: s.AppNameIn,
+		Project: s.Project, ProjectIn: s.ProjectIn, Revision: s.Revision,
+		FlagsContains: s.FlagsContains, FlagsPrefixes: s.FlagsPrefixes,
+	}
+}
+
 type Source struct {
 	Layer   string `json:"layer"`
 	Path    string `json:"path"`
@@ -1201,17 +1468,17 @@ func permissionEnvMatches(env PermissionEnvSpec, cmd commandpkg.Command) bool {
 func permissionSemanticMatches(command string, semantic SemanticMatchSpec, cmd commandpkg.Command) bool {
 	switch strings.TrimSpace(command) {
 	case "git":
-		return semantic.matchesGit(cmd)
+		return semantic.Git().matches(cmd)
 	case "aws":
-		return semantic.matchesAWS(cmd)
+		return semantic.AWS().matches(cmd)
 	case "kubectl":
-		return semantic.matchesKubectl(cmd)
+		return semantic.Kubectl().matches(cmd)
 	case "gh":
-		return semantic.matchesGh(cmd)
+		return semantic.GH().matches(cmd)
 	case "helmfile":
-		return semantic.matchesHelmfile(cmd)
+		return semantic.Helmfile().matches(cmd)
 	case "argocd":
-		return semantic.matchesArgoCD(cmd)
+		return semantic.ArgoCD().matches(cmd)
 	default:
 		return false
 	}
@@ -1486,27 +1753,27 @@ func (m MatchSpec) matches(cmd commandpkg.Command) bool {
 	if m.Semantic != nil {
 		switch m.Command {
 		case "git":
-			if !m.Semantic.matchesGit(cmd) {
+			if !m.Semantic.Git().matches(cmd) {
 				return false
 			}
 		case "aws":
-			if !m.Semantic.matchesAWS(cmd) {
+			if !m.Semantic.AWS().matches(cmd) {
 				return false
 			}
 		case "kubectl":
-			if !m.Semantic.matchesKubectl(cmd) {
+			if !m.Semantic.Kubectl().matches(cmd) {
 				return false
 			}
 		case "gh":
-			if !m.Semantic.matchesGh(cmd) {
+			if !m.Semantic.GH().matches(cmd) {
 				return false
 			}
 		case "helmfile":
-			if !m.Semantic.matchesHelmfile(cmd) {
+			if !m.Semantic.Helmfile().matches(cmd) {
 				return false
 			}
 		case "argocd":
-			if !m.Semantic.matchesArgoCD(cmd) {
+			if !m.Semantic.ArgoCD().matches(cmd) {
 				return false
 			}
 		default:
@@ -1516,7 +1783,7 @@ func (m MatchSpec) matches(cmd commandpkg.Command) bool {
 	return true
 }
 
-func (s SemanticMatchSpec) matchesGit(cmd commandpkg.Command) bool {
+func (s GitSemanticSpec) matches(cmd commandpkg.Command) bool {
 	if cmd.SemanticParser != "git" || cmd.Git == nil {
 		return false
 	}
@@ -1582,7 +1849,7 @@ func (s SemanticMatchSpec) matchesGit(cmd commandpkg.Command) bool {
 	return true
 }
 
-func (s SemanticMatchSpec) matchesAWS(cmd commandpkg.Command) bool {
+func (s AWSSemanticSpec) matches(cmd commandpkg.Command) bool {
 	if cmd.SemanticParser != "aws" || cmd.AWS == nil {
 		return false
 	}
@@ -1640,7 +1907,7 @@ func (s SemanticMatchSpec) matchesAWS(cmd commandpkg.Command) bool {
 	return true
 }
 
-func (s SemanticMatchSpec) matchesKubectl(cmd commandpkg.Command) bool {
+func (s KubectlSemanticSpec) matches(cmd commandpkg.Command) bool {
 	if cmd.SemanticParser != "kubectl" || cmd.Kubectl == nil {
 		return false
 	}
@@ -1740,7 +2007,7 @@ func (s SemanticMatchSpec) matchesKubectl(cmd commandpkg.Command) bool {
 	return true
 }
 
-func (s SemanticMatchSpec) matchesGh(cmd commandpkg.Command) bool {
+func (s GHSemanticSpec) matches(cmd commandpkg.Command) bool {
 	if cmd.SemanticParser != "gh" || cmd.Gh == nil {
 		return false
 	}
@@ -1946,7 +2213,7 @@ func (s SemanticMatchSpec) matchesGh(cmd commandpkg.Command) bool {
 	return true
 }
 
-func (s SemanticMatchSpec) matchesArgoCD(cmd commandpkg.Command) bool {
+func (s ArgoCDSemanticSpec) matches(cmd commandpkg.Command) bool {
 	if cmd.SemanticParser != "argocd" || cmd.ArgoCD == nil {
 		return false
 	}
@@ -1985,7 +2252,7 @@ func (s SemanticMatchSpec) matchesArgoCD(cmd commandpkg.Command) bool {
 	return true
 }
 
-func (s SemanticMatchSpec) matchesHelmfile(cmd commandpkg.Command) bool {
+func (s HelmfileSemanticSpec) matches(cmd commandpkg.Command) bool {
 	if cmd.SemanticParser != "helmfile" || cmd.Helmfile == nil {
 		return false
 	}
@@ -2774,8 +3041,12 @@ func unsupportedSemanticCommandIssue(prefix, command string) string {
 }
 
 func ValidateGitSemanticMatchSpec(prefix string, semantic SemanticMatchSpec) []string {
+	return ValidateGitSemanticSpec(prefix, semantic.Git())
+}
+
+func ValidateGitSemanticSpec(prefix string, semantic GitSemanticSpec) []string {
 	var issues []string
-	if IsZeroSemanticMatchSpec(semantic) {
+	if IsZeroGitSemanticSpec(semantic) {
 		issues = append(issues, prefix+" must not be empty")
 	}
 	if strings.TrimSpace(semantic.Verb) == "" && semantic.Verb != "" {
@@ -2800,8 +3071,12 @@ func ValidateGitSemanticMatchSpec(prefix string, semantic SemanticMatchSpec) []s
 }
 
 func ValidateAWSSemanticMatchSpec(prefix string, semantic SemanticMatchSpec) []string {
+	return ValidateAWSSemanticSpec(prefix, semantic.AWS())
+}
+
+func ValidateAWSSemanticSpec(prefix string, semantic AWSSemanticSpec) []string {
 	var issues []string
-	if IsZeroSemanticMatchSpec(semantic) {
+	if IsZeroAWSSemanticSpec(semantic) {
 		issues = append(issues, prefix+" must not be empty")
 	}
 	if strings.TrimSpace(semantic.Service) == "" && semantic.Service != "" {
@@ -2832,8 +3107,12 @@ func ValidateAWSSemanticMatchSpec(prefix string, semantic SemanticMatchSpec) []s
 }
 
 func ValidateKubectlSemanticMatchSpec(prefix string, semantic SemanticMatchSpec) []string {
+	return ValidateKubectlSemanticSpec(prefix, semantic.Kubectl())
+}
+
+func ValidateKubectlSemanticSpec(prefix string, semantic KubectlSemanticSpec) []string {
 	var issues []string
-	if IsZeroSemanticMatchSpec(semantic) {
+	if IsZeroKubectlSemanticSpec(semantic) {
 		issues = append(issues, prefix+" must not be empty")
 	}
 	if strings.TrimSpace(semantic.Verb) == "" && semantic.Verb != "" {
@@ -2883,8 +3162,12 @@ func ValidateKubectlSemanticMatchSpec(prefix string, semantic SemanticMatchSpec)
 }
 
 func ValidateGhSemanticMatchSpec(prefix string, semantic SemanticMatchSpec) []string {
+	return ValidateGHSemanticSpec(prefix, semantic.GH())
+}
+
+func ValidateGHSemanticSpec(prefix string, semantic GHSemanticSpec) []string {
 	var issues []string
-	if IsZeroSemanticMatchSpec(semantic) {
+	if IsZeroGHSemanticSpec(semantic) {
 		issues = append(issues, prefix+" must not be empty")
 	}
 	for name, value := range map[string]string{
@@ -2943,8 +3226,12 @@ func ValidateGhSemanticMatchSpec(prefix string, semantic SemanticMatchSpec) []st
 }
 
 func ValidateArgoCDSemanticMatchSpec(prefix string, semantic SemanticMatchSpec) []string {
+	return ValidateArgoCDSemanticSpec(prefix, semantic.ArgoCD())
+}
+
+func ValidateArgoCDSemanticSpec(prefix string, semantic ArgoCDSemanticSpec) []string {
 	var issues []string
-	if IsZeroSemanticMatchSpec(semantic) {
+	if IsZeroArgoCDSemanticSpec(semantic) {
 		issues = append(issues, prefix+" must not be empty")
 	}
 	for name, value := range map[string]string{
@@ -2966,8 +3253,12 @@ func ValidateArgoCDSemanticMatchSpec(prefix string, semantic SemanticMatchSpec) 
 }
 
 func ValidateHelmfileSemanticMatchSpec(prefix string, semantic SemanticMatchSpec) []string {
+	return ValidateHelmfileSemanticSpec(prefix, semantic.Helmfile())
+}
+
+func ValidateHelmfileSemanticSpec(prefix string, semantic HelmfileSemanticSpec) []string {
 	var issues []string
-	if IsZeroSemanticMatchSpec(semantic) {
+	if IsZeroHelmfileSemanticSpec(semantic) {
 		issues = append(issues, prefix+" must not be empty")
 	}
 	for name, value := range map[string]string{
@@ -3102,6 +3393,89 @@ func IsZeroSemanticMatchSpec(semantic SemanticMatchSpec) bool {
 	return !hasGitSemanticFields(semantic) && !hasAWSSemanticFields(semantic) && !hasKubectlSemanticFields(semantic) && !hasGhSemanticFields(semantic) && !hasHelmfileSemanticFields(semantic) && !hasArgoCDSemanticFields(semantic) &&
 		len(semantic.FlagsContains) == 0 &&
 		len(semantic.FlagsPrefixes) == 0
+}
+
+func IsZeroGitSemanticSpec(semantic GitSemanticSpec) bool {
+	return semantic.Verb == "" && len(semantic.VerbIn) == 0 &&
+		semantic.Remote == "" && len(semantic.RemoteIn) == 0 &&
+		semantic.Branch == "" && len(semantic.BranchIn) == 0 &&
+		semantic.Ref == "" && len(semantic.RefIn) == 0 &&
+		semantic.Force == nil && semantic.ForceWithLease == nil && semantic.ForceIfIncludes == nil &&
+		semantic.Hard == nil && semantic.Recursive == nil && semantic.IncludeIgnored == nil &&
+		semantic.Cached == nil && semantic.Staged == nil &&
+		len(semantic.FlagsContains) == 0 && len(semantic.FlagsPrefixes) == 0
+}
+
+func IsZeroAWSSemanticSpec(semantic AWSSemanticSpec) bool {
+	return semantic.Service == "" && len(semantic.ServiceIn) == 0 &&
+		semantic.Operation == "" && len(semantic.OperationIn) == 0 &&
+		semantic.Profile == "" && len(semantic.ProfileIn) == 0 &&
+		semantic.Region == "" && len(semantic.RegionIn) == 0 &&
+		semantic.EndpointURL == "" && semantic.EndpointURLPrefix == "" &&
+		semantic.DryRun == nil && semantic.NoCLIPager == nil &&
+		len(semantic.FlagsContains) == 0 && len(semantic.FlagsPrefixes) == 0
+}
+
+func IsZeroKubectlSemanticSpec(semantic KubectlSemanticSpec) bool {
+	return semantic.Verb == "" && len(semantic.VerbIn) == 0 &&
+		semantic.Subverb == "" && len(semantic.SubverbIn) == 0 &&
+		semantic.ResourceType == "" && len(semantic.ResourceTypeIn) == 0 &&
+		semantic.ResourceName == "" && len(semantic.ResourceNameIn) == 0 &&
+		semantic.Namespace == "" && len(semantic.NamespaceIn) == 0 && semantic.NamespaceMissing == nil &&
+		semantic.Context == "" && len(semantic.ContextIn) == 0 &&
+		semantic.Kubeconfig == "" && semantic.AllNamespaces == nil &&
+		semantic.Filename == "" && len(semantic.FilenameIn) == 0 && semantic.FilenamePrefix == "" &&
+		semantic.Selector == "" && len(semantic.SelectorIn) == 0 && len(semantic.SelectorContains) == 0 &&
+		semantic.SelectorMissing == nil && semantic.Container == "" &&
+		semantic.DryRun == nil && semantic.Force == nil && semantic.Recursive == nil &&
+		len(semantic.FlagsContains) == 0 && len(semantic.FlagsPrefixes) == 0
+}
+
+func IsZeroGHSemanticSpec(semantic GHSemanticSpec) bool {
+	return semantic.Area == "" && len(semantic.AreaIn) == 0 &&
+		semantic.Verb == "" && len(semantic.VerbIn) == 0 &&
+		semantic.Repo == "" && len(semantic.RepoIn) == 0 &&
+		semantic.Org == "" && len(semantic.OrgIn) == 0 &&
+		semantic.EnvName == "" && len(semantic.EnvNameIn) == 0 &&
+		semantic.Hostname == "" && len(semantic.HostnameIn) == 0 &&
+		semantic.Web == nil && semantic.Method == "" && len(semantic.MethodIn) == 0 &&
+		semantic.Endpoint == "" && semantic.EndpointPrefix == "" && len(semantic.EndpointContains) == 0 &&
+		semantic.Paginate == nil && semantic.Input == nil && semantic.Silent == nil && semantic.IncludeHeaders == nil &&
+		len(semantic.FieldKeysContains) == 0 && len(semantic.RawFieldKeysContains) == 0 && len(semantic.HeaderKeysContains) == 0 &&
+		semantic.PRNumber == "" && semantic.IssueNumber == "" && semantic.SecretName == "" && len(semantic.SecretNameIn) == 0 &&
+		semantic.Tag == "" && semantic.WorkflowName == "" && semantic.WorkflowID == "" &&
+		semantic.SearchType == "" && len(semantic.SearchTypeIn) == 0 && semantic.QueryContains == "" &&
+		semantic.Base == "" && semantic.Head == "" && semantic.Ref == "" && len(semantic.RefIn) == 0 &&
+		semantic.State == "" && len(semantic.StateIn) == 0 && len(semantic.LabelIn) == 0 && len(semantic.AssigneeIn) == 0 &&
+		semantic.TitleContains == "" && semantic.BodyContains == "" &&
+		semantic.Draft == nil && semantic.Prerelease == nil && semantic.Latest == nil && semantic.Fill == nil &&
+		semantic.Force == nil && semantic.Admin == nil && semantic.Auto == nil && semantic.DeleteBranch == nil &&
+		semantic.MergeStrategy == "" && len(semantic.MergeStrategyIn) == 0 &&
+		semantic.RunID == "" && semantic.Failed == nil && semantic.Job == "" && semantic.Debug == nil && semantic.ExitStatus == nil &&
+		len(semantic.FlagsContains) == 0 && len(semantic.FlagsPrefixes) == 0
+}
+
+func IsZeroHelmfileSemanticSpec(semantic HelmfileSemanticSpec) bool {
+	return semantic.Verb == "" && len(semantic.VerbIn) == 0 &&
+		semantic.Environment == "" && len(semantic.EnvironmentIn) == 0 && semantic.EnvironmentMissing == nil &&
+		semantic.File == "" && len(semantic.FileIn) == 0 && semantic.FilePrefix == "" && semantic.FileMissing == nil &&
+		semantic.Namespace == "" && len(semantic.NamespaceIn) == 0 && semantic.NamespaceMissing == nil &&
+		semantic.KubeContext == "" && len(semantic.KubeContextIn) == 0 && semantic.KubeContextMissing == nil &&
+		semantic.Selector == "" && len(semantic.SelectorIn) == 0 && len(semantic.SelectorContains) == 0 && semantic.SelectorMissing == nil &&
+		semantic.Interactive == nil && semantic.DryRun == nil && semantic.Wait == nil && semantic.WaitForJobs == nil &&
+		semantic.SkipDiff == nil && semantic.SkipNeeds == nil && semantic.IncludeNeeds == nil && semantic.IncludeTransitiveNeeds == nil &&
+		semantic.Purge == nil && semantic.Cascade == "" && len(semantic.CascadeIn) == 0 && semantic.DeleteWait == nil &&
+		semantic.StateValuesFile == "" && len(semantic.StateValuesFileIn) == 0 &&
+		len(semantic.StateValuesSetKeysContains) == 0 && len(semantic.StateValuesSetStringKeysContains) == 0 &&
+		len(semantic.FlagsContains) == 0 && len(semantic.FlagsPrefixes) == 0
+}
+
+func IsZeroArgoCDSemanticSpec(semantic ArgoCDSemanticSpec) bool {
+	return semantic.Verb == "" && len(semantic.VerbIn) == 0 &&
+		semantic.AppName == "" && len(semantic.AppNameIn) == 0 &&
+		semantic.Project == "" && len(semantic.ProjectIn) == 0 &&
+		semantic.Revision == "" &&
+		len(semantic.FlagsContains) == 0 && len(semantic.FlagsPrefixes) == 0
 }
 
 func hasGitSemanticFields(semantic SemanticMatchSpec) bool {

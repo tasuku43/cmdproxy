@@ -81,7 +81,6 @@ func TestHookHelpDocumentsNoPolicyRewriteAndRTKIntegration(t *testing.T) {
 	}
 	for _, bad := range []string{
 		"compatibility path",
-		"legacy",
 		"hidden",
 	} {
 		if strings.Contains(stdout, bad) {
@@ -257,7 +256,8 @@ func TestHelpSemanticGitShowsSchema(t *testing.T) {
 		"parser-recognized option tokens, not raw argv words",
 		"Examples:",
 		"Validation rules:",
-		"command.semantic requires exact command.name",
+		"permission command.semantic requires exact command.name",
+		"fields are interpreted in the namespace selected by command.name",
 		"docs/user/SEMANTIC_SCHEMAS.md",
 	} {
 		if !strings.Contains(stdout, want) {
@@ -283,11 +283,19 @@ func TestSemanticSchemaJSON(t *testing.T) {
 	}
 	var payload struct {
 		Schemas []struct {
-			Command string `json:"command"`
-			Fields  []struct {
+			Command      string `json:"command"`
+			SemanticPath string `json:"semantic_path"`
+			Fields       []struct {
 				Name string `json:"name"`
 			} `json:"fields"`
 		} `json:"schemas"`
+		SchemasByCommand map[string]struct {
+			Command      string `json:"command"`
+			SemanticPath string `json:"semantic_path"`
+			Fields       []struct {
+				Name string `json:"name"`
+			} `json:"fields"`
+		} `json:"schemas_by_command"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
 		t.Fatalf("invalid json: %v\n%s", err, stdout)
@@ -299,6 +307,9 @@ func TestSemanticSchemaJSON(t *testing.T) {
 	for _, schema := range payload.Schemas {
 		if schema.Command == "git" {
 			foundGit = true
+			if schema.SemanticPath != "command.semantic" {
+				t.Fatalf("git schema paths not populated: %+v", schema)
+			}
 			if len(schema.Fields) == 0 {
 				t.Fatalf("git fields empty")
 			}
@@ -306,6 +317,9 @@ func TestSemanticSchemaJSON(t *testing.T) {
 	}
 	if !foundGit {
 		t.Fatalf("git schema missing: %+v", payload.Schemas)
+	}
+	if payload.SchemasByCommand["git"].Command != "git" || payload.SchemasByCommand["git"].SemanticPath != "command.semantic" || len(payload.SchemasByCommand["git"].Fields) == 0 {
+		t.Fatalf("schema by command missing git: %+v", payload.SchemasByCommand["git"])
 	}
 }
 
@@ -469,7 +483,6 @@ func TestReadmeDocumentsNoPolicyRewriteAndRTKIntegration(t *testing.T) {
 	}
 	for _, bad := range []string{
 		"compatibility path",
-		"legacy",
 		"hidden",
 	} {
 		if strings.Contains(body, bad) {

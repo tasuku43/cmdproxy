@@ -207,6 +207,10 @@ permission:
 `message` is surfaced as Claude Code's permission decision reason when a rule
 determines `allow`, `ask`, or `deny`.
 
+`command.name` selects the semantic parser. Fields under `command.semantic`
+are interpreted in that parser's namespace, so no extra tool-name nesting under
+`semantic` is required.
+
 Use `patterns` for commands without a semantic parser, including read-only
 basics such as `ls`, `cat`, `grep`, `head`, `tail`, and `pwd`. Patterns match
 the original command string and each parsed command element, including shell

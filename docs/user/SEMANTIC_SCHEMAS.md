@@ -4,6 +4,19 @@ Semantic matching lets policy match parsed command meaning instead of only raw
 text. Semantic fields are command-specific, and the schema is selected by
 `command.name`.
 
+Semantic fields live directly under `command.semantic`; `command.name` selects
+which parser namespace validates those fields:
+
+```yaml
+permission:
+  deny:
+    - command:
+        name: git
+        semantic:
+          verb: push
+          force: true
+```
+
 Inspect the installed registry:
 
 ```sh
@@ -41,6 +54,9 @@ without a semantic schema should use `patterns`.
 Unsupported semantic fields fail `verify` and include the supported fields for
 that command. Unsupported value types fail `verify`; for example, `force:
 "true"` is rejected because `force` must be a bool.
+
+Semantic rules must set `command.name`; nested tool-name forms are rejected
+because the command name is already the discriminator.
 
 ## Flags Fields
 
