@@ -38,6 +38,9 @@ func RunVerifyWithOptions(env Env, opts VerifyOptions) VerifyResult {
 			failures = append(failures, VerifyDiagnostic{Kind: "verify_check_failed", Title: "Verify check failed", Message: reason})
 		}
 	}
+	if len(failures) > 0 {
+		ok = false
+	}
 	if ok {
 		rules, err := configrepo.VerifyEffectiveToAllCaches(env.Cwd, env.Home, env.XDGConfigHome, env.XDGCacheHome, tool, info.Version)
 		if err != nil {
@@ -49,9 +52,6 @@ func RunVerifyWithOptions(env Env, opts VerifyOptions) VerifyResult {
 			permissionRules = len(rules.Permission.Deny) + len(rules.Permission.Ask) + len(rules.Permission.Allow)
 			tests = len(rules.Test)
 		}
-	}
-	if len(failures) > 0 {
-		ok = false
 	}
 	summary := VerifySummary{
 		ConfigFiles:     len(inputs.ConfigFiles),
@@ -119,6 +119,15 @@ func verifyFailures(loaded configrepo.Loaded, tool string, cwd string, home stri
 	for _, failure := range doctoring.CollectTestFailures(loaded.Pipeline, tool, cwd, home, all) {
 		failures = append(failures, diagnosticFromTestFailure(failure))
 	}
+	failures = append(failures, verifyPolicyFailures(loaded)...)
+	return failures
+}
+
+func verifyPolicyFailures(loaded configrepo.Loaded) []VerifyDiagnostic {
+	var failures []VerifyDiagnostic
+	for _, rule := range loaded.Pipeline.Permission.Allow {
+		failures = append(failures, broadAllowPatternFailures(rule)...)
+	}
 	return failures
 }
 
@@ -133,23 +142,22 @@ func verifyWarnings(loaded configrepo.Loaded) []VerifyDiagnostic {
 				Message: "env-only allow can allow any command when env matches",
 			})
 		}
-		warnings = append(warnings, broadAllowPatternWarnings(rule)...)
 	}
 	warnings = append(warnings, duplicateRuleNameWarnings(loaded.Pipeline)...)
 	return warnings
 }
 
-func broadAllowPatternWarnings(rule policy.PermissionRuleSpec) []VerifyDiagnostic {
-	var warnings []VerifyDiagnostic
+func broadAllowPatternFailures(rule policy.PermissionRuleSpec) []VerifyDiagnostic {
+	var failures []VerifyDiagnostic
 	for _, pattern := range rule.Patterns {
-		if warning, ok := broadAllowPatternWarning(rule, pattern); ok {
-			warnings = append(warnings, warning)
+		if failure, ok := broadAllowPatternFailure(rule, pattern); ok {
+			failures = append(failures, failure)
 		}
 	}
-	return warnings
+	return failures
 }
 
-func broadAllowPatternWarning(rule policy.PermissionRuleSpec, pattern string) (VerifyDiagnostic, bool) {
+func broadAllowPatternFailure(rule policy.PermissionRuleSpec, pattern string) (VerifyDiagnostic, bool) {
 	p := strings.TrimSpace(pattern)
 	var reasons []string
 

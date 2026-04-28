@@ -189,4 +189,5 @@ test:
 
 Avoid broad allow rules such as `.*`, `^terraform\\s+`, or `^npm\\s+`. They can
 allow destructive subcommands or commands that invoke scripts and plugins that
-cc-bash-guard does not deeply inspect.
+cc-bash-guard does not deeply inspect, and `cc-bash-guard verify` fails them by
+default.

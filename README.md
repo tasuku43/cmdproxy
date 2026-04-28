@@ -417,11 +417,11 @@ When you do need `patterns`, keep them narrow:
   that cc-bash-guard does not deeply inspect, such as `npm run lint` or
   `make test`
 
-`cc-bash-guard verify` warns about broad `permission.allow[*].patterns`, such
-as unanchored regexes, whole tool namespaces, and broad wildcards that can
-match shell metacharacters. These warnings do not reject the policy; they point
-to `command.name_in`, `command.semantic` for supported commands, or to narrower
-anchored regexes.
+`cc-bash-guard verify` fails on broad `permission.allow[*].patterns`, such as
+unanchored regexes, whole tool namespaces, and broad wildcards that can match
+shell metacharacters. Fix them by using `command.name_in`, `command.semantic`
+for supported commands, or narrower anchored regexes that exclude shell
+metacharacters.
 
 Use top-level `test` entries with `cc-bash-guard verify` to pin both safe and
 unsafe examples:

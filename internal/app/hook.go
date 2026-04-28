@@ -47,6 +47,12 @@ func shouldAttemptImplicitVerify(errs []error) bool {
 }
 
 func ensureVerifiedArtifacts(env Env, tool string) error {
+	loaded := configrepo.LoadEffectiveForTool(env.Cwd, env.Home, env.XDGConfigHome, tool)
+	if len(loaded.Errors) == 0 {
+		if failures := verifyPolicyFailures(loaded); len(failures) > 0 {
+			return fmt.Errorf("%s: %s", failures[0].Title, failures[0].Message)
+		}
+	}
 	info := buildinfo.Read()
 	_, err := configrepo.VerifyEffectiveToAllCaches(env.Cwd, env.Home, env.XDGConfigHome, env.XDGCacheHome, tool, info.Version)
 	return err

@@ -34,6 +34,9 @@ part of the execution path?**
   executable
 - for Claude, fail if Claude Code points at a different `cc-bash-guard` binary than the one
   currently being verified
+- fail on broad `permission.allow[*].patterns`, including unanchored regexes,
+  whole command namespaces, and broad wildcards that can match shell
+  metacharacters
 
 It should not require the target tool to be installed. If no tool settings file
 is present, that condition should remain informational rather than fatal.
@@ -55,6 +58,8 @@ The default output should include:
   source decisions, and matched rule
 - semantic validation details: command, field, expected/actual type when
   applicable, supported fields, and a help hint
+- broad allow pattern failure details: source, rule name when available,
+  pattern, reason, hint, and safer alternative
 - a separate warnings section
 
 Human output may use color for terminal output. Color must be disabled for JSON,

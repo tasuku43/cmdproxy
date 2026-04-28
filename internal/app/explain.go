@@ -111,6 +111,8 @@ func loadVerifiedPipelineForEvaluation(env Env, autoVerify bool) (configrepo.Loa
 		}
 		if err := ensureVerifiedArtifacts(env, claude.Tool); err == nil {
 			loaded = configrepo.LoadEffectiveForHookTool(env.Cwd, env.Home, env.XDGConfigHome, env.XDGCacheHome, claude.Tool)
+		} else {
+			return loaded, err
 		}
 	}
 	if len(loaded.Errors) > 0 {

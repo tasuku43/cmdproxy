@@ -45,11 +45,11 @@ test failure, check:
 - `decisions`: cc-bash-guard policy, Claude settings, and final merged decision
 - `matched rule`: YAML file, bucket, index, name, and message when available
 
-Warnings are shown separately from failures. Duplicate rule names, broad
-env-only allow rules, and broad `permission.allow[*].patterns` rules are
-warnings; they do not fail verification by themselves. Broad pattern warnings
-call out unanchored regexes, whole command namespaces such as `^aws`, and
-wildcards that can match shell metacharacters too broadly.
+Warnings are shown separately from failures. Duplicate rule names and broad
+env-only allow rules are warnings; they do not fail verification by themselves.
+Broad `permission.allow[*].patterns` are failures by default when a regex is
+unanchored, allows a whole command namespace such as `^aws`, or uses wildcards
+that can match shell metacharacters too broadly.
 
 Use JSON output for tooling:
 

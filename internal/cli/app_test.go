@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -1662,6 +1663,47 @@ test:
 	}
 }
 
+func TestRunHookClaudeAutoVerifyDoesNotBuildArtifactForBroadAllowPattern(t *testing.T) {
+	home := t.TempDir()
+	writeUserConfig(t, home, `permission:
+  allow:
+    - name: broad aws fallback
+      patterns:
+        - "^aws\\s+.*"
+      test:
+        allow:
+          - "aws sts get-caller-identity"
+        pass:
+          - "git status"
+`)
+
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"hook", "--auto-verify"}, Streams{
+		Stdin:  strings.NewReader(`{"tool_name":"Bash","tool_input":{"command":"aws sts get-caller-identity"}}`),
+		Stdout: &stdout,
+		Stderr: &stderr,
+	}, Env{Cwd: t.TempDir(), Home: home})
+	if code != 0 {
+		t.Fatalf("code = %d stderr=%s", code, stderr.String())
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("json error: %v stdout=%s", err, stdout.String())
+	}
+	hookOut := payload["hookSpecificOutput"].(map[string]any)
+	if hookOut["permissionDecision"] != "deny" {
+		t.Fatalf("payload = %+v", payload)
+	}
+	reason, _ := hookOut["permissionDecisionReason"].(string)
+	if !strings.Contains(reason, "Broad allow pattern") || !strings.Contains(reason, "allow.patterns rule is broad") {
+		t.Fatalf("reason = %q", reason)
+	}
+	if entries, err := os.ReadDir(configrepo.HookCacheDir(home, "")); err == nil && len(entries) > 0 {
+		t.Fatalf("expected no auto-verify artifact, entries=%v", entries)
+	}
+}
+
 func TestRunHookClaudeStructuredAllowFailsClosedOnCompoundCommand(t *testing.T) {
 	home := t.TempDir()
 	writeUserConfig(t, home, `permission:
@@ -2212,7 +2254,7 @@ test:
 	}
 }
 
-func TestRunVerifyBroadAllowPatternWarningHuman(t *testing.T) {
+func TestRunVerifyBroadAllowPatternFailureHuman(t *testing.T) {
 	cwd := t.TempDir()
 	writeProjectConfig(t, cwd, `permission:
   allow:
@@ -2229,13 +2271,13 @@ test:
 
 	var stdout, stderr bytes.Buffer
 	code := Run([]string{"verify"}, Streams{Stdout: &stdout, Stderr: &stderr}, Env{Cwd: cwd, Home: t.TempDir()})
-	if code != 0 {
+	if code == 0 {
 		t.Fatalf("code = %d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
 	out := stdout.String()
 	for _, want := range []string{
-		"PASS verify",
-		"WARN warnings: 1",
+		"FAIL verify",
+		"failures: 1",
 		"Broad allow pattern",
 		`pattern: ^aws`,
 		`.cc-bash-guard/cc-bash-guard.yaml permission.allow[0] "broad aws fallback"`,
@@ -2250,7 +2292,7 @@ test:
 	}
 }
 
-func TestRunVerifySafeAnchoredReadOnlyPatternDoesNotWarn(t *testing.T) {
+func TestRunVerifySafeAnchoredReadOnlyPatternDoesNotFailOrWarn(t *testing.T) {
 	home := t.TempDir()
 	writeUserConfig(t, home, `permission:
   allow:
@@ -2284,7 +2326,7 @@ test:
 	}
 }
 
-func TestRunVerifyBroadDenyAndAskPatternsDoNotWarn(t *testing.T) {
+func TestRunVerifyBroadDenyAndAskPatternsDoNotFailOrWarn(t *testing.T) {
 	home := t.TempDir()
 	writeUserConfig(t, home, `permission:
   deny:
@@ -2325,7 +2367,7 @@ test:
 	}
 }
 
-func TestRunVerifyBroadAllowPatternWarningJSONShape(t *testing.T) {
+func TestRunVerifyBroadAllowPatternFailureJSONShape(t *testing.T) {
 	cwd := t.TempDir()
 	writeProjectConfig(t, cwd, `permission:
   allow:
@@ -2342,15 +2384,17 @@ test:
 
 	var stdout, stderr bytes.Buffer
 	code := Run([]string{"verify", "--format", "json"}, Streams{Stdout: &stdout, Stderr: &stderr}, Env{Cwd: cwd, Home: t.TempDir()})
-	if code != 0 {
+	if code == 0 {
 		t.Fatalf("code = %d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
 	var payload struct {
 		OK      bool `json:"ok"`
 		Summary struct {
+			Failures int `json:"failures"`
 			Warnings int `json:"warnings"`
 		} `json:"summary"`
-		Warnings []struct {
+		ArtifactBuilt bool `json:"artifact_built"`
+		Failures      []struct {
 			Kind             string           `json:"kind"`
 			Title            string           `json:"title"`
 			Source           app.VerifySource `json:"source"`
@@ -2359,29 +2403,128 @@ test:
 			Reason           string           `json:"reason"`
 			Hint             string           `json:"hint"`
 			SaferAlternative string           `json:"safer_alternative"`
-		} `json:"warnings"`
+		} `json:"failures"`
 	}
 	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
 		t.Fatalf("json error: %v stdout=%s", err, stdout.String())
 	}
-	if !payload.OK || payload.Summary.Warnings != 1 || len(payload.Warnings) != 1 {
+	if payload.OK || payload.Summary.Failures != 1 || payload.Summary.Warnings != 0 || len(payload.Failures) != 1 || payload.ArtifactBuilt {
 		t.Fatalf("payload=%+v", payload)
 	}
-	warning := payload.Warnings[0]
-	if warning.Kind != "broad_allow_pattern" ||
-		warning.Title != "Broad allow pattern" ||
-		warning.Pattern != `^terraform\s+.*` ||
-		warning.Source.Section != "permission" ||
-		warning.Source.Bucket != "allow" ||
-		warning.Source.Index != 0 ||
-		warning.Source.Name != "broad terraform fallback" ||
-		!strings.Contains(warning.Source.File, ".cc-bash-guard/cc-bash-guard.yaml") ||
-		!strings.Contains(warning.Message, "allow.patterns rule is broad") ||
-		!strings.Contains(warning.Reason, "terraform command namespace") ||
-		!strings.Contains(warning.Reason, "shell metacharacters") ||
-		!strings.Contains(warning.Hint, "narrower regex") ||
-		warning.SaferAlternative == "" {
-		t.Fatalf("warning=%+v", warning)
+	failure := payload.Failures[0]
+	if failure.Kind != "broad_allow_pattern" ||
+		failure.Title != "Broad allow pattern" ||
+		failure.Pattern != `^terraform\s+.*` ||
+		failure.Source.Section != "permission" ||
+		failure.Source.Bucket != "allow" ||
+		failure.Source.Index != 0 ||
+		failure.Source.Name != "broad terraform fallback" ||
+		!strings.Contains(failure.Source.File, ".cc-bash-guard/cc-bash-guard.yaml") ||
+		!strings.Contains(failure.Message, "allow.patterns rule is broad") ||
+		!strings.Contains(failure.Reason, "terraform command namespace") ||
+		!strings.Contains(failure.Reason, "shell metacharacters") ||
+		!strings.Contains(failure.Hint, "narrower regex") ||
+		failure.SaferAlternative == "" {
+		t.Fatalf("failure=%+v", failure)
+	}
+}
+
+func TestRunVerifyBroadAllowPatternFailures(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		pattern     string
+		allow       string
+		pass        string
+		wantReasons []string
+	}{
+		{
+			name:        "match any",
+			pattern:     `.*`,
+			allow:       "aws sts get-caller-identity",
+			pass:        "git status",
+			wantReasons: []string{"matches nearly any command", "not anchored", "shell metacharacters"},
+		},
+		{
+			name:        "unanchored",
+			pattern:     `aws sts get-caller-identity`,
+			allow:       "aws sts get-caller-identity",
+			pass:        "git status",
+			wantReasons: []string{"not anchored"},
+		},
+		{
+			name:        "broad aws namespace",
+			pattern:     `^aws\s+.*`,
+			allow:       "aws sts get-caller-identity",
+			pass:        "git status",
+			wantReasons: []string{"aws command namespace", "shell metacharacters"},
+		},
+		{
+			name:        "broad kubectl namespace",
+			pattern:     `^kubectl\s+.*`,
+			allow:       "kubectl get pods",
+			pass:        "git status",
+			wantReasons: []string{"kubectl command namespace", "shell metacharacters"},
+		},
+		{
+			name:        "broad git namespace",
+			pattern:     `^git\b.*`,
+			allow:       "git status",
+			pass:        "aws sts get-caller-identity",
+			wantReasons: []string{"git command namespace", "shell metacharacters"},
+		},
+		{
+			name:        "wildcard crosses shell metacharacters",
+			pattern:     `^python\s+.*$`,
+			allow:       "python -m pytest",
+			pass:        "git status",
+			wantReasons: []string{"shell metacharacters"},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cwd := t.TempDir()
+			writeProjectConfig(t, cwd, `permission:
+  allow:
+    - name: broad fallback
+      patterns:
+        - `+strconv.Quote(tt.pattern)+`
+      test:
+        allow:
+          - `+strconv.Quote(tt.allow)+`
+        pass:
+          - `+strconv.Quote(tt.pass)+`
+`)
+
+			var stdout, stderr bytes.Buffer
+			code := Run([]string{"verify", "--format", "json"}, Streams{Stdout: &stdout, Stderr: &stderr}, Env{Cwd: cwd, Home: t.TempDir()})
+			if code == 0 {
+				t.Fatalf("code = %d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
+			}
+			var payload struct {
+				OK       bool                   `json:"ok"`
+				Failures []app.VerifyDiagnostic `json:"failures"`
+			}
+			if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+				t.Fatalf("json error: %v stdout=%s", err, stdout.String())
+			}
+			if payload.OK {
+				t.Fatalf("payload=%+v", payload)
+			}
+			var failure app.VerifyDiagnostic
+			for _, got := range payload.Failures {
+				if got.Kind == "broad_allow_pattern" {
+					failure = got
+					break
+				}
+			}
+			if failure.Kind == "" {
+				t.Fatalf("missing broad_allow_pattern failure: %+v", payload)
+			}
+			for _, want := range tt.wantReasons {
+				if !strings.Contains(failure.Reason, want) {
+					t.Fatalf("reason missing %q: %+v", want, failure)
+				}
+			}
+		})
 	}
 }
 

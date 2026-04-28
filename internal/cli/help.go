@@ -147,8 +147,8 @@ Output:
   ANSI color. NO_COLOR and TERM=dumb disable color for human output.
   Use top-level test entries to cover both allowed examples and near misses,
   especially for patterns fallback rules. See docs/user/EXAMPLES.md.
-  Verify also warns on broad allow.patterns, including unanchored regexes,
-  whole command namespaces such as ^aws, and broad shell-metacharacter matches.
+  Verify fails on broad allow.patterns, including unanchored regexes, whole
+  command namespaces such as ^aws, and broad shell-metacharacter matches.
 
 Semantic diagnostics:
   Unsupported semantic fields and invalid semantic types include the command,
@@ -456,7 +456,9 @@ Regex pattern not matching:
 Broad pattern allow rules:
   Avoid broad allow patterns such as .*, ^aws\\s+, ^terraform\\s+, or ^npm\\s+.
   Allowed commands may invoke scripts, plugins, or subcommands that are not
-  deeply inspected. Add top-level tests and run cc-bash-guard verify.
+  deeply inspected. Verify fails these broad allow patterns by default. Prefer
+  command.name_in, command.semantic, or narrow anchored regexes that exclude
+  shell metacharacters.
 
 AWS profile style:
   Prefer AWS_PROFILE=myprof aws eks list-clusters in project guidance. The AWS
