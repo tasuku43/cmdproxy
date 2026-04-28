@@ -99,8 +99,8 @@ The runtime outcomes are:
 reason is user-facing.
 
 `updatedInput.command` is emitted only for the explicit `--rtk` integration when
-external RTK returns a different command. cc-bash-guard policy evaluation does
-not rewrite commands.
+external RTK returns a different command after a non-`deny` decision.
+cc-bash-guard policy evaluation and the default hook do not rewrite commands.
 
 ## 4. Exit Codes
 

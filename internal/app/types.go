@@ -18,8 +18,9 @@ type HookResult struct {
 
 type HookOptions struct {
 	AutoVerify bool
-	// UseRTK delegates to external RTK after permission evaluation. This keeps
-	// RTK coexistence in one hook but is not cc-bash-guard policy rewriting.
+	// UseRTK optionally delegates to external RTK after a non-deny permission
+	// decision. It is the only path that may emit updatedInput, and it is a
+	// bridge to RTK rather than cc-bash-guard policy rewriting.
 	UseRTK bool
 }
 

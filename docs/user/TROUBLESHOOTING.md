@@ -191,7 +191,9 @@ See `docs/user/AWS_GUIDELINES.md`.
 
 ## Command Not Being Rewritten
 
-`cc-bash-guard` evaluates commands but does not rewrite them. Parser-backed
-normalization is evaluation-only. It only returns `allow`, `ask`, or `deny`.
+`cc-bash-guard` policy evaluation and the default hook do not rewrite commands.
+Parser-backed normalization is evaluation-only. It only returns `allow`, `ask`,
+or `deny`.
 If you use RTK rewriting, run `cc-bash-guard hook --rtk` as the single Bash hook
-so permission evaluation runs before external `rtk rewrite`.
+so permission evaluation runs before external `rtk rewrite`. RTK is not called
+for `deny`.

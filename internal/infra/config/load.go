@@ -687,7 +687,7 @@ func yamlMapValue(node *yaml.Node, key string) *yaml.Node {
 func validateFileWithSources(file File) []string {
 	var issues []string
 	if len(file.Rewrite) > 0 {
-		issues = append(issues, "top-level rewrite is no longer supported; cc-bash-guard no longer rewrites commands. Use permission.command / env / patterns, and rely on parser-backed normalization for evaluation.")
+		issues = append(issues, "top-level rewrite is no longer supported; cc-bash-guard policy evaluation no longer rewrites commands. Use permission.command / env / patterns, and rely on parser-backed normalization for evaluation.")
 	}
 	if policy.IsZeroPermissionSpec(file.Permission) {
 		issues = append(issues, "must set at least one permission entry")
@@ -710,7 +710,7 @@ func validateFileWithSources(file File) []string {
 			issues = append(issues, prefix+".in must be non-empty")
 		}
 		if strings.TrimSpace(test.Rewritten) != "" {
-			issues = append(issues, prefix+".rewritten is no longer supported; cc-bash-guard does not rewrite commands")
+			issues = append(issues, prefix+".rewritten is no longer supported; cc-bash-guard policy evaluation does not rewrite commands")
 		}
 		switch test.Decision {
 		case "allow", "ask", "deny":

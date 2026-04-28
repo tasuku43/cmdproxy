@@ -191,7 +191,7 @@ permission sources abstain.
 
 ## Command Evaluation
 
-`cc-bash-guard` evaluates commands but does not rewrite them. It only returns a
+`cc-bash-guard` policy evaluation does not rewrite commands. It only returns a
 permission decision: `allow`, `ask`, or `deny`.
 
 Parser-backed normalization is evaluation-only:
@@ -202,3 +202,5 @@ Parser-backed normalization is evaluation-only:
   service, and operation
 
 The command returned to Claude Code is not changed by permission evaluation.
+The default hook does not emit `updatedInput`; only `hook --rtk` may emit it as
+a bridge to external RTK.

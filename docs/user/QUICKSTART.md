@@ -1,11 +1,52 @@
 # Quickstart
 
 `cc-bash-guard` evaluates Bash commands against permission policy and returns
-`allow`, `ask`, or `deny` for Claude Code hooks. It never rewrites commands.
+`allow`, `ask`, or `deny` for Claude Code hooks. Policy evaluation and the
+default hook never rewrite commands.
 Read `docs/user/THREAT_MODEL.md` for the security boundary and known
 limitations before relying on broad allow rules.
 
 ## Install And Initialize
+
+Install from Go when you have a working Go 1.25 or newer toolchain:
+
+```sh
+go install github.com/tasuku43/cc-bash-guard/cmd/cc-bash-guard@latest
+```
+
+Make sure your Go install directory is on `PATH`; by default that is usually
+`$(go env GOPATH)/bin`.
+
+Prebuilt GitHub Releases archives are also configured for macOS and Linux on
+arm64 and amd64. Pick the archive for your platform, verify it with
+`checksums.txt`, then place the binary on `PATH`:
+
+```sh
+TAG=v0.1.1      # replace with the release tag you want
+OS=macos        # macos or linux
+ARCH=arm64      # arm64 or x64
+ARCHIVE="cc-bash-guard_${TAG}_${OS}_${ARCH}.tar.gz"
+
+curl -LO "https://github.com/tasuku43/cc-bash-guard/releases/download/${TAG}/${ARCHIVE}"
+curl -LO "https://github.com/tasuku43/cc-bash-guard/releases/download/${TAG}/checksums.txt"
+
+# macOS:
+grep "  ${ARCHIVE}$" checksums.txt | shasum -a 256 -c -
+
+# Linux:
+grep "  ${ARCHIVE}$" checksums.txt | sha256sum -c -
+
+mkdir -p "$HOME/.local/bin"
+tar -xzf "$ARCHIVE" cc-bash-guard
+install -m 0755 cc-bash-guard "$HOME/.local/bin/cc-bash-guard"
+```
+
+Check the installed binary:
+
+```sh
+cc-bash-guard version
+cc-bash-guard doctor
+```
 
 Create the user config and print the Claude Code hook snippet:
 
@@ -84,6 +125,10 @@ Use doctor for installation and configuration diagnostics:
 cc-bash-guard doctor
 ```
 
+Run `cc-bash-guard verify` again after upgrading the binary. Verified
+artifacts include an evaluation semantics version and the resolved policy
+inputs.
+
 ## Explain A Decision
 
 Use `explain` to diagnose a command without executing it:
@@ -112,7 +157,7 @@ processes.
 
 If you use RTK rewriting, register one hook as `cc-bash-guard hook --rtk`
 instead of stacking a separate RTK Bash hook. With `--rtk`, permissions are
-evaluated before external `rtk rewrite` runs.
+evaluated before external `rtk rewrite` runs, and RTK is not called for `deny`.
 
 ## Learn More
 

@@ -2596,7 +2596,7 @@ func TestValidateSemanticMatchRules(t *testing.T) {
 				},
 				"strip_command_path": true,
 			}}},
-			issue: "top-level rewrite is no longer supported; cc-bash-guard no longer rewrites commands. Use permission.command / env / patterns, and rely on parser-backed normalization for evaluation.",
+			issue: "top-level rewrite is no longer supported; cc-bash-guard policy evaluation no longer rewrites commands. Use permission.command / env / patterns, and rely on parser-backed normalization for evaluation.",
 		},
 	}
 	for _, tt := range tests {

@@ -41,7 +41,8 @@ func TestRootHelpOrientsNewUsers(t *testing.T) {
 		"top-level include",
 		"deny > ask > allow",
 		"unmatched commands fall back to ask",
-		"never rewrites commands itself",
+		"policy evaluation never rewrites commands",
+		"The default hook does not emit updatedInput",
 		"cc-bash-guard help init",
 		"cc-bash-guard help config",
 		"cc-bash-guard help permission",
@@ -70,11 +71,14 @@ func TestHookHelpDocumentsNoPolicyRewriteAndRTKIntegration(t *testing.T) {
 		"Deny is also returned as JSON with exit 0",
 		"missing or stale verified artifacts therefore fail closed",
 		"--rtk",
-		"delegate rewriting to external RTK",
+		"optional bridge to external RTK",
 		"RTK integration:",
+		"--rtk is optional",
 		"single Bash hook",
+		"Do not register RTK as a second Bash hook",
 		"evaluates permissions first",
 		"external rtk rewrite",
+		"Deny never invokes RTK",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("help hook missing %q:\n%s", want, stdout)
@@ -470,7 +474,8 @@ func TestReadmeDocumentsNoPolicyRewriteAndRTKIntegration(t *testing.T) {
 	}
 	body := string(bodyBytes)
 	for _, want := range []string{
-		"`cc-bash-guard` never rewrites commands",
+		"`cc-bash-guard` policy evaluation never rewrites commands",
+		"The default hook does not emit `updatedInput`",
 		"returns `allow`, `ask`, or `deny`",
 		"If you use RTK rewriting",
 		"docs/user/THREAT_MODEL.md",
@@ -478,6 +483,7 @@ func TestReadmeDocumentsNoPolicyRewriteAndRTKIntegration(t *testing.T) {
 		"evaluates permissions first",
 		"external `rtk rewrite`",
 		"register RTK as a second Bash hook",
+		"A `deny` decision never invokes RTK",
 		"top-level `rewrite`, `verify` fails with migration guidance",
 	} {
 		if !strings.Contains(body, want) {

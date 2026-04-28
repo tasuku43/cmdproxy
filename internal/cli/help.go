@@ -42,7 +42,8 @@ Policy model:
   Rules live under permission.deny, permission.ask, and permission.allow.
   Use top-level include to split policy and E2E tests across local YAML files.
   Decision order is deny > ask > allow; unmatched commands fall back to ask.
-  cc-bash-guard never rewrites commands itself; it returns allow, ask, or deny.
+  cc-bash-guard policy evaluation never rewrites commands; it returns allow,
+  ask, or deny. The default hook does not emit updatedInput.
 
 Learn more:
   cc-bash-guard help init
@@ -165,7 +166,7 @@ Usage:
   cc-bash-guard hook [--rtk] [--auto-verify]
 
 Options:
-  --rtk          after permission evaluation, delegate rewriting to external RTK
+  --rtk          optional bridge to external RTK after permission evaluation
   --auto-verify  regenerate verified hook artifacts when they are missing or stale
 
 Note:
@@ -187,9 +188,11 @@ Hook protocol:
   permissionDecision: deny.
 
 RTK integration:
+  --rtk is optional. Use it only when you want RTK command rewriting.
   If you use RTK rewriting, use cc-bash-guard hook --rtk as the single Bash hook.
+  Do not register RTK as a second Bash hook.
   cc-bash-guard evaluates permissions first, then invokes external rtk rewrite
-  only when the merged decision is not deny.
+  only when the merged decision is not deny. Deny never invokes RTK.
 
 `)
 	case "explain":
@@ -435,9 +438,10 @@ AWS profile style:
   parser can still evaluate profile, service, and operation semantically.
 
 Command not being rewritten:
-  cc-bash-guard evaluates commands but does not rewrite them. Parser-backed
-  normalization is evaluation-only. It only returns allow, ask, or deny. If you
-  use RTK rewriting, use cc-bash-guard hook --rtk as the single Bash hook.
+  cc-bash-guard policy evaluation and the default hook do not rewrite commands.
+  Parser-backed normalization is evaluation-only. It only returns allow, ask,
+  or deny. If you use RTK rewriting, use cc-bash-guard hook --rtk as the single
+  Bash hook so permission evaluation runs before external rtk rewrite.
 
 Docs:
   docs/user/TROUBLESHOOTING.md

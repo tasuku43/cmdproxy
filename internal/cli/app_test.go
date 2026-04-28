@@ -353,6 +353,48 @@ test:
 	}
 }
 
+func TestRunHookClaudeRTKOmittedUpdatedInputWhenCommandUnchanged(t *testing.T) {
+	toolDir := t.TempDir()
+	markerPath := filepath.Join(toolDir, "called")
+	rtkPath := filepath.Join(toolDir, "rtk")
+	script := fmt.Sprintf("#!/bin/sh\nprintf called > %q\nprintf '%%s\\n' \"$2\"\n", markerPath)
+	if err := os.WriteFile(rtkPath, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", fmt.Sprintf("%s:%s", toolDir, os.Getenv("PATH")))
+
+	payload := runClaudeHookMapTest(t, hookEnvSpec{
+		UserConfig: `permission:
+  allow:
+    - command:
+        name: git
+        semantic:
+          verb: status
+      test:
+        allow:
+          - "git status"
+        pass:
+          - "git diff"
+test:
+  - in: "git status"
+    decision: allow
+`,
+		Command: "git status",
+		UseRTK:  true,
+	})
+
+	hookOut := payload["hookSpecificOutput"].(map[string]any)
+	if hookOut["permissionDecision"] != "allow" {
+		t.Fatalf("payload = %+v", payload)
+	}
+	if _, ok := hookOut["updatedInput"]; ok {
+		t.Fatalf("expected unchanged RTK result to omit updatedInput, payload=%+v", payload)
+	}
+	if _, err := os.Stat(markerPath); err != nil {
+		t.Fatalf("rtk should run for non-deny --rtk decision, stat err=%v", err)
+	}
+}
+
 func TestRunHookClaudeRTKDoesNotRunAfterDeny(t *testing.T) {
 	toolDir := t.TempDir()
 	markerPath := filepath.Join(toolDir, "called")
@@ -386,6 +428,41 @@ test:
 	}
 	if _, err := os.Stat(markerPath); !os.IsNotExist(err) {
 		t.Fatalf("rtk should not run after deny, stat err=%v", err)
+	}
+}
+
+func TestEvaluateForCommandPreservesDecisionCommandWithoutRTK(t *testing.T) {
+	home := t.TempDir()
+	cwd := t.TempDir()
+	command := "bash -c 'git status'"
+	writeUserConfig(t, home, `permission:
+  allow:
+    - command:
+        name: git
+        semantic:
+          verb: status
+      test:
+        allow:
+          - "bash -c 'git status'"
+        pass:
+          - "git diff"
+test:
+  - in: "bash -c 'git status'"
+    decision: allow
+`)
+
+	_, decision, err := app.EvaluateForCommand(command, app.Env{Cwd: cwd, Home: home}, true)
+	if err != nil {
+		t.Fatalf("EvaluateForCommand error: %v", err)
+	}
+	if decision.Outcome != "allow" {
+		t.Fatalf("decision = %+v", decision)
+	}
+	if decision.Command != command {
+		t.Fatalf("decision command changed: got %q want %q", decision.Command, command)
+	}
+	if decision.OriginalCommand != command {
+		t.Fatalf("original command changed: got %q want %q", decision.OriginalCommand, command)
 	}
 }
 
