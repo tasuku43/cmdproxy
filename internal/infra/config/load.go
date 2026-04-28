@@ -714,6 +714,13 @@ func validateFileWithSources(file File) []string {
 		}
 		switch test.Decision {
 		case "allow", "ask", "deny":
+			if test.AssertPolicyOutcome {
+				issues = append(issues, prefix+".decision cannot use policy-outcome assertion for "+test.Decision)
+			}
+		case "abstain":
+			if !test.AssertPolicyOutcome {
+				issues = append(issues, prefix+".decision abstain is only valid in bucketed test.abstain; final hook decisions are deny, ask, or allow")
+			}
 		default:
 			issues = append(issues, prefix+".decision must be one of allow, ask, deny")
 		}

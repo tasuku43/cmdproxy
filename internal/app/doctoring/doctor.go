@@ -203,9 +203,9 @@ func CollectTestFailures(p policy.Pipeline, tool string, cwd string, home string
 					}
 				}
 			}
-			for _, ex := range rule.Test.Pass {
+			for _, ex := range append(append([]string{}, rule.Test.Abstain...), rule.Test.Pass...) {
 				if permissionRuleMatchesEffect(rule, ex, effect) {
-					if add(TestFailure{Scope: scope, Name: scopeName(scope, i), Kind: "pass", Example: ex, Source: rule.Source}) {
+					if add(TestFailure{Scope: scope, Name: scopeName(scope, i), Kind: "abstain", Example: ex, Source: rule.Source, Expected: "abstain", Got: effect}) {
 						return errStopTests
 					}
 				}
@@ -232,6 +232,26 @@ func CollectTestFailures(p policy.Pipeline, tool string, cwd string, home string
 			continue
 		}
 		policyOutcome := decision.Outcome
+		if ex.AssertPolicyOutcome {
+			if policyOutcome != ex.Decision {
+				f := TestFailure{
+					Scope:    "test",
+					Name:     scopeName("test", ex.Source.Index),
+					Kind:     "policy_outcome",
+					Example:  ex.In,
+					Source:   ex.Source,
+					Expected: ex.Decision,
+					Got:      policyOutcome,
+					Reason:   decisionReason(decision),
+					Decision: decision,
+					Policy:   policyOutcome,
+				}
+				if add(f) {
+					return failures
+				}
+			}
+			continue
+		}
 		decision = claude.ApplyPermissionBridge(tool, decision, cwd, home)
 		if decision.Outcome != ex.Decision {
 			claudeOutcome, finalOutcome := traceDecisions(decision.Trace, decision.Outcome)

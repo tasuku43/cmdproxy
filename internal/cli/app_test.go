@@ -144,7 +144,7 @@ func TestRunHookClaudeAllowReturnsAllowWithoutUpdatedInput(t *testing.T) {
       test:
         allow:
           - "aws --profile dev sts get-caller-identity"
-        pass:
+        abstain:
           - "aws --profile dev s3 ls"
 test:
   - in: "aws --profile dev sts get-caller-identity"
@@ -194,7 +194,7 @@ func TestRunHookClaudeSupportedPolicyDoesNotInvokeRTKWithoutFlag(t *testing.T) {
       test:
         allow:
           - "git diff goal.md"
-        pass:
+        abstain:
           - "git status"
 test:
   - in: "git diff goal.md"
@@ -229,7 +229,7 @@ func TestRunHookClaudeAskReturnsAsk(t *testing.T) {
       test:
         ask:
           - "aws s3 ls"
-        pass:
+        abstain:
           - "aws sts get-caller-identity"
 test:
   - in: "aws s3 ls"
@@ -270,7 +270,7 @@ func TestRunHookClaudeAllowWithoutRewriteOmitsRewriteSystemMessage(t *testing.T)
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -297,7 +297,7 @@ func TestRunHookClaudeAskWithoutRewriteOmitsRewriteSystemMessage(t *testing.T) {
       test:
         ask:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -329,7 +329,7 @@ func TestRunHookClaudeRTKEvaluatesPermissionsBeforeRTKRewrite(t *testing.T) {
       test:
         allow:
           - "git diff goal.md"
-        pass:
+        abstain:
           - "git status"
 test:
   - in: "git diff goal.md"
@@ -374,7 +374,7 @@ func TestRunHookClaudeRTKOmittedUpdatedInputWhenCommandUnchanged(t *testing.T) {
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -445,7 +445,7 @@ func TestEvaluateForCommandPreservesDecisionCommandWithoutRTK(t *testing.T) {
       test:
         allow:
           - "bash -c 'git status'"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "bash -c 'git status'"
@@ -496,7 +496,7 @@ permission:
       test:
         allow:
           - "AWS_PROFILE=dev aws sts get-caller-identity"
-        pass:
+        abstain:
           - "aws sts get-caller-identity"
 test:
   - in: "aws --profile dev sts get-caller-identity"
@@ -533,7 +533,7 @@ func TestRunHookClaudeAllowRemainsAllowWithoutClaudeSettingsMatch(t *testing.T) 
       test:
         allow:
           - "git diff goal.md"
-        pass:
+        abstain:
           - "git status"
 test:
   - in: "git diff goal.md"
@@ -593,7 +593,7 @@ func TestRunHookClaudePermissionMergeMatrix(t *testing.T) {
       test:
         deny:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -624,7 +624,7 @@ test:
       test:
         ask:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -659,7 +659,7 @@ test:
       test:
         allow:
           - "aws sts get-caller-identity"
-        pass:
+        abstain:
           - "git status"
 test:
   - in: "aws sts get-caller-identity"
@@ -694,7 +694,7 @@ test:
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -725,7 +725,7 @@ test:
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -756,7 +756,7 @@ test:
       test:
         allow:
           - "aws sts get-caller-identity"
-        pass:
+        abstain:
           - "git status"
 test:
   - in: "aws sts get-caller-identity"
@@ -791,7 +791,7 @@ test:
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -818,7 +818,7 @@ test:
       test:
         allow:
           - "aws sts get-caller-identity"
-        pass:
+        abstain:
           - "git status"
 test:
   - in: "aws sts get-caller-identity"
@@ -853,7 +853,7 @@ test:
       test:
         ask:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -921,7 +921,7 @@ func TestRunHookClaudeMergesGlobalAndLocalPolicyAndSettings(t *testing.T) {
       test:
         ask:
           - "git status"
-        pass:
+        abstain:
           - "aws --profile dev sts get-caller-identity"
 test:
   - in: "git status"
@@ -936,7 +936,7 @@ test:
       test:
         deny:
           - "git push origin main"
-        pass:
+        abstain:
           - "git status"
 test:
   - in: "git push origin main"
@@ -976,7 +976,7 @@ func TestRunHookClaudeAllowUsesRuleMessageAsPermissionDecisionReason(t *testing.
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -1019,7 +1019,7 @@ func TestRunHookClaudeAskUsesRuleMessageAsPermissionDecisionReason(t *testing.T)
       test:
         ask:
           - "git diff"
-        pass:
+        abstain:
           - "git status"
 test:
   - in: "git diff"
@@ -1088,7 +1088,7 @@ func TestRunHookClaudeDenyReturnsDeny(t *testing.T) {
       test:
         deny:
           - "rm -rf /tmp/x"
-        pass:
+        abstain:
           - "pwd"
 test:
   - in: "rm -rf /tmp/x"
@@ -1129,7 +1129,7 @@ func TestRunHookClaudeDeniesWhenArtifactMissingByDefault(t *testing.T) {
       test:
         allow:
           - "bash -c 'git status'"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "bash -c 'git status'"
@@ -1174,7 +1174,7 @@ func TestRunHookClaudeDeniesWhenArtifactStaleByDefault(t *testing.T) {
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -1195,7 +1195,7 @@ test:
       test:
         allow:
           - "git diff"
-        pass:
+        abstain:
           - "git status"
 test:
   - in: "git diff"
@@ -1259,7 +1259,7 @@ func TestRunExplainSimpleAllow(t *testing.T) {
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -1302,7 +1302,7 @@ func TestRunExplainDenyWithIncludedSource(t *testing.T) {
       test:
         deny:
           - "git push --force origin main"
-        pass:
+        abstain:
           - "git status"
 `), 0o644); err != nil {
 		t.Fatal(err)
@@ -1347,7 +1347,7 @@ func TestRunExplainFallbackAsk(t *testing.T) {
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -1388,7 +1388,7 @@ func TestRunExplainJSON(t *testing.T) {
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -1435,7 +1435,7 @@ func TestRunExplainShellC(t *testing.T) {
       test:
         allow:
           - "bash -c 'git status'"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "bash -c 'git status'"
@@ -1475,7 +1475,7 @@ func TestRunExplainAbsolutePath(t *testing.T) {
       test:
         allow:
           - "/usr/bin/git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "/usr/bin/git status"
@@ -1513,7 +1513,7 @@ func TestRunExplainParseErrorReturnsNonZero(t *testing.T) {
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -1544,7 +1544,7 @@ func TestRunExplainStaleArtifact(t *testing.T) {
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -1561,7 +1561,7 @@ test:
       test:
         allow:
           - "git diff"
-        pass:
+        abstain:
           - "git status"
 test:
   - in: "git diff"
@@ -1593,7 +1593,7 @@ func TestRunHookClaudeDeniesWhenArtifactEvaluationSemanticsIncompatible(t *testi
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -1641,7 +1641,7 @@ func TestRunHookClaudeAutoVerifyVerifiesWhenArtifactMissing(t *testing.T) {
       test:
         allow:
           - "bash -c 'git status'"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "bash -c 'git status'"
@@ -1673,7 +1673,7 @@ func TestRunHookClaudeAutoVerifyDoesNotBuildArtifactForBroadAllowPattern(t *test
       test:
         allow:
           - "aws sts get-caller-identity"
-        pass:
+        abstain:
           - "git status"
 `)
 
@@ -1718,7 +1718,7 @@ func TestRunHookClaudeStructuredAllowFailsClosedOnCompoundCommand(t *testing.T) 
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status && rm -rf /tmp/x"
@@ -1763,7 +1763,7 @@ func TestRunHookClaudeBashPrefixAllowDoesNotAuthorizeCompoundRightSide(t *testin
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status && rm -rf /tmp/x"
@@ -1798,7 +1798,7 @@ func TestRunHookAllowsCompoundWhenEveryCommandIsIndividuallyAllowed(t *testing.T
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
     - command:
 
@@ -1810,7 +1810,7 @@ func TestRunHookAllowsCompoundWhenEveryCommandIsIndividuallyAllowed(t *testing.T
       test:
         allow:
           - "git diff"
-        pass:
+        abstain:
           - "git status"
     - command:
 
@@ -1822,7 +1822,7 @@ func TestRunHookAllowsCompoundWhenEveryCommandIsIndividuallyAllowed(t *testing.T
       test:
         allow:
           - "git log"
-        pass:
+        abstain:
           - "git status"
 test:
   - in: "git status && git diff && git log"
@@ -1852,7 +1852,7 @@ func TestRunHookDeniesCompoundWhenAnyCommandIsDenied(t *testing.T) {
       test:
         deny:
           - "rm -rf /tmp/x"
-        pass:
+        abstain:
           - "git status"
   allow:
     - command:
@@ -1865,7 +1865,7 @@ func TestRunHookDeniesCompoundWhenAnyCommandIsDenied(t *testing.T) {
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status && rm -rf /tmp/x"
@@ -1905,7 +1905,7 @@ func TestRunVerifyHumanSuccessSummaryNoColorForBuffer(t *testing.T) {
           verb: status
       test:
         allow: ["git status"]
-        pass: ["git diff"]
+        abstain: ["git diff"]
 test:
   - in: "git status"
     decision: allow
@@ -1949,7 +1949,7 @@ func TestRunVerifySupportsCommandNameIn(t *testing.T) {
           - "/bin/ls -la"
           - "bash -c 'ls -la'"
           - "cd /tmp && ls"
-        pass:
+        abstain:
           - "rm -rf /tmp"
           - "git status"
 test:
@@ -1977,7 +1977,66 @@ test:
 	}
 }
 
-func TestRunVerifyColorBehavior(t *testing.T) {
+func TestRunVerifyRuleLocalAbstainPassesWhenRuleDoesNotMatch(t *testing.T) {
+	home := t.TempDir()
+	writeUserConfig(t, home, `permission:
+  deny:
+    - name: git force push
+      command:
+        name: git
+        semantic:
+          verb: push
+          force: true
+      test:
+        deny: ["git push --force origin main"]
+        abstain: ["git status"]
+test:
+  - in: "git push --force origin main"
+    decision: deny
+`)
+
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"verify"}, Streams{Stdout: &stdout, Stderr: &stderr}, Env{Cwd: t.TempDir(), Home: home})
+	if code != 0 {
+		t.Fatalf("code = %d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
+	}
+}
+
+func TestRunVerifyRuleLocalAbstainFailsWhenRuleMatches(t *testing.T) {
+	home := t.TempDir()
+	writeUserConfig(t, home, `permission:
+  deny:
+    - name: git force push
+      command:
+        name: git
+        semantic:
+          verb: push
+          force: true
+      test:
+        deny: ["git push --force origin main"]
+        abstain: ["git push --force origin main"]
+test:
+  - in: "git push --force origin main"
+    decision: deny
+`)
+
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"verify", "--format", "json"}, Streams{Stdout: &stdout, Stderr: &stderr}, Env{Cwd: t.TempDir(), Home: home})
+	if code == 0 {
+		t.Fatalf("code = 0 stdout=%s stderr=%s", stdout.String(), stderr.String())
+	}
+	var payload struct {
+		Failures []app.VerifyDiagnostic `json:"failures"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("json error: %v stdout=%s", err, stdout.String())
+	}
+	if len(payload.Failures) == 0 || payload.Failures[0].Input != "git push --force origin main" || payload.Failures[0].Expected != "abstain" {
+		t.Fatalf("payload=%+v", payload)
+	}
+}
+
+func TestRunVerifyRuleLocalPassAliasWarns(t *testing.T) {
 	home := t.TempDir()
 	writeUserConfig(t, home, `permission:
   allow:
@@ -1989,6 +2048,202 @@ func TestRunVerifyColorBehavior(t *testing.T) {
       test:
         allow: ["git status"]
         pass: ["git diff"]
+test:
+  - in: "git status"
+    decision: allow
+`)
+
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"verify", "--format", "json"}, Streams{Stdout: &stdout, Stderr: &stderr}, Env{Cwd: t.TempDir(), Home: home})
+	if code != 0 {
+		t.Fatalf("code = %d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
+	}
+	var payload struct {
+		OK       bool                   `json:"ok"`
+		Warnings []app.VerifyDiagnostic `json:"warnings"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("json error: %v stdout=%s", err, stdout.String())
+	}
+	if !payload.OK {
+		t.Fatalf("payload=%+v", payload)
+	}
+	found := false
+	for _, warning := range payload.Warnings {
+		if warning.Kind == "deprecated_test_pass" && strings.Contains(warning.Message, "test.pass is deprecated; use test.abstain") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("missing deprecation warning: %+v", payload.Warnings)
+	}
+}
+
+func TestRunVerifyTopLevelBucketedTests(t *testing.T) {
+	home := t.TempDir()
+	writeUserConfig(t, home, `permission:
+  deny:
+    - name: git force push
+      command:
+        name: git
+        semantic:
+          verb: push
+          force: true
+      test:
+        deny: ["git push --force origin main"]
+        abstain: ["git status"]
+  allow:
+    - name: git status
+      command:
+        name: git
+        semantic:
+          verb: status
+      test:
+        allow: ["git status"]
+        abstain: ["git diff"]
+test:
+  deny:
+    - "git push --force origin main"
+  ask:
+    - "git diff"
+  allow:
+    - "git status"
+  abstain:
+    - "unknown-tool status"
+`)
+
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"verify"}, Streams{Stdout: &stdout, Stderr: &stderr}, Env{Cwd: t.TempDir(), Home: home})
+	if code != 0 {
+		t.Fatalf("code = %d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
+	}
+}
+
+func TestRunVerifyTopLevelBucketedAbstainChecksPolicyNotFinalFallback(t *testing.T) {
+	home := t.TempDir()
+	writeUserConfig(t, home, `permission:
+  allow:
+    - name: git status
+      command:
+        name: git
+        semantic:
+          verb: status
+      test:
+        allow: ["git status"]
+        abstain: ["unknown-tool status"]
+test:
+  abstain:
+    - "unknown-tool status"
+`)
+
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"verify", "--format", "json"}, Streams{Stdout: &stdout, Stderr: &stderr}, Env{Cwd: t.TempDir(), Home: home})
+	if code != 0 {
+		t.Fatalf("code = %d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
+	}
+	var payload struct {
+		Summary struct {
+			Tests int `json:"tests"`
+		} `json:"summary"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("json error: %v stdout=%s", err, stdout.String())
+	}
+	if payload.Summary.Tests != 1 {
+		t.Fatalf("tests = %d", payload.Summary.Tests)
+	}
+}
+
+func TestRunVerifyTopLevelListSyntaxStillWorks(t *testing.T) {
+	home := t.TempDir()
+	writeUserConfig(t, home, `permission:
+  allow:
+    - name: git status
+      command:
+        name: git
+        semantic:
+          verb: status
+      test:
+        allow: ["git status"]
+        abstain: ["git diff"]
+test:
+  - in: "git status"
+    decision: allow
+`)
+
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"verify"}, Streams{Stdout: &stdout, Stderr: &stderr}, Env{Cwd: t.TempDir(), Home: home})
+	if code != 0 {
+		t.Fatalf("code = %d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
+	}
+}
+
+func TestRunVerifyInvalidTopLevelBucketNameFailsValidation(t *testing.T) {
+	home := t.TempDir()
+	writeUserConfig(t, home, `permission:
+  allow:
+    - name: git status
+      command:
+        name: git
+        semantic:
+          verb: status
+      test:
+        allow: ["git status"]
+        abstain: ["git diff"]
+test:
+  pass:
+    - "git diff"
+`)
+
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"verify", "--format", "json"}, Streams{Stdout: &stdout, Stderr: &stderr}, Env{Cwd: t.TempDir(), Home: home})
+	if code == 0 {
+		t.Fatalf("code = 0 stdout=%s stderr=%s", stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "test.pass is not supported") {
+		t.Fatalf("stdout missing bucket diagnostic:\n%s", stdout.String())
+	}
+}
+
+func TestRunVerifyInvalidTopLevelAbstainListPlacementFails(t *testing.T) {
+	home := t.TempDir()
+	writeUserConfig(t, home, `permission:
+  allow:
+    - name: git status
+      command:
+        name: git
+        semantic:
+          verb: status
+      test:
+        allow: ["git status"]
+        abstain: ["git diff"]
+test:
+  - in: "git diff"
+    decision: abstain
+`)
+
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"verify", "--format", "json"}, Streams{Stdout: &stdout, Stderr: &stderr}, Env{Cwd: t.TempDir(), Home: home})
+	if code == 0 {
+		t.Fatalf("code = 0 stdout=%s stderr=%s", stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "decision abstain is only valid in bucketed test.abstain") {
+		t.Fatalf("stdout missing abstain placement diagnostic:\n%s", stdout.String())
+	}
+}
+
+func TestRunVerifyColorBehavior(t *testing.T) {
+	home := t.TempDir()
+	writeUserConfig(t, home, `permission:
+  allow:
+    - name: git status
+      command:
+        name: git
+        semantic:
+          verb: status
+      test:
+        allow: ["git status"]
+        abstain: ["git diff"]
 test:
   - in: "git status"
     decision: allow
@@ -2039,7 +2294,7 @@ func TestRunVerifyE2EFailureDiagnosticsIncludeSourceAndMatchedRule(t *testing.T)
       message: force push is blocked
       test:
         deny: ["git push --force origin main"]
-        pass: ["git status"]
+        abstain: ["git status"]
 test:
   - in: "git push --force origin main"
     decision: ask
@@ -2087,7 +2342,7 @@ func TestRunVerifySemanticDiagnostics(t *testing.T) {
           namespace: prod
       test:
         deny: ["git push"]
-        pass: ["git status"]
+        abstain: ["git status"]
 `,
 			want: []string{"Unsupported semantic field", "command: git", "field: command.semantic.namespace", "Supported fields for git:", "cc-bash-guard help semantic git"},
 		},
@@ -2102,7 +2357,7 @@ func TestRunVerifySemanticDiagnostics(t *testing.T) {
           force: "yes"
       test:
         deny: ["git push --force"]
-        pass: ["git status"]
+        abstain: ["git status"]
 `,
 			want: []string{"Invalid semantic field type", "command: git", "field: permission.deny[0].command.semantic.force", "expected: bool", "actual: string", "cc-bash-guard help semantic git"},
 		},
@@ -2117,7 +2372,7 @@ func TestRunVerifySemanticDiagnostics(t *testing.T) {
           namespace: prod
       test:
         ask: ["helm list"]
-        pass: ["git status"]
+        abstain: ["git status"]
 `,
 			want: []string{"Semantic schema unavailable", "command: helm", "field: command.semantic", "Use patterns for commands without semantic support"},
 		},
@@ -2154,7 +2409,7 @@ func TestRunVerifyJSONFailureOutput(t *testing.T) {
       message: force push is blocked
       test:
         deny: ["git push --force origin main"]
-        pass: ["git status"]
+        abstain: ["git status"]
 test:
   - in: "git push --force origin main"
     decision: ask
@@ -2219,7 +2474,7 @@ func TestRunVerifyDuplicateRuleNameWarningJSON(t *testing.T) {
           verb: status
       test:
         allow: ["git status"]
-        pass: ["git diff"]
+        abstain: ["git diff"]
     - name: git read-only
       command:
         name: git
@@ -2227,7 +2482,7 @@ func TestRunVerifyDuplicateRuleNameWarningJSON(t *testing.T) {
           verb: diff
       test:
         allow: ["git diff"]
-        pass: ["git status"]
+        abstain: ["git status"]
 test:
   - in: "git status"
     decision: allow
@@ -2263,7 +2518,7 @@ func TestRunVerifyBroadAllowPatternFailureHuman(t *testing.T) {
         - "^aws"
       test:
         allow: ["aws sts get-caller-identity"]
-        pass: ["git status"]
+        abstain: ["git status"]
 test:
   - in: "aws sts get-caller-identity"
     decision: allow
@@ -2301,7 +2556,7 @@ func TestRunVerifySafeAnchoredReadOnlyPatternDoesNotFailOrWarn(t *testing.T) {
         - '^[[:space:]]*terraform\s+(plan|show)(\s|$)[^;&|<>]*$'
       test:
         allow: ["terraform plan"]
-        pass: ["terraform apply -auto-approve"]
+        abstain: ["terraform apply -auto-approve"]
 test:
   - in: "terraform plan"
     decision: allow
@@ -2335,14 +2590,14 @@ func TestRunVerifyBroadDenyAndAskPatternsDoNotFailOrWarn(t *testing.T) {
         - "^aws"
       test:
         deny: ["aws s3 rm s3://bucket/key"]
-        pass: ["git status"]
+        abstain: ["git status"]
   ask:
     - name: ask any kubectl fallback
       patterns:
         - "^kubectl"
       test:
         ask: ["kubectl delete pod x"]
-        pass: ["git status"]
+        abstain: ["git status"]
 test:
   - in: "aws s3 rm s3://bucket/key"
     decision: deny
@@ -2376,7 +2631,7 @@ func TestRunVerifyBroadAllowPatternFailureJSONShape(t *testing.T) {
         - "^terraform\\s+.*"
       test:
         allow: ["terraform plan"]
-        pass: ["git status"]
+        abstain: ["git status"]
 test:
   - in: "terraform plan"
     decision: allow
@@ -2490,7 +2745,7 @@ func TestRunVerifyBroadAllowPatternFailures(t *testing.T) {
       test:
         allow:
           - `+strconv.Quote(tt.allow)+`
-        pass:
+        abstain:
           - `+strconv.Quote(tt.pass)+`
 `)
 
@@ -2537,7 +2792,7 @@ func TestRunVerifyAllFailuresJSON(t *testing.T) {
         name: rm
       test:
         deny: ["rm -rf /tmp/x"]
-        pass: ["git status"]
+        abstain: ["git status"]
 test:
   - in: "rm -rf /tmp/x"
     decision: ask
@@ -2593,7 +2848,7 @@ func TestRunVerifyIncludedSourceMetadata(t *testing.T) {
           force: true
       test:
         deny: ["git push --force origin main"]
-        pass: ["git status"]
+        abstain: ["git status"]
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}

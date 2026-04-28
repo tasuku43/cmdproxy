@@ -539,7 +539,7 @@ Permission rule example:
           allow:
             - "/bin/ls -la"
             - "bash -c 'pwd'"
-          pass:
+          abstain:
             - "rm -rf /tmp"
 
       - command:
@@ -553,13 +553,15 @@ Permission rule example:
         test:
           allow:
             - "AWS_PROFILE=read-only-profile aws sts get-caller-identity"
-          pass:
+          abstain:
             - "AWS_PROFILE=read-only-profile aws s3 ls"
 
 E2E test example:
   test:
-    - in: "AWS_PROFILE=read-only-profile aws sts get-caller-identity"
-      decision: allow
+    allow:
+      - "AWS_PROFILE=read-only-profile aws sts get-caller-identity"
+    ask:
+      - "unknown-tool status"
 
 For permission predicate fields, run:
   cc-bash-guard help match

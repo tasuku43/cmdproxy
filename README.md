@@ -424,7 +424,7 @@ for supported commands, or narrower anchored regexes that exclude shell
 metacharacters.
 
 Use top-level `test` entries with `cc-bash-guard verify` to pin both safe and
-unsafe examples:
+unsafe examples. The list form asserts the final hook decision:
 
 ```yaml
 permission:
@@ -441,6 +441,30 @@ test:
   - in: "terraform plan; terraform apply -auto-approve"
     decision: ask
 ```
+
+The bucketed form uses the same permission vocabulary:
+
+```yaml
+test:
+  deny:
+    - "argocd app delete my-app"
+  ask:
+    - "argocd app sync my-app"
+  allow:
+    - "argocd app get my-app"
+  abstain:
+    - "unknown-tool status"
+```
+
+`test.deny`, `test.ask`, and `test.allow` assert the final merged hook
+decision. `test.abstain` is different: it asserts the cc-bash-guard policy
+source outcome is `abstain`. The final hook decision can still be `ask` when
+cc-bash-guard policy and Claude settings both abstain.
+
+Rule-local permission tests use the same vocabulary. `test.abstain` means the
+individual rule should not match the example. `test.pass` remains supported as
+a deprecated alias for `test.abstain`; `cc-bash-guard verify` warns when it is
+used.
 
 ## AWS Style
 

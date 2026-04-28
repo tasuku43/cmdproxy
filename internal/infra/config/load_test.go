@@ -30,7 +30,7 @@ func TestLoadEffectiveUsesUserConfig(t *testing.T) {
       test:
         allow:
           - "aws --profile dev sts get-caller-identity"
-        pass:
+        abstain:
           - "aws --profile dev s3 ls"
 test:
   - in: "aws --profile dev sts get-caller-identity"
@@ -73,7 +73,7 @@ func TestLoadEffectiveForToolMergesUserAndProjectConfig(t *testing.T) {
       test:
         allow:
           - "aws --profile dev sts get-caller-identity"
-        pass:
+        abstain:
           - "aws --profile dev s3 ls"
 test:
   - in: "aws --profile dev sts get-caller-identity"
@@ -95,7 +95,7 @@ test:
       test:
         deny:
           - "git push origin main"
-        pass:
+        abstain:
           - "git status"
 test:
   - in: "git push origin main"
@@ -148,7 +148,7 @@ permission:
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -187,7 +187,7 @@ func TestLoadEffectiveRejectsPermissionCompositionConfig(t *testing.T) {
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -224,7 +224,7 @@ func TestLoadEffectiveRejectsInvalidGhSemanticYAML(t *testing.T) {
       test:
         deny:
           - "gh api repos/OWNER/REPO"
-        pass:
+        abstain:
           - "git status"
 test:
   - in: "gh api repos/OWNER/REPO"
@@ -299,7 +299,7 @@ func TestLoadFileForEvalIfPresentSupportsAbsolutePathNormalization(t *testing.T)
       test:
         allow:
           - "/bin/ls -R foo"
-        pass:
+        abstain:
           - "pwd"
 test:
   - in: "/bin/ls -R foo"
@@ -338,7 +338,7 @@ func TestVerifyFileWritesVerifiedArtifactAndHookLoadsIt(t *testing.T) {
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -419,7 +419,7 @@ func TestVerifyFileRejectsInvalidSemanticSchema(t *testing.T) {
           namespace: prod
       test:
         deny: ["git push"]
-        pass: ["git status"]
+        abstain: ["git status"]
 test:
   - in: "git push"
     decision: deny
@@ -436,7 +436,7 @@ test:
           verb: delete
       test:
         ask: ["unknown-tool delete prod"]
-        pass: ["unknown-tool list"]
+        abstain: ["unknown-tool list"]
 test:
   - in: "unknown-tool delete prod"
     decision: ask
@@ -454,7 +454,7 @@ test:
           force: "true"
       test:
         deny: ["git push --force origin main"]
-        pass: ["git status"]
+        abstain: ["git status"]
 test:
   - in: "git push --force origin main"
     decision: deny
@@ -471,7 +471,7 @@ test:
           verb_in: push
       test:
         deny: ["git push origin main"]
-        pass: ["git status"]
+        abstain: ["git status"]
 test:
   - in: "git push origin main"
     decision: deny
@@ -488,7 +488,7 @@ test:
           verb: [push]
       test:
         deny: ["git push origin main"]
-        pass: ["git status"]
+        abstain: ["git status"]
 test:
   - in: "git push origin main"
     decision: deny
@@ -507,7 +507,7 @@ test:
           namespace: prod
       test:
         deny: ["aws sts get-caller-identity"]
-        pass: ["aws s3 ls"]
+        abstain: ["aws s3 ls"]
 test:
   - in: "aws sts get-caller-identity"
     decision: deny
@@ -526,7 +526,7 @@ test:
           dry_run: "false"
       test:
         deny: ["aws ec2 terminate-instances --no-dry-run"]
-        pass: ["aws ec2 describe-instances"]
+        abstain: ["aws ec2 describe-instances"]
 test:
   - in: "aws ec2 terminate-instances --no-dry-run"
     decision: deny
@@ -546,7 +546,7 @@ test:
             service: sts
       test:
         deny: ["aws sts get-caller-identity"]
-        pass: ["aws s3 ls"]
+        abstain: ["aws s3 ls"]
 test:
   - in: "aws sts get-caller-identity"
     decision: deny
@@ -565,7 +565,7 @@ test:
           service: s3
       test:
         deny: ["kubectl get pods"]
-        pass: ["kubectl describe pods"]
+        abstain: ["kubectl describe pods"]
 test:
   - in: "kubectl get pods"
     decision: deny
@@ -584,7 +584,7 @@ test:
           all_namespaces: "true"
       test:
         deny: ["kubectl get pods -A"]
-        pass: ["kubectl get pods"]
+        abstain: ["kubectl get pods"]
 test:
   - in: "kubectl get pods -A"
     decision: deny
@@ -604,7 +604,7 @@ test:
             verb: get
       test:
         deny: ["kubectl get pods"]
-        pass: ["kubectl describe pods"]
+        abstain: ["kubectl describe pods"]
 test:
   - in: "kubectl get pods"
     decision: deny
@@ -623,7 +623,7 @@ test:
           service: sts
       test:
         deny: ["helmfile sync"]
-        pass: ["helmfile diff"]
+        abstain: ["helmfile diff"]
 test:
   - in: "helmfile sync"
     decision: deny
@@ -642,7 +642,7 @@ test:
           interactive: "true"
       test:
         deny: ["helmfile destroy"]
-        pass: ["helmfile diff"]
+        abstain: ["helmfile diff"]
 test:
   - in: "helmfile destroy"
     decision: deny
@@ -662,7 +662,7 @@ test:
             verb: sync
       test:
         deny: ["helmfile sync"]
-        pass: ["helmfile diff"]
+        abstain: ["helmfile diff"]
 test:
   - in: "helmfile sync"
     decision: deny
@@ -720,7 +720,7 @@ func TestLoadVerifiedFileForHookRejectsMismatchedEvaluationSemantics(t *testing.
         name: git
       test:
         allow: ["git status"]
-        pass: ["pwd"]
+        abstain: ["pwd"]
 test:
   - in: "git status"
     decision: allow
@@ -751,7 +751,7 @@ func TestLoadVerifiedFileForHookRejectsUnsafeCachePermissions(t *testing.T) {
         name: git
       test:
         allow: ["git status"]
-        pass: ["pwd"]
+        abstain: ["pwd"]
 test:
   - in: "git status"
     decision: allow
@@ -805,7 +805,7 @@ func TestVerifyFileSupportsCompoundCommandAsExplicitAskE2E(t *testing.T) {
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status && rm -rf /tmp/x"
@@ -838,7 +838,7 @@ func TestLoadVerifiedFileForHookFailsWhenArtifactMissing(t *testing.T) {
         name: git
       test:
         allow: ["git status"]
-        pass: ["pwd"]
+        abstain: ["pwd"]
 test:
   - in: "git status"
     decision: allow
@@ -877,7 +877,7 @@ func TestVerifyEffectiveToAllCachesIncludesToolSettingsFingerprint(t *testing.T)
       test:
         ask:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -949,7 +949,7 @@ func TestLoadEffectiveForHookToolRejectsMismatchedEvaluationSemantics(t *testing
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"
@@ -985,7 +985,7 @@ func TestLoadFileIfPresentRejectsUnsupportedBuiltInRewriteContract(t *testing.T)
     test:
       - in: "aws --profile dev sts get-caller-identity"
         out: "HOGE=dev aws sts get-caller-identity"
-      - pass: "aws sts get-caller-identity"
+      - abstain: "aws sts get-caller-identity"
 test:
   - in: "aws --profile dev sts get-caller-identity"
     decision: ask
@@ -1012,7 +1012,7 @@ func TestLoadFileIfPresentSupportsBasicInclude(t *testing.T) {
           verb: status
       test:
         allow: ["git status"]
-        pass: ["git diff"]
+        abstain: ["git diff"]
 `)
 	writeFile(t, root, `include:
   - ./git.yml
@@ -1043,7 +1043,7 @@ func TestLoadFileIfPresentMergesIncludeThenCurrentFile(t *testing.T) {
           verb: status
       test:
         allow: ["git status"]
-        pass: ["git diff"]
+        abstain: ["git diff"]
 `)
 	writeFile(t, root, `include:
   - ./git.yml
@@ -1057,7 +1057,7 @@ permission:
           force: true
       test:
         deny: ["git push --force origin main"]
-        pass: ["git status"]
+        abstain: ["git status"]
 `)
 
 	pipeline, err := LoadFileIfPresent(Source{Layer: LayerUser, Path: root})
@@ -1083,7 +1083,7 @@ func TestLoadFileIfPresentPreservesIncludeOrder(t *testing.T) {
       patterns: ["^one$"]
       test:
         ask: ["one"]
-        pass: ["two"]
+        abstain: ["two"]
 `)
 	writeFile(t, filepath.Join(dir, "second.yml"), `permission:
   ask:
@@ -1091,7 +1091,7 @@ func TestLoadFileIfPresentPreservesIncludeOrder(t *testing.T) {
       patterns: ["^two$"]
       test:
         ask: ["two"]
-        pass: ["one"]
+        abstain: ["one"]
 `)
 	writeFile(t, root, `include:
   - ./first.yml
@@ -1102,7 +1102,7 @@ permission:
       patterns: ["^three$"]
       test:
         ask: ["three"]
-        pass: ["one"]
+        abstain: ["one"]
 `)
 
 	pipeline, err := LoadFileIfPresent(Source{Layer: LayerUser, Path: root})
@@ -1129,7 +1129,7 @@ func TestLoadFileIfPresentSupportsNestedIncludeRelativeToIncludingFile(t *testin
           verb: status
       test:
         allow: ["git status"]
-        pass: ["git diff"]
+        abstain: ["git diff"]
 `)
 	writeFile(t, filepath.Join(policyDir, "base.yml"), `include:
   - ./git.yml
@@ -1193,7 +1193,7 @@ func TestLoadFileIfPresentRunsIncludedTestsAndReportsSource(t *testing.T) {
           verb: status
       test:
         allow: ["git status"]
-        pass: ["git diff"]
+        abstain: ["git diff"]
 `)
 	writeFile(t, testsPath, `test:
   - in: "git status"
@@ -1233,7 +1233,7 @@ func TestLoadFileIfPresentReportsIncludedRuleSourceInValidationError(t *testing.
           namespace: prod
       test:
         deny: ["git push"]
-        pass: ["git status"]
+        abstain: ["git status"]
 `)
 	writeFile(t, root, `include:
   - ./policies/git.yml
@@ -1258,7 +1258,7 @@ func TestIncludedFileChangeInvalidatesVerifiedArtifact(t *testing.T) {
           verb: status
       test:
         allow: ["git status"]
-        pass: ["git diff"]
+        abstain: ["git diff"]
 `)
 	writeFile(t, root, `include:
   - ./git.yml
@@ -1274,7 +1274,7 @@ func TestIncludedFileChangeInvalidatesVerifiedArtifact(t *testing.T) {
           verb: diff
       test:
         allow: ["git diff"]
-        pass: ["git status"]
+        abstain: ["git status"]
 `)
 	_, err := LoadVerifiedFileForHook(Source{Layer: LayerUser, Path: root}, []string{cacheDir})
 	if err == nil || !strings.Contains(err.Error(), "included policy files changed since last verify") || !strings.Contains(err.Error(), "Included policy files are part of the verified artifact") {
@@ -1296,7 +1296,7 @@ func TestVerifyEffectiveArtifactContainsBundledConfigAndIncludedSources(t *testi
           verb: status
       test:
         allow: ["git status"]
-        pass: ["git diff"]
+        abstain: ["git diff"]
 `)
 	writeFile(t, configPath, `include:
   - ./policies/git.yml

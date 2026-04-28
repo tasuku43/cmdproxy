@@ -143,7 +143,29 @@ func verifyWarnings(loaded configrepo.Loaded) []VerifyDiagnostic {
 			})
 		}
 	}
+	warnings = append(warnings, deprecatedPassWarnings(loaded.Pipeline)...)
 	warnings = append(warnings, duplicateRuleNameWarnings(loaded.Pipeline)...)
+	return warnings
+}
+
+func deprecatedPassWarnings(p policy.Pipeline) []VerifyDiagnostic {
+	var warnings []VerifyDiagnostic
+	visit := func(rules []policy.PermissionRuleSpec) {
+		for _, rule := range rules {
+			if len(rule.Test.Pass) == 0 {
+				continue
+			}
+			warnings = append(warnings, VerifyDiagnostic{
+				Kind:    "deprecated_test_pass",
+				Title:   "Deprecated test.pass",
+				Source:  sourceFromPolicy(rule.Source, rule.Name),
+				Message: "test.pass is deprecated; use test.abstain",
+			})
+		}
+	}
+	visit(p.Permission.Deny)
+	visit(p.Permission.Ask)
+	visit(p.Permission.Allow)
 	return warnings
 }
 

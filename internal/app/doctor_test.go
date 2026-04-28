@@ -95,7 +95,7 @@ func minimalValidConfig() string {
       test:
         allow:
           - "git status"
-        pass:
+        abstain:
           - "git diff"
 test:
   - in: "git status"

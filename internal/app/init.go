@@ -56,7 +56,7 @@ const starterConfig = `permission:
       test:
         deny:
           - "git -C repos/foo status"
-        pass:
+        abstain:
           - "git status"
 test:
   - in: "git -C repos/foo status"

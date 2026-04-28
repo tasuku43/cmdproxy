@@ -10,6 +10,7 @@ import (
 	commandpkg "github.com/tasuku43/cc-bash-guard/internal/domain/command"
 	"github.com/tasuku43/cc-bash-guard/internal/domain/invocation"
 	semanticpkg "github.com/tasuku43/cc-bash-guard/internal/domain/semantic"
+	"gopkg.in/yaml.v3"
 )
 
 type PipelineSpec struct {
@@ -52,10 +53,11 @@ type PermissionEnvSpec struct {
 }
 
 type PermissionTestSpec struct {
-	Allow []string `yaml:"allow" json:"allow,omitempty"`
-	Ask   []string `yaml:"ask" json:"ask,omitempty"`
-	Deny  []string `yaml:"deny" json:"deny,omitempty"`
-	Pass  []string `yaml:"pass" json:"pass,omitempty"`
+	Allow   []string `yaml:"allow" json:"allow,omitempty"`
+	Ask     []string `yaml:"ask" json:"ask,omitempty"`
+	Deny    []string `yaml:"deny" json:"deny,omitempty"`
+	Abstain []string `yaml:"abstain" json:"abstain,omitempty"`
+	Pass    []string `yaml:"pass" json:"pass,omitempty"`
 }
 
 type PipelineTestSpec []PipelineExpectCase
@@ -64,9 +66,52 @@ type PipelineExpectCase struct {
 	In string `yaml:"in" json:"in,omitempty"`
 	// Rewritten is retained only to reject unsupported tests with guidance.
 	// cc-bash-guard tests assert permission decisions, not rewritten commands.
-	Rewritten string `yaml:"rewritten" json:"rewritten,omitempty"`
-	Decision  string `yaml:"decision" json:"decision,omitempty"`
-	Source    Source `yaml:"-" json:"source,omitempty"`
+	Rewritten           string `yaml:"rewritten" json:"rewritten,omitempty"`
+	Decision            string `yaml:"decision" json:"decision,omitempty"`
+	AssertPolicyOutcome bool   `yaml:"-" json:"assert_policy_outcome,omitempty"`
+	Source              Source `yaml:"-" json:"source,omitempty"`
+}
+
+func (s *PipelineTestSpec) UnmarshalYAML(node *yaml.Node) error {
+	switch node.Kind {
+	case yaml.SequenceNode:
+		var cases []PipelineExpectCase
+		if err := node.Decode(&cases); err != nil {
+			return err
+		}
+		*s = cases
+		return nil
+	case yaml.MappingNode:
+		var cases []PipelineExpectCase
+		seen := map[string]bool{}
+		for i := 0; i < len(node.Content); i += 2 {
+			key := node.Content[i].Value
+			if seen[key] {
+				return fmt.Errorf("test.%s is duplicated", key)
+			}
+			seen[key] = true
+			switch key {
+			case "deny", "ask", "allow", "abstain":
+			default:
+				return fmt.Errorf("test.%s is not supported; bucketed test keys must be one of deny, ask, allow, abstain", key)
+			}
+			var inputs []string
+			if err := node.Content[i+1].Decode(&inputs); err != nil {
+				return fmt.Errorf("test.%s must be a sequence of command strings: %w", key, err)
+			}
+			for _, in := range inputs {
+				cases = append(cases, PipelineExpectCase{
+					In:                  in,
+					Decision:            key,
+					AssertPolicyOutcome: key == "abstain",
+				})
+			}
+		}
+		*s = cases
+		return nil
+	default:
+		return fmt.Errorf("test must be either a sequence of cases or a mapping of deny/ask/allow/abstain buckets")
+	}
 }
 
 type MatchSpec struct {
@@ -3367,7 +3412,7 @@ func ValidatePermissionTest(prefix string, test PermissionTestSpec, effect strin
 		}
 		issues = append(issues, validateNonEmptyStrings(prefix+".allow", test.Allow)...)
 		if len(test.Ask) > 0 || len(test.Deny) > 0 {
-			issues = append(issues, prefix+" may only use allow and pass")
+			issues = append(issues, prefix+" may only use allow and abstain")
 		}
 	case "ask":
 		if len(test.Ask) == 0 {
@@ -3375,7 +3420,7 @@ func ValidatePermissionTest(prefix string, test PermissionTestSpec, effect strin
 		}
 		issues = append(issues, validateNonEmptyStrings(prefix+".ask", test.Ask)...)
 		if len(test.Allow) > 0 || len(test.Deny) > 0 {
-			issues = append(issues, prefix+" may only use ask and pass")
+			issues = append(issues, prefix+" may only use ask and abstain")
 		}
 	case "deny":
 		if len(test.Deny) == 0 {
@@ -3383,12 +3428,13 @@ func ValidatePermissionTest(prefix string, test PermissionTestSpec, effect strin
 		}
 		issues = append(issues, validateNonEmptyStrings(prefix+".deny", test.Deny)...)
 		if len(test.Allow) > 0 || len(test.Ask) > 0 {
-			issues = append(issues, prefix+" may only use deny and pass")
+			issues = append(issues, prefix+" may only use deny and abstain")
 		}
 	}
+	issues = append(issues, validateNonEmptyStrings(prefix+".abstain", test.Abstain)...)
 	issues = append(issues, validateNonEmptyStrings(prefix+".pass", test.Pass)...)
-	if len(test.Pass) == 0 {
-		issues = append(issues, prefix+".pass must be non-empty")
+	if len(test.Abstain) == 0 && len(test.Pass) == 0 {
+		issues = append(issues, prefix+".abstain must be non-empty")
 	}
 	return issues
 }
@@ -3407,6 +3453,13 @@ func ValidatePipelineTest(prefix string, test PipelineTestSpec) []string {
 		}
 		switch c.Decision {
 		case "allow", "ask", "deny":
+			if c.AssertPolicyOutcome {
+				issues = append(issues, fmt.Sprintf("%s[%d].decision cannot use policy-outcome assertion for %s", prefix, i, c.Decision))
+			}
+		case "abstain":
+			if !c.AssertPolicyOutcome {
+				issues = append(issues, fmt.Sprintf("%s[%d].decision abstain is only valid in bucketed test.abstain; final hook decisions are deny, ask, or allow", prefix, i))
+			}
 		default:
 			issues = append(issues, fmt.Sprintf("%s[%d].decision must be one of allow, ask, deny", prefix, i))
 		}
