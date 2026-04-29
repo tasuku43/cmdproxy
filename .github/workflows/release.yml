@@ -45,12 +45,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate provenance attestations for release archives
-        uses: actions/attest@281a49d4cbb0a72c9575a50d18f6deb515a11deb # v4
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4
         with:
           subject-checksums: dist/checksums.txt
 
       - name: Generate provenance attestation for checksums.txt
-        uses: actions/attest@281a49d4cbb0a72c9575a50d18f6deb515a11deb # v4
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4
         with:
           subject-path: dist/checksums.txt
 
