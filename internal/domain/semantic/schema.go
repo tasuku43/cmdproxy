@@ -1,5 +1,7 @@
 package semantic
 
+//go:generate go run ../../devtools/gen-semantic-coverage
+
 type Schema struct {
 	Command      string    `json:"command"`
 	SemanticPath string    `json:"semantic_path"`

@@ -31,6 +31,10 @@ cc-bash-guard semantic-schema git --format json
 boolean notes, and examples for one command. `semantic-schema --format json`
 prints the same registry as machine-readable JSON.
 
+For a user-facing matrix of supported commands, semantic fields, examples,
+recommended policy style, and known limitations, see
+[`docs/user/SEMANTIC_COVERAGE.md`](SEMANTIC_COVERAGE.md).
+
 ## Supported Commands
 
 The current registry supports:

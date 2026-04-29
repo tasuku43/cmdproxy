@@ -365,7 +365,8 @@ permission:
 Supported semantic parsers currently include `git`, `aws`, `kubectl`, `gh`,
 `gws`, `helm`, `helmfile`, `argocd`, `terraform`, and `docker`. Treat `cc-bash-guard help semantic` and
 `cc-bash-guard semantic-schema --format json` as the source of truth for the
-installed binary.
+installed binary. See [`docs/user/SEMANTIC_COVERAGE.md`](docs/user/SEMANTIC_COVERAGE.md)
+for the user-facing coverage matrix, fields, examples, and limitations.
 
 Complete runnable examples:
 

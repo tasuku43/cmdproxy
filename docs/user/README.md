@@ -13,6 +13,7 @@ Start with:
 - `docs/user/PERMISSION_SCHEMA.md`
 - `docs/user/THREAT_MODEL.md`
 - `docs/user/SEMANTIC_SCHEMAS.md`
+- `docs/user/SEMANTIC_COVERAGE.md`
 - `docs/user/EXAMPLES.md`
 - `docs/user/TROUBLESHOOTING.md`
 - `docs/user/AWS_GUIDELINES.md`

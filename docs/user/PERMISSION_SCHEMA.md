@@ -134,6 +134,9 @@ cc-bash-guard help semantic
 cc-bash-guard semantic-schema --format json
 ```
 
+See [`docs/user/SEMANTIC_COVERAGE.md`](SEMANTIC_COVERAGE.md) for the semantic
+parser coverage matrix, field reference, examples, and limitations.
+
 ## env
 
 Use `env` to require or reject environment variables for the invocation.
