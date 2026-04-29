@@ -14,6 +14,41 @@ policy safely.
 
 `cc-bash-guard` policy evaluation never rewrites commands. The default hook does not emit `updatedInput`.
 
+## Safety Scope
+
+`cc-bash-guard` is a permission policy layer, not an OS, filesystem, or network
+sandbox. It helps decide whether a Claude Code Bash command should be allowed,
+confirmed, or denied before execution.
+
+What it helps with:
+
+- evaluates command strings using parser-backed command plans, semantic rules,
+  raw `patterns`, environment checks, Claude settings permissions, and verified
+  policy artifacts
+- merges permission sources as `deny > ask > allow > abstain`, with final
+  fallback to `ask` when all sources abstain
+- fails closed when the verified artifact is missing, stale, or incompatible
+
+What it does not do:
+
+- sandbox an allowed process after the decision is `allow`
+- remove the allowed process's normal filesystem, network, credential, plugin,
+  or subprocess capabilities
+- deeply inspect arbitrary script bodies or behavior behind `npm run`, `make`,
+  `sh script.sh`, shell aliases/functions, or plugin-invoked commands
+- detect malware or prove a command is safe
+
+Recommended posture:
+
+- prefer semantic rules for supported tools, explicit `deny` rules, and narrow
+  `ask` / `allow` rules
+- avoid broad allow regexes and broad command namespace allows such as all
+  `aws`, `npm`, or `terraform` invocations
+- add tests for allowed commands and near misses, then run
+  `cc-bash-guard verify` after policy changes
+
+For details, read [`docs/user/THREAT_MODEL.md`](docs/user/THREAT_MODEL.md).
+
 ## Opening Demo
 
 One semantic rule. Multiple equivalent command forms. Tested.
@@ -65,6 +100,7 @@ The core value is policy-as-code:
 `cc-bash-guard` is not:
 
 - an OS sandbox
+- a filesystem or network sandbox
 - a malware detector
 - a full interpreter for arbitrary scripts
 - a command rewriting tool in default mode
