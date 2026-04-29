@@ -1,0 +1,374 @@
+permission:
+  deny:
+    - name: kubectl delete
+      command:
+        name: kubectl
+        semantic:
+          verb: delete
+      message: "kubectl delete is blocked"
+      test:
+        deny:
+          - "kubectl delete pod app"
+        abstain:
+          - "kubectl get pods"
+
+    - name: helm uninstall
+      command:
+        name: helm
+        semantic:
+          verb: uninstall
+      message: "helm uninstall is blocked"
+      test:
+        deny:
+          - "helm uninstall my-release -n default"
+        abstain:
+          - "helm status my-release -n default"
+
+    - name: terraform destroy auto approve
+      command:
+        name: terraform
+        semantic:
+          subcommand: destroy
+          auto_approve: true
+      message: "terraform destroy -auto-approve is blocked"
+      test:
+        deny:
+          - "terraform destroy -auto-approve"
+        abstain:
+          - "terraform destroy"
+
+    - name: docker privileged containers
+      command:
+        name: docker
+        semantic:
+          verb: run
+          privileged: true
+      message: "privileged Docker containers are blocked"
+      test:
+        deny:
+          - "docker run --privileged alpine"
+        abstain:
+          - "docker run --rm alpine echo hello"
+
+    - name: docker host namespace
+      command:
+        name: docker
+        semantic:
+          network_host: true
+      message: "Docker host networking is blocked"
+      test:
+        deny:
+          - "docker run --network host alpine"
+        abstain:
+          - "docker run --rm alpine echo hello"
+
+    - name: docker socket mount
+      command:
+        name: docker
+        semantic:
+          docker_socket_mount: true
+      message: "Docker socket mounts are blocked"
+      test:
+        deny:
+          - "docker run -v /var/run/docker.sock:/var/run/docker.sock alpine"
+        abstain:
+          - "docker run -v ./data:/data alpine"
+
+    - name: docker root mount
+      command:
+        name: docker
+        semantic:
+          root_mount: true
+      message: "Docker root host mounts are blocked"
+      test:
+        deny:
+          - "docker run -v /:/host alpine"
+        abstain:
+          - "docker run -v ./data:/data alpine"
+
+    - name: docker destructive prune
+      command:
+        name: docker
+        semantic:
+          verb: system
+          subverb: prune
+          all_resources: true
+          volumes_flag: true
+      message: "destructive Docker prune is blocked"
+      test:
+        deny:
+          - "docker system prune -a --volumes"
+        abstain:
+          - "docker system df"
+
+    - name: Argo CD app delete
+      command:
+        name: argocd
+        semantic:
+          verb: app delete
+      message: "Argo CD app delete is blocked"
+      test:
+        deny:
+          - "argocd app delete my-app"
+        abstain:
+          - "argocd app get my-app"
+
+  ask:
+    - name: kubectl mutating operations
+      command:
+        name: kubectl
+        semantic:
+          verb_in:
+            - apply
+            - patch
+            - replace
+            - rollout
+            - scale
+      message: "kubectl mutating operation requires confirmation"
+      test:
+        ask:
+          - "kubectl apply -f app.yaml"
+          - "kubectl rollout restart deployment app"
+        abstain:
+          - "kubectl get pods"
+
+    - name: helm mutating operations
+      command:
+        name: helm
+        semantic:
+          verb_in:
+            - install
+            - upgrade
+            - rollback
+      message: "helm mutating operation requires confirmation"
+      test:
+        ask:
+          - "helm upgrade my-release ./chart -n default"
+          - "helm install my-release ./chart -n default"
+        abstain:
+          - "helm status my-release -n default"
+
+    - name: helm plugin changes
+      command:
+        name: helm
+        semantic:
+          verb: plugin
+          subverb_in:
+            - install
+            - update
+            - uninstall
+      message: "helm plugin change requires confirmation"
+      test:
+        ask:
+          - "helm plugin install https://example.com/plugin.git"
+        abstain:
+          - "helm plugin list"
+
+    - name: helmfile mutating operations
+      command:
+        name: helmfile
+        semantic:
+          verb_in:
+            - apply
+            - sync
+            - destroy
+      message: "helmfile mutating operation requires confirmation"
+      test:
+        ask:
+          - "helmfile apply"
+          - "helmfile sync"
+        abstain:
+          - "helmfile diff"
+
+    - name: terraform mutating operations
+      command:
+        name: terraform
+        semantic:
+          subcommand_in:
+            - apply
+            - destroy
+      message: "terraform mutating operation requires confirmation"
+      test:
+        ask:
+          - "terraform apply tfplan"
+          - "terraform destroy"
+        abstain:
+          - "terraform plan"
+
+    - name: terraform state mutation
+      command:
+        name: terraform
+        semantic:
+          subcommand: state
+          state_subcommand_in:
+            - mv
+            - rm
+            - push
+            - replace-provider
+      message: "terraform state mutation requires confirmation"
+      test:
+        ask:
+          - "terraform state rm aws_instance.bad"
+        abstain:
+          - "terraform state list"
+
+    - name: docker mutating operations
+      command:
+        name: docker
+        semantic:
+          verb_in:
+            - run
+            - exec
+            - rm
+            - rmi
+            - build
+            - pull
+            - push
+            - compose
+      message: "Docker mutating operation requires confirmation"
+      test:
+        ask:
+          - "docker run --rm alpine echo hello"
+          - "docker compose up -d"
+        abstain:
+          - "docker ps"
+
+    - name: Argo CD app sync
+      command:
+        name: argocd
+        semantic:
+          verb: app sync
+      message: "Argo CD app sync requires confirmation"
+      test:
+        ask:
+          - "argocd app sync my-app"
+        abstain:
+          - "argocd app get my-app"
+
+  allow:
+    - name: AWS caller identity
+      command:
+        name: aws
+        semantic:
+          service: sts
+          operation: get-caller-identity
+      message: "allow AWS caller identity"
+      test:
+        allow:
+          - "aws sts get-caller-identity"
+        abstain:
+          - "aws s3api list-buckets"
+
+    - name: kubectl read-only
+      command:
+        name: kubectl
+        semantic:
+          verb_in:
+            - get
+            - describe
+      message: "allow kubectl read-only inspection"
+      test:
+        allow:
+          - "kubectl get pods"
+          - "kubectl describe pod app"
+        abstain:
+          - "kubectl apply -f app.yaml"
+
+    - name: helm read-only
+      command:
+        name: helm
+        semantic:
+          verb_in:
+            - list
+            - status
+            - get
+      message: "allow helm read-only inspection"
+      test:
+        allow:
+          - "helm list -n default"
+          - "helm status my-release -n default"
+          - "helm get values my-release -n default"
+        abstain:
+          - "helm upgrade my-release ./chart -n default"
+
+    - name: helmfile diff
+      command:
+        name: helmfile
+        semantic:
+          verb: diff
+      message: "allow helmfile diff"
+      test:
+        allow:
+          - "helmfile diff"
+        abstain:
+          - "helmfile apply"
+
+    - name: terraform plan and show
+      command:
+        name: terraform
+        semantic:
+          subcommand_in:
+            - plan
+            - show
+      message: "allow terraform plan and show"
+      test:
+        allow:
+          - "terraform plan"
+          - "terraform show tfplan"
+        abstain:
+          - "terraform apply tfplan"
+
+    - name: docker read-only
+      command:
+        name: docker
+        semantic:
+          verb_in:
+            - ps
+            - images
+            - inspect
+      message: "allow Docker read-only inspection"
+      test:
+        allow:
+          - "docker ps"
+          - "docker images"
+          - "docker inspect app"
+        abstain:
+          - "docker run --rm alpine echo hello"
+
+    - name: Argo CD app get
+      command:
+        name: argocd
+        semantic:
+          verb: app get
+      message: "allow Argo CD app get"
+      test:
+        allow:
+          - "argocd app get my-app"
+        abstain:
+          - "argocd app sync my-app"
+
+test:
+  allow:
+    - "aws sts get-caller-identity"
+    - "kubectl get pods"
+    - "helm status my-release -n default"
+    - "helmfile diff"
+    - "terraform plan"
+    - "docker ps"
+    - "argocd app get my-app"
+  ask:
+    - "aws s3api list-buckets"
+    - "kubectl apply -f app.yaml"
+    - "helm upgrade my-release ./chart -n default"
+    - "helmfile apply"
+    - "terraform apply tfplan"
+    - "docker run --rm alpine echo hello"
+    - "argocd app sync my-app"
+    - "unknown-tool --flag"
+  deny:
+    - "kubectl delete pod app"
+    - "helm uninstall my-release -n default"
+    - "terraform destroy -auto-approve"
+    - "docker run --privileged alpine"
+    - "docker run -v /var/run/docker.sock:/var/run/docker.sock alpine"
+    - "argocd app delete my-app"

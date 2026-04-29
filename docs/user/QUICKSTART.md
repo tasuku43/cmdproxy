@@ -46,6 +46,10 @@ profiles create useful verified policy examples with tests:
 - `aws-k8s`: AWS identity/read-only and kubectl read-only examples
 - `argocd`: Argo CD read/status examples with app deletion blocked
 
+For help choosing between personal cautious, Git-safe, infrastructure
+cautious, team baseline, and CI verification workflows, see
+`docs/user/OPERATIONAL_TEMPLATES.md`.
+
 The user config lives at:
 
 ```text

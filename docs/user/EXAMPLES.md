@@ -5,6 +5,9 @@ These examples use the current permission shape: `command`, `env`, and
 use raw `patterns` as a fallback for commands without semantic support or for
 deliberate raw-string checks.
 
+For production-oriented operating postures that combine these patterns, see
+`docs/user/OPERATIONAL_TEMPLATES.md`.
+
 ## Semantic Git Status
 
 One semantic rule can allow equivalent forms of `git status` without a broad

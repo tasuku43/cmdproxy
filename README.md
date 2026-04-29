@@ -168,6 +168,10 @@ as `balanced`, `strict`, `git-safe`, `aws-k8s`, and `argocd`. `verify`
 validates the effective policy, runs configured examples, and writes the
 verified artifact used by the hook.
 
+To choose a practical operating posture for personal, Git-focused,
+infrastructure, team, or CI verification workflows, see
+[`docs/user/OPERATIONAL_TEMPLATES.md`](docs/user/OPERATIONAL_TEMPLATES.md).
+
 For manual GitHub Releases installs, checksum verification, and Go toolchain
 builds, see [`INSTALL.md`](INSTALL.md).
 
@@ -351,6 +355,9 @@ installed binary.
 
 Complete runnable examples:
 
+- [`examples/personal-cautious.yml`](examples/personal-cautious.yml)
+- [`examples/infra-cautious.yml`](examples/infra-cautious.yml)
+- [`examples/team-baseline.yml`](examples/team-baseline.yml)
 - [`examples/git-status-semantic.yml`](examples/git-status-semantic.yml)
 - [`examples/git-safe-readonly.yml`](examples/git-safe-readonly.yml)
 - [`examples/aws-identity.yml`](examples/aws-identity.yml)

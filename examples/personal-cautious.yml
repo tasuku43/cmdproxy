@@ -1,0 +1,125 @@
+permission:
+  deny:
+    - name: git force push
+      command:
+        name: git
+        semantic:
+          verb: push
+          force: true
+      message: "git force push is blocked"
+      test:
+        deny:
+          - "git push --force origin main"
+        abstain:
+          - "git push origin main"
+
+    - name: git force-with-lease push
+      command:
+        name: git
+        semantic:
+          verb: push
+          force_with_lease: true
+      message: "git force-with-lease push is blocked"
+      test:
+        deny:
+          - "git push --force-with-lease origin main"
+        abstain:
+          - "git push origin main"
+
+    - name: git hard reset
+      command:
+        name: git
+        semantic:
+          verb: reset
+          hard: true
+      message: "git reset --hard is blocked"
+      test:
+        deny:
+          - "git reset --hard HEAD"
+        abstain:
+          - "git reset HEAD"
+
+    - name: git clean ignored recursive
+      command:
+        name: git
+        semantic:
+          verb: clean
+          force: true
+          recursive: true
+          include_ignored: true
+      message: "git clean -fdx is blocked"
+      test:
+        deny:
+          - "git clean -fdx"
+        abstain:
+          - "git clean -n"
+
+  ask:
+    - name: git write operations
+      command:
+        name: git
+        semantic:
+          verb_in:
+            - commit
+            - push
+            - reset
+            - rebase
+            - merge
+      message: "git write operation requires confirmation"
+      test:
+        ask:
+          - "git commit -m update"
+          - "git push origin main"
+        abstain:
+          - "git status"
+
+  allow:
+    - name: git read-only inspection
+      command:
+        name: git
+        semantic:
+          verb_in:
+            - status
+            - diff
+            - log
+            - show
+            - branch
+      message: "allow git read-only inspection"
+      test:
+        allow:
+          - "git status"
+          - "git diff --cached"
+          - "git branch --show-current"
+        abstain:
+          - "git push origin main"
+
+    - name: basic local inspection
+      patterns:
+        - "^pwd$"
+        - "^ls(\\s+-[A-Za-z0-9]+)*(\\s+\\.)?$"
+        - "^find\\s+\\.\\s+-maxdepth\\s+1\\s+-type\\s+f$"
+      message: "allow narrow local inspection commands"
+      test:
+        allow:
+          - "pwd"
+          - "ls -la ."
+          - "find . -maxdepth 1 -type f"
+        abstain:
+          - "cat ~/.ssh/id_rsa"
+          - "find / -type f"
+
+test:
+  allow:
+    - "git status"
+    - "git diff --cached"
+    - "git branch --show-current"
+    - "pwd"
+    - "ls -la ."
+  ask:
+    - "git push origin main"
+    - "unknown-tool --flag"
+  deny:
+    - "git push --force origin main"
+    - "git push --force-with-lease origin main"
+    - "git reset --hard HEAD"
+    - "git clean -fdx"

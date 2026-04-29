@@ -1,0 +1,123 @@
+permission:
+  deny:
+    - name: git force push
+      command:
+        name: git
+        semantic:
+          verb: push
+          force: true
+      message: "git force push is blocked"
+      test:
+        deny:
+          - "git push --force origin main"
+        abstain:
+          - "git push origin main"
+
+    - name: git hard reset
+      command:
+        name: git
+        semantic:
+          verb: reset
+          hard: true
+      message: "git reset --hard is blocked"
+      test:
+        deny:
+          - "git reset --hard HEAD"
+        abstain:
+          - "git reset HEAD"
+
+    - name: kubectl delete
+      command:
+        name: kubectl
+        semantic:
+          verb: delete
+      message: "kubectl delete is blocked in the team baseline"
+      test:
+        deny:
+          - "kubectl delete pod app"
+        abstain:
+          - "kubectl get pods"
+
+  ask:
+    - name: git write operations
+      command:
+        name: git
+        semantic:
+          verb_in:
+            - commit
+            - push
+            - reset
+            - rebase
+            - merge
+      message: "git write operation requires confirmation"
+      test:
+        ask:
+          - "git commit -m update"
+          - "git push origin main"
+        abstain:
+          - "git status"
+
+    - name: infrastructure mutations
+      command:
+        name: kubectl
+        semantic:
+          verb_in:
+            - apply
+            - patch
+            - replace
+            - rollout
+            - scale
+      message: "infrastructure mutation requires confirmation"
+      test:
+        ask:
+          - "kubectl apply -f app.yaml"
+        abstain:
+          - "kubectl get pods"
+
+  allow:
+    - name: git read-only
+      command:
+        name: git
+        semantic:
+          verb_in:
+            - status
+            - diff
+            - log
+            - show
+            - branch
+      message: "allow git read-only inspection"
+      test:
+        allow:
+          - "git status"
+          - "git diff --cached"
+        abstain:
+          - "git push origin main"
+
+    - name: kubectl read-only
+      command:
+        name: kubectl
+        semantic:
+          verb_in:
+            - get
+            - describe
+      message: "allow kubectl read-only inspection"
+      test:
+        allow:
+          - "kubectl get pods"
+          - "kubectl describe pod app"
+        abstain:
+          - "kubectl apply -f app.yaml"
+
+test:
+  allow:
+    - "git status"
+    - "git branch --show-current"
+    - "kubectl get pods"
+  ask:
+    - "git push origin main"
+    - "kubectl apply -f app.yaml"
+    - "unknown-tool --flag"
+  deny:
+    - "git push --force origin main"
+    - "git reset --hard HEAD"
+    - "kubectl delete pod app"
