@@ -320,6 +320,12 @@ func suggestedSemanticFields(semantic policy.SemanticMatchSpec) []suggestedField
 	addSuggestedString("kube_context", semantic.KubeContext)
 	addSuggestedString("app_name", semantic.AppName)
 	addSuggestedString("project", semantic.Project)
+	addSuggestedString("subcommand", semantic.Subcommand)
+	addSuggestedString("workspace_subcommand", semantic.WorkspaceSubcommand)
+	addSuggestedString("state_subcommand", semantic.StateSubcommand)
+	addSuggestedString("method", semantic.Method)
+	addSuggestedString("container", semantic.Container)
+	addSuggestedString("image", semantic.Image)
 	addSuggestedBool("force", semantic.Force)
 	addSuggestedBool("force_with_lease", semantic.ForceWithLease)
 	addSuggestedBool("force_if_includes", semantic.ForceIfIncludes)
@@ -328,6 +334,12 @@ func suggestedSemanticFields(semantic policy.SemanticMatchSpec) []suggestedField
 	addSuggestedBool("include_ignored", semantic.IncludeIgnored)
 	addSuggestedBool("admin", semantic.Admin)
 	addSuggestedBool("interactive", semantic.Interactive)
+	addSuggestedBool("read_only", semantic.ReadOnly)
+	addSuggestedBool("mutating", semantic.Mutating)
+	addSuggestedBool("destructive", semantic.Destructive)
+	addSuggestedBool("privileged", semantic.Privileged)
+	addSuggestedBool("destroy", semantic.Destroy)
+	addSuggestedBool("auto_approve", semantic.AutoApprove)
 	sort.SliceStable(fields, func(i, j int) bool {
 		return suggestedFieldOrder(fields[i].key) < suggestedFieldOrder(fields[j].key)
 	})
@@ -338,8 +350,10 @@ func suggestedFieldOrder(key string) int {
 	order := map[string]int{
 		"verb": 0, "service": 1, "operation": 2, "area": 3, "resource_type": 4, "resource_name": 5,
 		"namespace": 6, "environment": 7, "kube_context": 8, "app_name": 9, "project": 10,
+		"subcommand": 11, "workspace_subcommand": 12, "state_subcommand": 13, "method": 14, "container": 15, "image": 16,
 		"force": 20, "force_with_lease": 21, "force_if_includes": 22, "hard": 23, "recursive": 24,
-		"include_ignored": 25, "admin": 26, "interactive": 27,
+		"include_ignored": 25, "admin": 26, "interactive": 27, "read_only": 28, "mutating": 29, "destructive": 30,
+		"privileged": 31, "destroy": 32, "auto_approve": 33,
 	}
 	if v, ok := order[key]; ok {
 		return v

@@ -3410,6 +3410,19 @@ func TestRunInitCreatesStarterConfig(t *testing.T) {
 	if !strings.Contains(string(data), "permission:") {
 		t.Fatalf("config=%q", string(data))
 	}
+	out := stdout.String()
+	for _, want := range []string{
+		"user config: " + filepath.Join(home, ".config", "cc-bash-guard", "cc-bash-guard.yml"),
+		"hook snippet:",
+		`{"matcher":"Bash","hooks":[{"type":"command","command":"cc-bash-guard hook"}]}`,
+		"next: run cc-bash-guard verify",
+		"safety: cc-bash-guard is a permission layer, not a sandbox",
+		"warning: avoid broad permission.allow rules",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, out)
+		}
+	}
 }
 
 func TestRunInitListProfiles(t *testing.T) {

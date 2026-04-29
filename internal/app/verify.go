@@ -171,19 +171,19 @@ func broadAllowRuleFailure(rule policy.PermissionRuleSpec, cmd string, reason st
 		Command:          cmd,
 		Message:          "permission.allow rule is broad: " + reason,
 		Reason:           reason,
-		Hint:             "Prefer semantic allow rules for supported commands, move broad command namespace handling to permission.ask, and use narrow anchored tests for fallback patterns.",
+		Hint:             "Move broad namespace rules to permission.ask. For supported commands, replace broad allow with command.semantic fields and keep rule-local allow/abstain tests; use narrow anchored patterns only as fallback.",
 		SaferAlternative: broadAllowRuleAlternative(cmd),
 	}
 }
 
 func broadAllowRuleAlternative(cmd string) string {
 	if cmd == "" {
-		return "Add command.name plus command.semantic for supported commands, or move this rule to permission.ask."
+		return "Add command.name plus command.semantic for supported commands, or move this rule from permission.allow to permission.ask."
 	}
 	if _, supported := semanticpkg.Lookup(cmd); supported {
-		return "Use command.semantic for " + cmd + " or move the broad namespace rule to permission.ask."
+		return "Use command.semantic for " + cmd + " or move the broad namespace rule from permission.allow to permission.ask."
 	}
-	return "Use a narrow anchored pattern for the exact safe invocation, or move this rule to permission.ask."
+	return "Use a narrow anchored pattern for the exact safe invocation, or move this rule from permission.allow to permission.ask."
 }
 
 func semanticAllowSubsumptionFailures(rules []policy.PermissionRuleSpec) []VerifyDiagnostic {
@@ -247,8 +247,8 @@ func semanticAllowSubsumptionFailure(narrow policy.PermissionRuleSpec, broad pol
 		Command:          cmd,
 		Message:          "semantic allow for command " + cmd + " is subsumed by broader allow rule `" + broadName + "`; use command.semantic on the broader rule, move broad behavior to permission.ask, or remove the broad allow.",
 		Reason:           reason,
-		Hint:             "Prefer semantic allow rules for supported commands, move broad command namespace handling to permission.ask, add explicit deny rules for dangerous operations where appropriate, and avoid broad raw allow patterns for commands with semantic parser support.",
-		SaferAlternative: "Use command.semantic for " + cmd + ", move the broad rule to permission.ask, or remove the broad allow.",
+		Hint:             "Move broad namespace rules to permission.ask. Keep permission.allow narrow with command.semantic fields and add explicit deny rules for known dangerous operations where appropriate.",
+		SaferAlternative: "Use command.semantic for " + cmd + ", move the broad rule from permission.allow to permission.ask, or remove the broad allow.",
 	}
 }
 
@@ -420,10 +420,10 @@ func broadShellMetacharPattern(pattern string) bool {
 func saferPatternHint(pattern string) string {
 	if cmd, ok := anchoredCommandName(pattern); ok {
 		if _, supported := semanticpkg.Lookup(cmd); supported {
-			return "Prefer permission.allow.command with command.name: " + cmd + " and command.semantic fields for the intended read-only operation; if a raw fallback is required, use a narrower regex anchored with ^ and $ that excludes shell metacharacters."
+			return "Prefer permission.allow.command with command.name: " + cmd + " and command.semantic fields for the intended read-only operation. Move broad namespace matching to permission.ask; if a raw fallback is required, use a narrower regex anchored with ^ and $ that excludes shell metacharacters."
 		}
 	}
-	return "Use a narrower regex anchored with ^ and $, include an explicit subcommand, and exclude shell metacharacters where raw patterns are required."
+	return "Move broad namespace matching to permission.ask. If permission.allow needs a raw fallback, use a narrower regex anchored with ^ and $, include an explicit subcommand, and exclude shell metacharacters."
 }
 
 func saferPatternAlternative(pattern string) string {

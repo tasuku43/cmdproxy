@@ -11,6 +11,7 @@ import (
 
 	"github.com/tasuku43/cc-bash-guard/internal/adapter/claude"
 	"github.com/tasuku43/cc-bash-guard/internal/domain/policy"
+	semanticpkg "github.com/tasuku43/cc-bash-guard/internal/domain/semantic"
 	"github.com/tasuku43/cc-bash-guard/internal/infra/buildinfo"
 	configrepo "github.com/tasuku43/cc-bash-guard/internal/infra/config"
 )
@@ -84,6 +85,12 @@ func Run(loaded configrepo.Loaded, tool string, cwd string, home string) Report 
 		checks = append(checks, Check{ID: "permission.env-only-allow", Category: "permission", Status: StatusPass, Message: "no env-only allow rules"})
 	}
 
+	if ids := broadAllowNames(loaded.Pipeline); len(ids) > 0 {
+		checks = append(checks, Check{ID: "permission.broad-allow", Category: "permission", Status: StatusWarn, Message: "broad allow rules found: " + strings.Join(ids, ", ") + "; move broad namespaces to permission.ask and keep permission.allow semantic or narrow"})
+	} else {
+		checks = append(checks, Check{ID: "permission.broad-allow", Category: "permission", Status: StatusPass, Message: "no broad allow rules detected"})
+	}
+
 	if tool == claude.Tool {
 		checks = append(checks, Check{ID: "permission.source-merge-rule", Category: "permission", Status: StatusPass, Message: "permission sources are merged using deny > ask > allow > abstain"})
 	}
@@ -130,7 +137,7 @@ func AddVerifiedArtifactCheck(report Report, status configrepo.EffectiveArtifact
 		report.Checks = append(report.Checks, Check{ID: "artifact.evaluation-semantics", Category: "artifact", Status: StatusFail, Message: status.Message})
 		return report
 	}
-	report.Checks = append(report.Checks, Check{ID: "artifact.evaluation-semantics", Category: "artifact", Status: StatusWarn, Message: status.Message})
+	report.Checks = append(report.Checks, Check{ID: "artifact.evaluation-semantics", Category: "artifact", Status: StatusWarn, Message: status.Message + "; hook enforcement requires a current verified artifact"})
 	return report
 }
 
@@ -337,6 +344,64 @@ func envOnlyAllowNames(p policy.Pipeline) []string {
 	return ids
 }
 
+func broadAllowNames(p policy.Pipeline) []string {
+	var ids []string
+	for i, rule := range p.Permission.Allow {
+		name := scopeName("permission.allow", i)
+		if strings.TrimSpace(rule.Name) != "" {
+			name += " " + strconv.Quote(rule.Name)
+		}
+		if policy.IsZeroPermissionCommandSpec(rule.Command) && len(rule.Patterns) == 0 && !policy.IsZeroPermissionEnvSpec(rule.Env) {
+			ids = append(ids, name)
+			continue
+		}
+		if cmd := strings.TrimSpace(rule.Command.Name); cmd != "" && rule.Command.Semantic == nil {
+			if _, ok := semanticpkg.Lookup(cmd); ok || isScriptRunnerOrInterpreter(cmd) {
+				ids = append(ids, name)
+				continue
+			}
+		}
+		if len(rule.Command.NameIn) > 0 && rule.Command.Semantic == nil {
+			for _, raw := range rule.Command.NameIn {
+				cmd := strings.TrimSpace(raw)
+				if _, ok := semanticpkg.Lookup(cmd); ok || isScriptRunnerOrInterpreter(cmd) {
+					ids = append(ids, name)
+					break
+				}
+			}
+		}
+		for _, pattern := range rule.Patterns {
+			if isBroadAllowPattern(pattern) {
+				ids = append(ids, name)
+				break
+			}
+		}
+	}
+	return ids
+}
+
+func isScriptRunnerOrInterpreter(cmd string) bool {
+	switch cmd {
+	case "bash", "sh", "zsh", "python", "python3", "node", "ruby", "perl", "make", "npm", "yarn", "pnpm", "npx", "xargs", "ssh":
+		return true
+	default:
+		return false
+	}
+}
+
+func isBroadAllowPattern(pattern string) bool {
+	p := strings.TrimSpace(pattern)
+	if p == ".*" || p == "^.*" || p == "^.*$" || !strings.HasPrefix(p, "^") {
+		return true
+	}
+	for _, cmd := range []string{"git", "aws", "kubectl", "gh", "gws", "helm", "helmfile", "argocd", "terraform", "docker", "bash", "sh", "zsh", "python", "python3", "node", "ruby", "perl", "make", "npm", "yarn", "pnpm", "npx", "xargs", "ssh"} {
+		if strings.HasPrefix(p, "^"+cmd+`\s+.*`) || strings.HasPrefix(p, "^"+cmd+`\b`) || strings.HasPrefix(p, "^"+cmd+".*") {
+			return true
+		}
+	}
+	return false
+}
+
 func permissionRuleMatchesEffect(rule policy.PermissionRuleSpec, command string, effect string) bool {
 	if effect == "allow" {
 		return policy.PermissionAllowRuleMatches(rule, command)
@@ -391,6 +456,10 @@ func claudeHookRegistrationCheck(path string) Check {
 		return check
 	}
 	if registration.BashHookCommand != "" {
+		if registration.BashHookCount > 1 {
+			check.Message = "multiple Claude Code Bash hooks detected; ensure cc-bash-guard is installed once and RTK is not also registered as a separate Bash hook"
+			return check
+		}
 		check.Status = StatusPass
 		check.Message = "Claude Code Bash hook registration detected"
 		return check
@@ -411,6 +480,7 @@ type claudeHookRegistration struct {
 	BashHookCommand    string
 	NonBashHookCommand string
 	BashMatcher        bool
+	BashHookCount      int
 }
 
 func inspectClaudeHookRegistration(data []byte) (claudeHookRegistration, error) {
@@ -469,6 +539,9 @@ func findClaudeHookRegistration(node any, inheritedMatcher string) claudeHookReg
 				result.NonBashHookCommand = command
 			}
 		}
+		if command, ok := v["command"].(string); ok && matcher == "Bash" && strings.TrimSpace(command) != "" {
+			result.BashHookCount++
+		}
 		for _, value := range v {
 			result = mergeClaudeHookRegistration(result, findClaudeHookRegistration(value, matcher))
 		}
@@ -488,5 +561,6 @@ func mergeClaudeHookRegistration(a claudeHookRegistration, b claudeHookRegistrat
 		a.NonBashHookCommand = b.NonBashHookCommand
 	}
 	a.BashMatcher = a.BashMatcher || b.BashMatcher
+	a.BashHookCount += b.BashHookCount
 	return a
 }

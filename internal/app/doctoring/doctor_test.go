@@ -83,6 +83,25 @@ func TestRunWarnsOnEnvOnlyAllow(t *testing.T) {
 	}
 }
 
+func TestRunWarnsOnBroadAllow(t *testing.T) {
+	loaded := configrepo.Loaded{
+		Pipeline: policy.NewPipeline(policy.PipelineSpec{
+			Permission: policy.PermissionSpec{
+				Allow: []policy.PermissionRuleSpec{{
+					Name:    "all git",
+					Command: policy.PermissionCommandSpec{Name: "git"},
+					Test:    policy.PermissionTestSpec{Allow: []string{"git status"}, Pass: []string{"kubectl get pods"}},
+				}},
+			},
+		}, policy.Source{}),
+	}
+	report := Run(loaded, "claude", t.TempDir(), t.TempDir())
+	check := findCheck(report, "permission.broad-allow")
+	if check.Status != StatusWarn || !strings.Contains(check.Message, "permission.allow[0]") || !strings.Contains(check.Message, "permission.ask") {
+		t.Fatalf("check = %+v", check)
+	}
+}
+
 func TestClaudeHookRegistrationCheckDetectsStructuredSettings(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -133,6 +152,12 @@ func TestClaudeHookRegistrationCheckDetectsStructuredSettings(t *testing.T) {
 			settings:    `{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"echo ok"}]}]}}`,
 			wantStatus:  StatusWarn,
 			wantMessage: "Bash matcher exists but cc-bash-guard hook is missing",
+		},
+		{
+			name:        "multiple Bash hooks warn",
+			settings:    `{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"cc-bash-guard hook"},{"type":"command","command":"rtk rewrite"}]}]}}`,
+			wantStatus:  StatusWarn,
+			wantMessage: "multiple Claude Code Bash hooks detected",
 		},
 		{
 			name:        "malformed JSON gives clear warning",

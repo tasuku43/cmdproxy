@@ -318,6 +318,9 @@ func runInit(args []string, streams Streams, env Env) int {
 	}
 	writeLine(streams.Stdout, "hook snippet:")
 	writeLine(streams.Stdout, result.HookSnippet)
+	writeLine(streams.Stdout, "next: run cc-bash-guard verify")
+	writeLine(streams.Stdout, "safety: cc-bash-guard is a permission layer, not a sandbox")
+	writeLine(streams.Stdout, "warning: avoid broad permission.allow rules; prefer semantic allow rules and use permission.ask for broad command namespaces")
 	return exitAllow
 }
 
@@ -404,7 +407,11 @@ func writeIndentedJSON(w io.Writer, payload any) error {
 }
 
 func writeDoctorCheck(w io.Writer, check doctoring.Check) {
-	writeLine(w, "["+strings.ToUpper(string(check.Status))+"] "+check.ID+": "+check.Message)
+	status := strings.ToUpper(string(check.Status))
+	if status == "PASS" {
+		status = "OK"
+	}
+	writeLine(w, "["+status+"] "+check.ID+": "+check.Message)
 }
 
 func writeExplainText(w io.Writer, result app.ExplainResult) {

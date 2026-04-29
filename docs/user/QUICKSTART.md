@@ -5,6 +5,42 @@ Bash commands against YAML policy and returns `allow`, `ask`, or `deny`.
 Default policy evaluation never rewrites commands; parser-backed normalization
 is evaluation-only.
 
+It is a permission layer for Claude Code Bash hooks, not an OS sandbox,
+filesystem sandbox, network sandbox, or malware detector. Treat `verify` as
+part of the review boundary: it validates policy shape, examples, broad allow
+checks, and writes the artifact used by the hook.
+
+## Safe First 5 Minutes
+
+Install and initialize with a conservative profile:
+
+```sh
+brew tap tasuku43/cc-bash-guard
+brew install cc-bash-guard
+cc-bash-guard init --profile git-safe
+```
+
+Inspect the generated config and hook snippet before using it:
+
+```sh
+sed -n '1,220p' ~/.config/cc-bash-guard/cc-bash-guard.yml
+cc-bash-guard doctor
+```
+
+Verify the policy, then inspect one allowed and one non-allowed decision:
+
+```sh
+cc-bash-guard verify
+cc-bash-guard explain "git status"
+cc-bash-guard explain "git push origin main"
+```
+
+Keep broad command namespaces out of `permission.allow`. Prefer semantic allow
+rules such as `command.name: git` with `command.semantic`, and put broad
+namespace handling in `permission.ask` when you want confirmation instead of an
+automatic allow. Run `cc-bash-guard verify` after every policy, include, or
+Claude settings permission change.
+
 ## Install
 
 Homebrew:

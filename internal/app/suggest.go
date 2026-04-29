@@ -133,6 +133,27 @@ func semanticSpecForCommand(cmd commandpkg.Command) *policy.SemanticMatchSpec {
 		s := &policy.SemanticMatchSpec{Verb: cmd.Helmfile.Verb, Environment: cmd.Helmfile.Environment, Namespace: cmd.Helmfile.Namespace, KubeContext: cmd.Helmfile.KubeContext}
 		setBool(&s.Interactive, cmd.Helmfile.Interactive)
 		return nilIfEmptySemantic(s)
+	case cmd.Gws != nil:
+		s := &policy.SemanticMatchSpec{Service: cmd.Gws.Service, Method: cmd.Gws.Method}
+		setBool(&s.ReadOnly, cmd.Gws.ReadOnly)
+		setBool(&s.Mutating, cmd.Gws.Mutating)
+		setBool(&s.Destructive, cmd.Gws.Destructive)
+		return nilIfEmptySemantic(s)
+	case cmd.Helm != nil:
+		s := &policy.SemanticMatchSpec{Verb: cmd.Helm.Verb, Subverb: cmd.Helm.Subverb, Release: cmd.Helm.Release, Chart: cmd.Helm.Chart, Namespace: cmd.Helm.Namespace, KubeContext: cmd.Helm.KubeContext}
+		setBool(&s.DryRun, cmd.Helm.DryRun)
+		setBool(&s.Force, cmd.Helm.Force)
+		return nilIfEmptySemantic(s)
+	case cmd.Docker != nil:
+		s := &policy.SemanticMatchSpec{Verb: cmd.Docker.Verb, Subverb: cmd.Docker.Subverb, Container: cmd.Docker.Container, Image: cmd.Docker.Image}
+		setBool(&s.Force, cmd.Docker.Force)
+		setBool(&s.Privileged, cmd.Docker.Privileged)
+		return nilIfEmptySemantic(s)
+	case cmd.Terraform != nil:
+		s := &policy.SemanticMatchSpec{Subcommand: cmd.Terraform.Subcommand, WorkspaceSubcommand: cmd.Terraform.WorkspaceSubcommand, StateSubcommand: cmd.Terraform.StateSubcommand, GlobalChdir: cmd.Terraform.GlobalChdir}
+		setBool(&s.Destroy, cmd.Terraform.Destroy)
+		setBool(&s.AutoApprove, cmd.Terraform.AutoApprove)
+		return nilIfEmptySemantic(s)
 	case cmd.ArgoCD != nil:
 		s := &policy.SemanticMatchSpec{Verb: cmd.ArgoCD.Verb, AppName: cmd.ArgoCD.AppName, Project: cmd.ArgoCD.Project}
 		return nilIfEmptySemantic(s)
@@ -172,6 +193,14 @@ func semanticName(cmd commandpkg.Command) string {
 		return cmd.Helmfile.Verb
 	case cmd.ArgoCD != nil:
 		return cmd.ArgoCD.Verb
+	case cmd.Gws != nil:
+		return strings.TrimSpace(cmd.Gws.Service + " " + cmd.Gws.Method)
+	case cmd.Helm != nil:
+		return strings.TrimSpace(cmd.Helm.Verb + " " + cmd.Helm.Subverb)
+	case cmd.Docker != nil:
+		return strings.TrimSpace(cmd.Docker.Verb + " " + cmd.Docker.Subverb)
+	case cmd.Terraform != nil:
+		return cmd.Terraform.Subcommand
 	default:
 		return cmd.Program
 	}
@@ -209,6 +238,34 @@ func classifySuggestedDecision(cmd commandpkg.Command) (string, bool) {
 			return "ask", true
 		}
 		if cmd.Helmfile.Verb == "diff" || cmd.Helmfile.Verb == "lint" {
+			return "allow", true
+		}
+	case cmd.Gws != nil:
+		if cmd.Gws.Destructive || cmd.Gws.Mutating || cmd.Gws.Upload || cmd.Gws.Unmasked {
+			return "ask", true
+		}
+		if cmd.Gws.ReadOnly {
+			return "allow", true
+		}
+	case cmd.Helm != nil:
+		if cmd.Helm.Force || cmd.Helm.Verb == "uninstall" || cmd.Helm.Verb == "upgrade" || cmd.Helm.Verb == "install" {
+			return "ask", true
+		}
+		if cmd.Helm.Verb == "status" || cmd.Helm.Verb == "list" || cmd.Helm.Verb == "template" || cmd.Helm.Verb == "lint" {
+			return "allow", true
+		}
+	case cmd.Docker != nil:
+		if cmd.Docker.Privileged || cmd.Docker.Force || cmd.Docker.Verb == "run" || cmd.Docker.Verb == "exec" || cmd.Docker.Verb == "rm" {
+			return "ask", true
+		}
+		if cmd.Docker.Verb == "ps" || cmd.Docker.Verb == "images" || cmd.Docker.Verb == "inspect" || cmd.Docker.Verb == "logs" {
+			return "allow", true
+		}
+	case cmd.Terraform != nil:
+		if cmd.Terraform.Destroy || cmd.Terraform.AutoApprove || cmd.Terraform.Subcommand == "apply" {
+			return "ask", true
+		}
+		if cmd.Terraform.Subcommand == "plan" || cmd.Terraform.Subcommand == "validate" || cmd.Terraform.Subcommand == "fmt" || cmd.Terraform.Subcommand == "version" {
 			return "allow", true
 		}
 	}
@@ -269,6 +326,14 @@ func suggestedNearMiss(cmd commandpkg.Command, decision string) string {
 		return "kubectl get pods"
 	case cmd.Helmfile != nil:
 		return "helmfile diff"
+	case cmd.Gws != nil:
+		return "gws drive files list"
+	case cmd.Helm != nil:
+		return "helm status other-release"
+	case cmd.Docker != nil:
+		return "docker ps"
+	case cmd.Terraform != nil:
+		return "terraform plan"
 	default:
 		return ""
 	}
