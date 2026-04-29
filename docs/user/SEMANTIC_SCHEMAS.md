@@ -29,7 +29,9 @@ cc-bash-guard semantic-schema git --format json
 `cc-bash-guard help semantic` lists commands from the semantic schema registry.
 `cc-bash-guard help semantic <command>` shows fields, types, descriptions,
 boolean notes, and examples for one command. `semantic-schema --format json`
-prints the same registry as machine-readable JSON.
+prints the same registry as machine-readable JSON. The installed binary's
+schema output is authoritative; repository docs are explanatory and may lag a
+newer or older binary.
 
 For a user-facing matrix of supported commands, semantic fields, examples,
 recommended policy style, and known limitations, see
@@ -50,8 +52,12 @@ The current registry supports:
 - `terraform`
 - `docker`
 
-Treat the CLI output as the source of truth for the installed binary. Commands
-without a semantic schema should use `patterns`.
+Treat the CLI output as the source of truth for the installed binary. Semantic
+coverage is finite. Unsupported commands, unknown subcommands, and semantic
+fields not listed by `cc-bash-guard semantic-schema --format json` do not become
+safe read-only behavior automatically. Use narrow `patterns`, `permission.ask`,
+or `permission.deny` fallback rules for gaps, and run `cc-bash-guard verify`
+after upgrading the binary.
 
 ## docker
 

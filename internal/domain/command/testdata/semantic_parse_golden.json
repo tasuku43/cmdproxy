@@ -1,0 +1,419 @@
+[
+  {
+    "action_path": [
+      "push"
+    ],
+    "parser": "git",
+    "program": "git",
+    "raw": "git push --force-with-lease origin main",
+    "semantic": {
+      "Verb": "push",
+      "Remote": "origin",
+      "Branch": "main",
+      "Ref": "main",
+      "Force": false,
+      "ForceWithLease": true,
+      "ForceIfIncludes": false,
+      "Hard": false,
+      "Recursive": false,
+      "IncludeIgnored": false,
+      "Cached": false,
+      "Staged": false,
+      "Flags": [
+        "--force-with-lease"
+      ]
+    },
+    "semantic_parser": "git"
+  },
+  {
+    "action_path": [
+      "ec2",
+      "describe-instances"
+    ],
+    "parser": "aws",
+    "program": "aws",
+    "raw": "aws --profile prod --region us-east-1 ec2 describe-instances --no-cli-pager",
+    "semantic": {
+      "Service": "ec2",
+      "Operation": "describe-instances",
+      "Profile": "prod",
+      "Region": "us-east-1",
+      "EndpointURL": "",
+      "DryRun": null,
+      "NoCLIPager": true,
+      "Flags": [
+        "--profile",
+        "--region",
+        "--no-cli-pager"
+      ],
+      "ProfileConflict": false,
+      "RegionSource": "cli"
+    },
+    "semantic_parser": "aws"
+  },
+  {
+    "action_path": [
+      "get"
+    ],
+    "parser": "kubectl",
+    "program": "kubectl",
+    "raw": "kubectl -n prod get pods -l app=web",
+    "semantic": {
+      "Verb": "get",
+      "Subverb": "",
+      "ResourceType": "pods",
+      "ResourceName": "",
+      "Namespace": "prod",
+      "Context": "",
+      "Kubeconfig": "",
+      "AllNamespaces": false,
+      "DryRun": null,
+      "Force": false,
+      "Recursive": false,
+      "Filenames": null,
+      "Selectors": [
+        "app=web"
+      ],
+      "Container": "",
+      "Flags": [
+        "-n",
+        "-n=prod",
+        "-l",
+        "-l=app=web"
+      ]
+    },
+    "semantic_parser": "kubectl"
+  },
+  {
+    "action_path": [
+      "api"
+    ],
+    "parser": "gh",
+    "program": "gh",
+    "raw": "gh api -X POST repos/OWNER/REPO/actions/workflows/deploy.yml/dispatches -f ref=main",
+    "semantic": {
+      "Area": "api",
+      "Verb": "",
+      "Repo": "",
+      "Hostname": "",
+      "Org": "",
+      "EnvName": "",
+      "Web": false,
+      "Method": "POST",
+      "Endpoint": "/repos/OWNER/REPO/actions/workflows/deploy.yml/dispatches",
+      "Paginate": false,
+      "Input": false,
+      "Silent": false,
+      "IncludeHeaders": false,
+      "FieldKeys": null,
+      "RawFieldKeys": [
+        "ref"
+      ],
+      "HeaderKeys": null,
+      "PRNumber": "",
+      "IssueNumber": "",
+      "SecretName": "",
+      "Tag": "",
+      "WorkflowName": "",
+      "WorkflowID": "",
+      "SearchType": "",
+      "Query": "",
+      "Base": "",
+      "Head": "",
+      "Ref": "",
+      "State": "",
+      "Labels": null,
+      "Assignees": null,
+      "Title": "",
+      "Body": "",
+      "Draft": false,
+      "Prerelease": false,
+      "Latest": false,
+      "Fill": false,
+      "Force": false,
+      "Admin": false,
+      "Auto": false,
+      "DeleteBranch": false,
+      "MergeStrategy": "",
+      "RunID": "",
+      "Failed": false,
+      "Job": "",
+      "Debug": false,
+      "ExitStatus": false,
+      "Flags": [
+        "-X",
+        "-X=POST",
+        "-f",
+        "-f=ref=main"
+      ]
+    },
+    "semantic_parser": "gh"
+  },
+  {
+    "action_path": [
+      "users",
+      "list"
+    ],
+    "parser": "gws",
+    "program": "gws",
+    "raw": "gws users list --customer my_customer --page-all",
+    "semantic": {
+      "Service": "users",
+      "ResourcePath": null,
+      "Method": "list",
+      "Helper": false,
+      "Mutating": false,
+      "Destructive": false,
+      "ReadOnly": true,
+      "DryRun": false,
+      "PageAll": true,
+      "Upload": false,
+      "Sanitize": false,
+      "Params": false,
+      "JSONBody": false,
+      "Unmasked": false,
+      "Scopes": null,
+      "Flags": [
+        "--customer",
+        "--page-all"
+      ]
+    },
+    "semantic_parser": "gws"
+  },
+  {
+    "action_path": [
+      "upgrade"
+    ],
+    "parser": "helm",
+    "program": "helm",
+    "raw": "helm upgrade --install web ./chart -n prod --dry-run --set image.tag=abc",
+    "semantic": {
+      "Verb": "upgrade",
+      "Subverb": "",
+      "Release": "web",
+      "Chart": "./chart",
+      "Namespace": "prod",
+      "KubeContext": "",
+      "Kubeconfig": "",
+      "DryRun": true,
+      "Force": false,
+      "Atomic": false,
+      "Wait": false,
+      "WaitForJobs": false,
+      "Install": true,
+      "ReuseValues": false,
+      "ResetValues": false,
+      "ResetThenReuseValues": false,
+      "CleanupOnFail": false,
+      "CreateNamespace": false,
+      "DependencyUpdate": false,
+      "Devel": false,
+      "KeepHistory": false,
+      "Cascade": "",
+      "ValuesFiles": null,
+      "SetKeys": [
+        "image.tag"
+      ],
+      "SetStringKeys": null,
+      "SetFileKeys": null,
+      "RepoName": "",
+      "RepoURL": "",
+      "Registry": "",
+      "PluginName": "",
+      "Flags": [
+        "--install",
+        "-n",
+        "-n=prod",
+        "--dry-run",
+        "--set",
+        "--set=image.tag=abc"
+      ]
+    },
+    "semantic_parser": "helm"
+  },
+  {
+    "action_path": [
+      "diff"
+    ],
+    "parser": "helmfile",
+    "program": "helmfile",
+    "raw": "helmfile -e prod -f helmfile.yaml diff --selector app=web",
+    "semantic": {
+      "Verb": "diff",
+      "Environment": "prod",
+      "Files": [
+        "helmfile.yaml"
+      ],
+      "Namespace": "",
+      "KubeContext": "",
+      "Selectors": [
+        "app=web"
+      ],
+      "Interactive": false,
+      "DryRun": null,
+      "Wait": false,
+      "WaitForJobs": false,
+      "SkipDiff": false,
+      "SkipNeeds": false,
+      "IncludeNeeds": false,
+      "IncludeTransitiveNeeds": false,
+      "Purge": false,
+      "Cascade": "",
+      "DeleteWait": false,
+      "StateValuesFiles": null,
+      "StateValuesSetKeys": null,
+      "StateValuesSetStringKeys": null,
+      "Flags": [
+        "-e",
+        "-e=prod",
+        "-f",
+        "-f=helmfile.yaml",
+        "--selector",
+        "--selector=app=web"
+      ]
+    },
+    "semantic_parser": "helmfile"
+  },
+  {
+    "action_path": [
+      "app",
+      "rollback"
+    ],
+    "parser": "argocd",
+    "program": "argocd",
+    "raw": "argocd app rollback my-app 42 --project prod",
+    "semantic": {
+      "Verb": "app rollback",
+      "AppName": "my-app",
+      "Project": "prod",
+      "Revision": "42",
+      "Flags": [
+        "--project",
+        "--project=prod"
+      ]
+    },
+    "semantic_parser": "argocd"
+  },
+  {
+    "action_path": [
+      "plan"
+    ],
+    "parser": "terraform",
+    "program": "terraform",
+    "raw": "terraform -chdir=infra plan -target=module.web -out=tfplan",
+    "semantic": {
+      "Subcommand": "plan",
+      "GlobalChdir": "infra",
+      "WorkspaceSubcommand": "",
+      "StateSubcommand": "",
+      "ProvidersSubcommand": "",
+      "MetadataSubcommand": "",
+      "Target": true,
+      "Targets": [
+        "module.web"
+      ],
+      "Replace": false,
+      "Replaces": null,
+      "Destroy": false,
+      "AutoApprove": false,
+      "Input": null,
+      "Lock": null,
+      "Refresh": null,
+      "RefreshOnly": false,
+      "Out": "tfplan",
+      "PlanFile": "",
+      "VarFiles": null,
+      "Vars": false,
+      "Backend": null,
+      "Upgrade": false,
+      "Reconfigure": false,
+      "MigrateState": false,
+      "Recursive": false,
+      "Check": false,
+      "JSON": false,
+      "Force": false,
+      "Flags": [
+        "-chdir",
+        "-chdir=infra",
+        "-target",
+        "-target=module.web",
+        "-out",
+        "-out=tfplan"
+      ]
+    },
+    "semantic_parser": "terraform"
+  },
+  {
+    "action_path": [
+      "run"
+    ],
+    "parser": "docker",
+    "program": "docker",
+    "raw": "docker run --rm --network host -v /var/run/docker.sock:/var/run/docker.sock alpine sh",
+    "semantic": {
+      "Verb": "run",
+      "Subverb": "",
+      "ComposeCommand": "",
+      "Image": "alpine",
+      "Container": "",
+      "Service": "",
+      "Context": "",
+      "Host": "",
+      "File": "",
+      "Files": null,
+      "ProjectName": "",
+      "Profile": "",
+      "Profiles": null,
+      "DryRun": false,
+      "Detach": false,
+      "Interactive": false,
+      "Tty": false,
+      "RM": true,
+      "Force": false,
+      "Privileged": false,
+      "User": "",
+      "Workdir": "",
+      "Entrypoint": "",
+      "Network": "host",
+      "NetworkHost": true,
+      "PID": "",
+      "PIDHost": false,
+      "IPC": "",
+      "IPCHost": false,
+      "UTS": "",
+      "UTSHost": false,
+      "CapAdd": null,
+      "CapDrop": null,
+      "SecurityOpt": null,
+      "Device": false,
+      "Devices": null,
+      "Mounts": null,
+      "Volumes": [
+        "/var/run/docker.sock:/var/run/docker.sock"
+      ],
+      "HostMount": true,
+      "RootMount": false,
+      "DockerSocketMount": true,
+      "EnvFiles": null,
+      "EnvKeys": null,
+      "Ports": null,
+      "PublishAll": false,
+      "Pull": "",
+      "NoCache": false,
+      "BuildArgKeys": null,
+      "Target": "",
+      "Platform": "",
+      "All": false,
+      "VolumesFlag": false,
+      "Prune": false,
+      "AllResources": false,
+      "RemoveOrphans": false,
+      "Flags": [
+        "--rm",
+        "--network",
+        "-v"
+      ]
+    },
+    "semantic_parser": "docker"
+  }
+]

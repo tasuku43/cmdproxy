@@ -1,0 +1,3600 @@
+{
+  "schemas": [
+    {
+      "command": "git",
+      "semantic_path": "command.semantic",
+      "description": "Git operations such as push, clean, reset, diff, checkout, switch, and status.",
+      "parser": "git",
+      "fields": [
+        {
+          "name": "verb",
+          "type": "string",
+          "description": "Git verb parsed after global git options."
+        },
+        {
+          "name": "verb_in",
+          "type": "[]string",
+          "description": "Allowed Git verbs."
+        },
+        {
+          "name": "remote",
+          "type": "string",
+          "description": "Remote positional for commands such as git push."
+        },
+        {
+          "name": "remote_in",
+          "type": "[]string",
+          "description": "Allowed remotes."
+        },
+        {
+          "name": "branch",
+          "type": "string",
+          "description": "Branch positional for push, checkout, or switch."
+        },
+        {
+          "name": "branch_in",
+          "type": "[]string",
+          "description": "Allowed branches."
+        },
+        {
+          "name": "ref",
+          "type": "string",
+          "description": "Ref positional for push, reset, checkout, or switch."
+        },
+        {
+          "name": "ref_in",
+          "type": "[]string",
+          "description": "Allowed refs."
+        },
+        {
+          "name": "force",
+          "type": "bool",
+          "description": "For git push, true only when --force or -f is present. For git clean, true when -f or --force is present."
+        },
+        {
+          "name": "force_with_lease",
+          "type": "bool",
+          "description": "For git push, true when --force-with-lease is present."
+        },
+        {
+          "name": "force_if_includes",
+          "type": "bool",
+          "description": "For git push, true when --force-if-includes is present."
+        },
+        {
+          "name": "hard",
+          "type": "bool",
+          "description": "True for git reset --hard."
+        },
+        {
+          "name": "recursive",
+          "type": "bool",
+          "description": "True for git clean -d."
+        },
+        {
+          "name": "include_ignored",
+          "type": "bool",
+          "description": "True for git clean -x or --ignored."
+        },
+        {
+          "name": "cached",
+          "type": "bool",
+          "description": "True for git diff --cached or --staged."
+        },
+        {
+          "name": "staged",
+          "type": "bool",
+          "description": "True for git diff --cached or --staged."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized git option tokens that must be present; this does not scan raw argv words."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized git option tokens that must start with these prefixes; this depends on the git parser."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Deny destructive force pushes",
+          "yaml": "permission:\n  deny:\n    - command:\n        name: git\n        semantic:\n          verb: push\n          force: true"
+        }
+      ],
+      "notes": [
+        "`force`, `force_with_lease`, and `force_if_includes` are separate git push fields; use all three when a policy should cover every force-like push syntax.",
+        "`flags_contains` and `flags_prefixes` inspect parser-recognized option tokens, not raw argv words. GenericParser fallback never satisfies semantic flags."
+      ]
+    },
+    {
+      "command": "aws",
+      "semantic_path": "command.semantic",
+      "description": "AWS CLI service, operation, profile, region, endpoint, and dry-run matching.",
+      "parser": "aws",
+      "fields": [
+        {
+          "name": "service",
+          "type": "string",
+          "description": "AWS service name such as s3 or iam."
+        },
+        {
+          "name": "service_in",
+          "type": "[]string",
+          "description": "Allowed AWS services."
+        },
+        {
+          "name": "operation",
+          "type": "string",
+          "description": "AWS operation name."
+        },
+        {
+          "name": "operation_in",
+          "type": "[]string",
+          "description": "Allowed AWS operations."
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "description": "AWS profile selected by --profile or AWS_PROFILE."
+        },
+        {
+          "name": "profile_in",
+          "type": "[]string",
+          "description": "Allowed AWS profiles."
+        },
+        {
+          "name": "region",
+          "type": "string",
+          "description": "AWS region selected by --region or environment."
+        },
+        {
+          "name": "region_in",
+          "type": "[]string",
+          "description": "Allowed AWS regions."
+        },
+        {
+          "name": "endpoint_url",
+          "type": "string",
+          "description": "Exact --endpoint-url value."
+        },
+        {
+          "name": "endpoint_url_prefix",
+          "type": "string",
+          "description": "--endpoint-url prefix."
+        },
+        {
+          "name": "dry_run",
+          "type": "bool",
+          "description": "True when --dry-run is present, false when --no-dry-run is present, and unset when neither form is recognized."
+        },
+        {
+          "name": "no_cli_pager",
+          "type": "bool",
+          "description": "True when --no-cli-pager is present."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized AWS option tokens that must be present; this does not scan raw argv words."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized AWS option tokens that must start with these prefixes; this depends on the AWS parser."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Ask for IAM writes",
+          "yaml": "permission:\n  ask:\n    - command:\n        name: aws\n        semantic:\n          service: iam"
+        }
+      ]
+    },
+    {
+      "command": "kubectl",
+      "semantic_path": "command.semantic",
+      "description": "Kubernetes verb, resource, namespace, context, filename, selector, and container matching.",
+      "parser": "kubectl",
+      "fields": [
+        {
+          "name": "verb",
+          "type": "string",
+          "description": "kubectl verb such as get, apply, delete, or exec."
+        },
+        {
+          "name": "verb_in",
+          "type": "[]string",
+          "description": "Allowed kubectl verbs."
+        },
+        {
+          "name": "subverb",
+          "type": "string",
+          "description": "Secondary action for compound kubectl commands."
+        },
+        {
+          "name": "subverb_in",
+          "type": "[]string",
+          "description": "Allowed kubectl subverbs."
+        },
+        {
+          "name": "resource_type",
+          "type": "string",
+          "description": "Kubernetes resource type."
+        },
+        {
+          "name": "resource_type_in",
+          "type": "[]string",
+          "description": "Allowed resource types."
+        },
+        {
+          "name": "resource_name",
+          "type": "string",
+          "description": "Kubernetes resource name."
+        },
+        {
+          "name": "resource_name_in",
+          "type": "[]string",
+          "description": "Allowed resource names."
+        },
+        {
+          "name": "namespace",
+          "type": "string",
+          "description": "Namespace selected by -n or --namespace."
+        },
+        {
+          "name": "namespace_in",
+          "type": "[]string",
+          "description": "Allowed namespaces."
+        },
+        {
+          "name": "namespace_missing",
+          "type": "bool",
+          "description": "True when no namespace was selected."
+        },
+        {
+          "name": "context",
+          "type": "string",
+          "description": "Context selected by --context."
+        },
+        {
+          "name": "context_in",
+          "type": "[]string",
+          "description": "Allowed contexts."
+        },
+        {
+          "name": "kubeconfig",
+          "type": "string",
+          "description": "Kubeconfig path selected by --kubeconfig."
+        },
+        {
+          "name": "all_namespaces",
+          "type": "bool",
+          "description": "True when -A or --all-namespaces is present."
+        },
+        {
+          "name": "filename",
+          "type": "string",
+          "description": "Filename selected by -f or --filename."
+        },
+        {
+          "name": "filename_in",
+          "type": "[]string",
+          "description": "Allowed filenames."
+        },
+        {
+          "name": "filename_prefix",
+          "type": "string",
+          "description": "Filename prefix selected by -f or --filename."
+        },
+        {
+          "name": "selector",
+          "type": "string",
+          "description": "Selector selected by -l or --selector."
+        },
+        {
+          "name": "selector_in",
+          "type": "[]string",
+          "description": "Allowed selectors."
+        },
+        {
+          "name": "selector_contains",
+          "type": "[]string",
+          "description": "Selectors that must be present."
+        },
+        {
+          "name": "selector_missing",
+          "type": "bool",
+          "description": "True when no selector was selected."
+        },
+        {
+          "name": "container",
+          "type": "string",
+          "description": "Container selected by -c or --container."
+        },
+        {
+          "name": "dry_run",
+          "type": "bool",
+          "description": "True when --dry-run or a --dry-run value other than none is present; false when --dry-run=none is present; unset when absent."
+        },
+        {
+          "name": "force",
+          "type": "bool",
+          "description": "True when --force is present."
+        },
+        {
+          "name": "recursive",
+          "type": "bool",
+          "description": "True when -R or --recursive is present."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized kubectl option tokens that must be present; this does not scan raw argv words."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized kubectl option tokens that must start with these prefixes; this depends on the kubectl parser."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Deny production deletes",
+          "yaml": "permission:\n  deny:\n    - command:\n        name: kubectl\n        semantic:\n          verb: delete\n          namespace: prod"
+        }
+      ]
+    },
+    {
+      "command": "gh",
+      "semantic_path": "command.semantic",
+      "description": "GitHub CLI api, pr, issue, repo, release, secret, search, workflow, auth, and run operations.",
+      "parser": "gh",
+      "fields": [
+        {
+          "name": "area",
+          "type": "string",
+          "description": "Top-level gh area such as api, pr, issue, repo, release, secret, search, workflow, auth, or run."
+        },
+        {
+          "name": "area_in",
+          "type": "[]string",
+          "description": "Allowed gh areas."
+        },
+        {
+          "name": "verb",
+          "type": "string",
+          "description": "gh subcommand verb inside the selected area."
+        },
+        {
+          "name": "verb_in",
+          "type": "[]string",
+          "description": "Allowed gh verbs."
+        },
+        {
+          "name": "repo",
+          "type": "string",
+          "description": "Repository selected by -R or --repo, or the target repository positional for gh repo commands."
+        },
+        {
+          "name": "repo_in",
+          "type": "[]string",
+          "description": "Allowed repositories."
+        },
+        {
+          "name": "org",
+          "type": "string",
+          "description": "Organization selected by -o or --org."
+        },
+        {
+          "name": "org_in",
+          "type": "[]string",
+          "description": "Allowed organizations."
+        },
+        {
+          "name": "env",
+          "type": "string",
+          "description": "Environment selected by -e/--env or --env-name."
+        },
+        {
+          "name": "env_in",
+          "type": "[]string",
+          "description": "Allowed environments."
+        },
+        {
+          "name": "hostname",
+          "type": "string",
+          "description": "Hostname selected by --hostname."
+        },
+        {
+          "name": "hostname_in",
+          "type": "[]string",
+          "description": "Allowed hostnames."
+        },
+        {
+          "name": "web",
+          "type": "bool",
+          "description": "True when -w or --web is present."
+        },
+        {
+          "name": "method",
+          "type": "string",
+          "description": "HTTP method for gh api."
+        },
+        {
+          "name": "method_in",
+          "type": "[]string",
+          "description": "Allowed gh api HTTP methods."
+        },
+        {
+          "name": "endpoint",
+          "type": "string",
+          "description": "Normalized gh api endpoint."
+        },
+        {
+          "name": "endpoint_prefix",
+          "type": "string",
+          "description": "Normalized gh api endpoint prefix."
+        },
+        {
+          "name": "endpoint_contains",
+          "type": "[]string",
+          "description": "Endpoint substrings that must be present."
+        },
+        {
+          "name": "paginate",
+          "type": "bool",
+          "description": "True when gh api --paginate is present."
+        },
+        {
+          "name": "input",
+          "type": "bool",
+          "description": "True when gh api --input is present."
+        },
+        {
+          "name": "silent",
+          "type": "bool",
+          "description": "True when gh api --silent is present."
+        },
+        {
+          "name": "include_headers",
+          "type": "bool",
+          "description": "True when gh api -i or --include is present."
+        },
+        {
+          "name": "field_keys_contains",
+          "type": "[]string",
+          "description": "gh api -F/--field keys that must be present."
+        },
+        {
+          "name": "raw_field_keys_contains",
+          "type": "[]string",
+          "description": "gh api -f/--raw-field keys that must be present."
+        },
+        {
+          "name": "header_keys_contains",
+          "type": "[]string",
+          "description": "gh api -H/--header keys that must be present."
+        },
+        {
+          "name": "pr_number",
+          "type": "string",
+          "description": "Pull request number positional for gh pr commands."
+        },
+        {
+          "name": "issue_number",
+          "type": "string",
+          "description": "Issue number positional for gh issue commands."
+        },
+        {
+          "name": "secret_name",
+          "type": "string",
+          "description": "Secret name positional for gh secret commands."
+        },
+        {
+          "name": "secret_name_in",
+          "type": "[]string",
+          "description": "Allowed gh secret names."
+        },
+        {
+          "name": "tag",
+          "type": "string",
+          "description": "Release tag positional for gh release commands."
+        },
+        {
+          "name": "workflow_name",
+          "type": "string",
+          "description": "Workflow name positional for gh workflow commands."
+        },
+        {
+          "name": "workflow_id",
+          "type": "string",
+          "description": "Workflow ID positional for gh workflow commands."
+        },
+        {
+          "name": "search_type",
+          "type": "string",
+          "description": "Search type for gh search commands, such as code, commits, issues, prs, or repos."
+        },
+        {
+          "name": "search_type_in",
+          "type": "[]string",
+          "description": "Allowed gh search types."
+        },
+        {
+          "name": "query_contains",
+          "type": "string",
+          "description": "Substring that must be present in the gh search query."
+        },
+        {
+          "name": "base",
+          "type": "string",
+          "description": "Base branch selected by --base."
+        },
+        {
+          "name": "head",
+          "type": "string",
+          "description": "Head branch selected by --head."
+        },
+        {
+          "name": "ref",
+          "type": "string",
+          "description": "Ref selected by --ref."
+        },
+        {
+          "name": "ref_in",
+          "type": "[]string",
+          "description": "Allowed refs selected by --ref."
+        },
+        {
+          "name": "state",
+          "type": "string",
+          "description": "Issue state selected by --state."
+        },
+        {
+          "name": "state_in",
+          "type": "[]string",
+          "description": "Allowed issue states."
+        },
+        {
+          "name": "label_in",
+          "type": "[]string",
+          "description": "Issue labels selected by -l or --label; at least one listed label must be present."
+        },
+        {
+          "name": "assignee_in",
+          "type": "[]string",
+          "description": "Issue assignees selected by -a or --assignee; at least one listed assignee must be present."
+        },
+        {
+          "name": "title_contains",
+          "type": "string",
+          "description": "Substring that must be present in the issue title selected by -t or --title."
+        },
+        {
+          "name": "body_contains",
+          "type": "string",
+          "description": "Substring that must be present in the issue body selected by -b or --body."
+        },
+        {
+          "name": "draft",
+          "type": "bool",
+          "description": "True when gh pr create --draft is present."
+        },
+        {
+          "name": "prerelease",
+          "type": "bool",
+          "description": "True when gh release create/edit --prerelease is present."
+        },
+        {
+          "name": "latest",
+          "type": "bool",
+          "description": "True when gh release create/view --latest is present."
+        },
+        {
+          "name": "fill",
+          "type": "bool",
+          "description": "True when gh pr create --fill is present."
+        },
+        {
+          "name": "force",
+          "type": "bool",
+          "description": "True for gh pr checkout --force or -f, and gh run rerun --force."
+        },
+        {
+          "name": "admin",
+          "type": "bool",
+          "description": "True when gh pr merge --admin is present."
+        },
+        {
+          "name": "auto",
+          "type": "bool",
+          "description": "True when gh pr merge --auto is present."
+        },
+        {
+          "name": "delete_branch",
+          "type": "bool",
+          "description": "True when gh pr merge --delete-branch is present."
+        },
+        {
+          "name": "merge_strategy",
+          "type": "string",
+          "description": "Merge strategy selected by gh pr merge."
+        },
+        {
+          "name": "merge_strategy_in",
+          "type": "[]string",
+          "description": "Allowed merge strategies."
+        },
+        {
+          "name": "run_id",
+          "type": "string",
+          "description": "Run ID positional for gh run commands."
+        },
+        {
+          "name": "failed",
+          "type": "bool",
+          "description": "True when gh run rerun --failed is present."
+        },
+        {
+          "name": "job",
+          "type": "string",
+          "description": "Job selected by gh run rerun --job."
+        },
+        {
+          "name": "debug",
+          "type": "bool",
+          "description": "True when gh run rerun --debug is present."
+        },
+        {
+          "name": "exit_status",
+          "type": "bool",
+          "description": "True when gh run view --exit-status is present."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized gh option tokens that must be present; this does not scan raw argv words."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized gh option tokens that must start with these prefixes; this depends on the gh parser."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Deny mutating GitHub API calls",
+          "yaml": "permission:\n  deny:\n    - command:\n        name: gh\n        semantic:\n          area: api\n          method_in: [POST, PATCH, PUT, DELETE]"
+        }
+      ]
+    },
+    {
+      "command": "argocd",
+      "semantic_path": "command.semantic",
+      "description": "Argo CD app operations such as app get, list, diff, sync, rollback, and delete.",
+      "parser": "argocd",
+      "fields": [
+        {
+          "name": "verb",
+          "type": "string",
+          "description": "Argo CD action path such as app sync or app rollback."
+        },
+        {
+          "name": "verb_in",
+          "type": "[]string",
+          "description": "Allowed Argo CD action paths."
+        },
+        {
+          "name": "app_name",
+          "type": "string",
+          "description": "Application name positional for argocd app commands."
+        },
+        {
+          "name": "app_name_in",
+          "type": "[]string",
+          "description": "Allowed Argo CD application names."
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "description": "Project selected by --project."
+        },
+        {
+          "name": "project_in",
+          "type": "[]string",
+          "description": "Allowed Argo CD projects."
+        },
+        {
+          "name": "revision",
+          "type": "string",
+          "description": "Revision selected by --revision, or rollback revision positional."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized argocd option tokens that must be present; this does not scan raw argv words."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized argocd option tokens that must start with these prefixes; this depends on the argocd parser."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Ask before syncing an app",
+          "yaml": "permission:\n  ask:\n    - command:\n        name: argocd\n        semantic:\n          verb: app sync"
+        }
+      ]
+    },
+    {
+      "command": "gws",
+      "semantic_path": "command.semantic",
+      "description": "Google Workspace CLI dynamic Discovery and helper commands.",
+      "parser": "gws",
+      "fields": [
+        {
+          "name": "service",
+          "type": "string",
+          "description": "First non-global gws action token, such as drive, gmail, calendar, sheets, docs, chat, auth, schema, events, workflow, modelarmor, or script."
+        },
+        {
+          "name": "service_in",
+          "type": "[]string",
+          "description": "Allowed gws services."
+        },
+        {
+          "name": "resource_path",
+          "type": "[]string",
+          "description": "Exact resource path tokens between service and method, such as [files] or [spreadsheets, values]."
+        },
+        {
+          "name": "resource_path_contains",
+          "type": "[]string",
+          "description": "Resource path tokens that must be present."
+        },
+        {
+          "name": "method",
+          "type": "string",
+          "description": "Final Discovery method or helper command name, such as list, get, create, delete, update, patch, export, login, +send, or +upload."
+        },
+        {
+          "name": "method_in",
+          "type": "[]string",
+          "description": "Allowed gws methods or helper names."
+        },
+        {
+          "name": "helper",
+          "type": "bool",
+          "description": "True when the parsed method starts with +."
+        },
+        {
+          "name": "mutating",
+          "type": "bool",
+          "description": "True for methods inferred to write or change server state."
+        },
+        {
+          "name": "destructive",
+          "type": "bool",
+          "description": "True for methods inferred to delete, clear, trash, or remove data."
+        },
+        {
+          "name": "read_only",
+          "type": "bool",
+          "description": "True for methods inferred to read without mutation."
+        },
+        {
+          "name": "dry_run",
+          "type": "bool",
+          "description": "True when --dry-run is present."
+        },
+        {
+          "name": "page_all",
+          "type": "bool",
+          "description": "True when --page-all is present."
+        },
+        {
+          "name": "upload",
+          "type": "bool",
+          "description": "True when --upload is present."
+        },
+        {
+          "name": "sanitize",
+          "type": "bool",
+          "description": "True when --sanitize is present."
+        },
+        {
+          "name": "params",
+          "type": "bool",
+          "description": "True when --params is present."
+        },
+        {
+          "name": "json_body",
+          "type": "bool",
+          "description": "True when --json is present."
+        },
+        {
+          "name": "unmasked",
+          "type": "bool",
+          "description": "True when --unmasked is present."
+        },
+        {
+          "name": "scopes",
+          "type": "[]string",
+          "description": "Scopes selected by --scopes or -s, split on commas and spaces."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized gws option tokens that must be present; this does not scan raw argv words."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized gws option tokens that must start with these prefixes; this depends on the gws parser."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Allow Drive file listing",
+          "yaml": "permission:\n  allow:\n    - command:\n        name: gws\n        semantic:\n          service: drive\n          resource_path: [files]\n          method: list"
+        }
+      ],
+      "notes": [
+        "`gws` dynamically builds much of its command surface from Google Discovery Service, so this schema exposes generic service/resource_path/method fields instead of a closed list of API methods.",
+        "`mutating`, `destructive`, and `read_only` are conservative method-name inferences; use explicit service, resource_path, and method fields for tighter policies."
+      ]
+    },
+    {
+      "command": "helmfile",
+      "semantic_path": "command.semantic",
+      "description": "Helmfile apply, sync, destroy, diff, environment, file, selector, namespace, and values matching.",
+      "parser": "helmfile",
+      "fields": [
+        {
+          "name": "verb",
+          "type": "string",
+          "description": "helmfile verb such as apply, sync, destroy, or diff."
+        },
+        {
+          "name": "verb_in",
+          "type": "[]string",
+          "description": "Allowed helmfile verbs."
+        },
+        {
+          "name": "environment",
+          "type": "string",
+          "description": "Environment selected by -e or --environment."
+        },
+        {
+          "name": "environment_in",
+          "type": "[]string",
+          "description": "Allowed environments."
+        },
+        {
+          "name": "environment_missing",
+          "type": "bool",
+          "description": "True when no environment was selected."
+        },
+        {
+          "name": "file",
+          "type": "string",
+          "description": "State file selected by -f or --file."
+        },
+        {
+          "name": "file_in",
+          "type": "[]string",
+          "description": "Allowed state files."
+        },
+        {
+          "name": "file_prefix",
+          "type": "string",
+          "description": "State file prefix."
+        },
+        {
+          "name": "file_missing",
+          "type": "bool",
+          "description": "True when no state file was selected."
+        },
+        {
+          "name": "namespace",
+          "type": "string",
+          "description": "Namespace selected by --namespace."
+        },
+        {
+          "name": "namespace_in",
+          "type": "[]string",
+          "description": "Allowed namespaces."
+        },
+        {
+          "name": "namespace_missing",
+          "type": "bool",
+          "description": "True when no namespace was selected."
+        },
+        {
+          "name": "kube_context",
+          "type": "string",
+          "description": "Kube context selected by --kube-context."
+        },
+        {
+          "name": "kube_context_in",
+          "type": "[]string",
+          "description": "Allowed kube contexts."
+        },
+        {
+          "name": "kube_context_missing",
+          "type": "bool",
+          "description": "True when no kube context was selected."
+        },
+        {
+          "name": "selector",
+          "type": "string",
+          "description": "Selector selected by -l or --selector."
+        },
+        {
+          "name": "selector_in",
+          "type": "[]string",
+          "description": "Allowed selectors."
+        },
+        {
+          "name": "selector_contains",
+          "type": "[]string",
+          "description": "Selectors that must be present."
+        },
+        {
+          "name": "selector_missing",
+          "type": "bool",
+          "description": "True when no selector was selected."
+        },
+        {
+          "name": "interactive",
+          "type": "bool",
+          "description": "True when --interactive is present."
+        },
+        {
+          "name": "dry_run",
+          "type": "bool",
+          "description": "True when --dry-run is present."
+        },
+        {
+          "name": "wait",
+          "type": "bool",
+          "description": "True when --wait is present."
+        },
+        {
+          "name": "wait_for_jobs",
+          "type": "bool",
+          "description": "True when --wait-for-jobs is present."
+        },
+        {
+          "name": "skip_diff",
+          "type": "bool",
+          "description": "True when --skip-diff is present."
+        },
+        {
+          "name": "skip_needs",
+          "type": "bool",
+          "description": "True when --skip-needs is present."
+        },
+        {
+          "name": "include_needs",
+          "type": "bool",
+          "description": "True when --include-needs is present."
+        },
+        {
+          "name": "include_transitive_needs",
+          "type": "bool",
+          "description": "True when --include-transitive-needs is present."
+        },
+        {
+          "name": "purge",
+          "type": "bool",
+          "description": "True when --purge is present."
+        },
+        {
+          "name": "cascade",
+          "type": "string",
+          "description": "Cascade value selected by --cascade."
+        },
+        {
+          "name": "cascade_in",
+          "type": "[]string",
+          "description": "Allowed cascade values."
+        },
+        {
+          "name": "delete_wait",
+          "type": "bool",
+          "description": "True when --delete-wait is present."
+        },
+        {
+          "name": "state_values_file",
+          "type": "string",
+          "description": "State values file selected by --state-values-file."
+        },
+        {
+          "name": "state_values_file_in",
+          "type": "[]string",
+          "description": "Allowed state values files."
+        },
+        {
+          "name": "state_values_set_keys_contains",
+          "type": "[]string",
+          "description": "Keys selected by --state-values-set that must be present."
+        },
+        {
+          "name": "state_values_set_string_keys_contains",
+          "type": "[]string",
+          "description": "Keys selected by --state-values-set-string that must be present."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized helmfile option tokens that must be present; this does not scan raw argv words."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized helmfile option tokens that must start with these prefixes; this depends on the helmfile parser."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Ask before production destroy",
+          "yaml": "permission:\n  ask:\n    - command:\n        name: helmfile\n        semantic:\n          verb: destroy\n          environment: prod"
+        }
+      ]
+    },
+    {
+      "command": "helm",
+      "semantic_path": "command.semantic",
+      "description": "Helm verb, subverb, release, chart, namespace, kube context, values, set keys, and safety flag matching.",
+      "parser": "helm",
+      "fields": [
+        {
+          "name": "verb",
+          "type": "string",
+          "description": "Top-level Helm command such as install, upgrade, uninstall, status, get, repo, registry, plugin, dependency, package, pull, or push."
+        },
+        {
+          "name": "verb_in",
+          "type": "[]string",
+          "description": "Allowed top-level Helm commands."
+        },
+        {
+          "name": "subverb",
+          "type": "string",
+          "description": "Second action token for grouped commands such as repo add, registry login, plugin install, dependency update, get values, or show chart."
+        },
+        {
+          "name": "subverb_in",
+          "type": "[]string",
+          "description": "Allowed Helm grouped command subverbs."
+        },
+        {
+          "name": "release",
+          "type": "string",
+          "description": "Release name for release-oriented commands when it can be identified."
+        },
+        {
+          "name": "chart",
+          "type": "string",
+          "description": "Chart argument for install, upgrade, template, package, pull, push, verify, and lint when it can be identified."
+        },
+        {
+          "name": "chart_in",
+          "type": "[]string",
+          "description": "Allowed chart arguments."
+        },
+        {
+          "name": "namespace",
+          "type": "string",
+          "description": "Namespace selected by -n or --namespace."
+        },
+        {
+          "name": "namespace_in",
+          "type": "[]string",
+          "description": "Allowed namespaces."
+        },
+        {
+          "name": "namespace_missing",
+          "type": "bool",
+          "description": "True when no namespace was selected."
+        },
+        {
+          "name": "kube_context",
+          "type": "string",
+          "description": "Kube context selected by --kube-context."
+        },
+        {
+          "name": "kube_context_in",
+          "type": "[]string",
+          "description": "Allowed kube contexts."
+        },
+        {
+          "name": "kube_context_missing",
+          "type": "bool",
+          "description": "True when no kube context was selected."
+        },
+        {
+          "name": "kubeconfig",
+          "type": "string",
+          "description": "Kubeconfig selected by --kubeconfig."
+        },
+        {
+          "name": "dry_run",
+          "type": "bool",
+          "description": "True when --dry-run is present."
+        },
+        {
+          "name": "force",
+          "type": "bool",
+          "description": "True when --force is present."
+        },
+        {
+          "name": "atomic",
+          "type": "bool",
+          "description": "True when --atomic is present."
+        },
+        {
+          "name": "wait",
+          "type": "bool",
+          "description": "True when --wait is present."
+        },
+        {
+          "name": "wait_for_jobs",
+          "type": "bool",
+          "description": "True when --wait-for-jobs is present."
+        },
+        {
+          "name": "install",
+          "type": "bool",
+          "description": "True when helm upgrade uses --install or -i."
+        },
+        {
+          "name": "reuse_values",
+          "type": "bool",
+          "description": "True when --reuse-values is present."
+        },
+        {
+          "name": "reset_values",
+          "type": "bool",
+          "description": "True when --reset-values is present."
+        },
+        {
+          "name": "reset_then_reuse_values",
+          "type": "bool",
+          "description": "True when --reset-then-reuse-values is present."
+        },
+        {
+          "name": "cleanup_on_fail",
+          "type": "bool",
+          "description": "True when --cleanup-on-fail is present."
+        },
+        {
+          "name": "create_namespace",
+          "type": "bool",
+          "description": "True when --create-namespace is present."
+        },
+        {
+          "name": "dependency_update",
+          "type": "bool",
+          "description": "True when --dependency-update is present."
+        },
+        {
+          "name": "devel",
+          "type": "bool",
+          "description": "True when --devel is present."
+        },
+        {
+          "name": "keep_history",
+          "type": "bool",
+          "description": "True when uninstall --keep-history is present."
+        },
+        {
+          "name": "cascade",
+          "type": "string",
+          "description": "Cascade value selected by --cascade."
+        },
+        {
+          "name": "cascade_in",
+          "type": "[]string",
+          "description": "Allowed cascade values."
+        },
+        {
+          "name": "values_file",
+          "type": "string",
+          "description": "Values file selected by -f or --values."
+        },
+        {
+          "name": "values_file_in",
+          "type": "[]string",
+          "description": "Allowed values files."
+        },
+        {
+          "name": "values_files",
+          "type": "[]string",
+          "description": "Values files that must be present."
+        },
+        {
+          "name": "set_keys_contains",
+          "type": "[]string",
+          "description": "Keys selected by --set that must be present."
+        },
+        {
+          "name": "set_string_keys_contains",
+          "type": "[]string",
+          "description": "Keys selected by --set-string that must be present."
+        },
+        {
+          "name": "set_file_keys_contains",
+          "type": "[]string",
+          "description": "Keys selected by --set-file that must be present."
+        },
+        {
+          "name": "repo_name",
+          "type": "string",
+          "description": "Repository name for helm repo add/remove."
+        },
+        {
+          "name": "repo_url",
+          "type": "string",
+          "description": "Repository URL for helm repo add."
+        },
+        {
+          "name": "registry",
+          "type": "string",
+          "description": "Registry host or URL for helm registry login/logout."
+        },
+        {
+          "name": "plugin_name",
+          "type": "string",
+          "description": "Plugin argument for helm plugin install/update/uninstall/list when straightforward."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized Helm option tokens that must be present; this does not scan raw argv words."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized Helm option tokens that must start with these prefixes; this depends on the Helm parser."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Allow Helm inspection",
+          "yaml": "permission:\n  allow:\n    - command:\n        name: helm\n        semantic:\n          verb_in: [list, status, history, get, show, search, template, lint]"
+        },
+        {
+          "title": "Ask before install or upgrade",
+          "yaml": "permission:\n  ask:\n    - command:\n        name: helm\n        semantic:\n          verb_in: [install, upgrade]"
+        }
+      ]
+    },
+    {
+      "command": "terraform",
+      "semantic_path": "command.semantic",
+      "description": "Terraform subcommands, workspace/state subcommands, and high-risk infrastructure flags.",
+      "parser": "terraform",
+      "fields": [
+        {
+          "name": "subcommand",
+          "type": "string",
+          "description": "Terraform subcommand such as init, validate, plan, apply, destroy, state, or workspace."
+        },
+        {
+          "name": "subcommand_in",
+          "type": "[]string",
+          "description": "Allowed Terraform subcommands."
+        },
+        {
+          "name": "global_chdir",
+          "type": "string",
+          "description": "Directory selected by global -chdir."
+        },
+        {
+          "name": "workspace_subcommand",
+          "type": "string",
+          "description": "Workspace subcommand such as list, show, select, new, or delete."
+        },
+        {
+          "name": "workspace_subcommand_in",
+          "type": "[]string",
+          "description": "Allowed workspace subcommands."
+        },
+        {
+          "name": "state_subcommand",
+          "type": "string",
+          "description": "State subcommand such as list, show, mv, rm, pull, push, or replace-provider."
+        },
+        {
+          "name": "state_subcommand_in",
+          "type": "[]string",
+          "description": "Allowed state subcommands."
+        },
+        {
+          "name": "target",
+          "type": "bool",
+          "description": "True when -target is present."
+        },
+        {
+          "name": "targets_contains",
+          "type": "[]string",
+          "description": "Targets selected by -target that must be present."
+        },
+        {
+          "name": "replace",
+          "type": "bool",
+          "description": "True when -replace is present."
+        },
+        {
+          "name": "replaces_contains",
+          "type": "[]string",
+          "description": "Replace addresses selected by -replace that must be present."
+        },
+        {
+          "name": "destroy",
+          "type": "bool",
+          "description": "True for terraform destroy or plan -destroy."
+        },
+        {
+          "name": "auto_approve",
+          "type": "bool",
+          "description": "True when -auto-approve is present."
+        },
+        {
+          "name": "input",
+          "type": "bool",
+          "description": "Value selected by -input=true/false."
+        },
+        {
+          "name": "lock",
+          "type": "bool",
+          "description": "Value selected by -lock=true/false."
+        },
+        {
+          "name": "refresh",
+          "type": "bool",
+          "description": "Value selected by -refresh=true/false."
+        },
+        {
+          "name": "refresh_only",
+          "type": "bool",
+          "description": "True when -refresh-only is present."
+        },
+        {
+          "name": "out",
+          "type": "string",
+          "description": "Plan output selected by -out."
+        },
+        {
+          "name": "plan_file",
+          "type": "string",
+          "description": "Plan file argument used by terraform apply \u003cplanfile\u003e."
+        },
+        {
+          "name": "var_files_contains",
+          "type": "[]string",
+          "description": "Variable files selected by -var-file that must be present."
+        },
+        {
+          "name": "vars",
+          "type": "bool",
+          "description": "True when -var is present."
+        },
+        {
+          "name": "backend",
+          "type": "bool",
+          "description": "Value selected by terraform init -backend=true/false."
+        },
+        {
+          "name": "upgrade",
+          "type": "bool",
+          "description": "True when terraform init -upgrade is present."
+        },
+        {
+          "name": "reconfigure",
+          "type": "bool",
+          "description": "True when terraform init -reconfigure is present."
+        },
+        {
+          "name": "migrate_state",
+          "type": "bool",
+          "description": "True when terraform init -migrate-state is present."
+        },
+        {
+          "name": "recursive",
+          "type": "bool",
+          "description": "True when terraform fmt -recursive is present."
+        },
+        {
+          "name": "check",
+          "type": "bool",
+          "description": "True when terraform fmt -check is present."
+        },
+        {
+          "name": "json",
+          "type": "bool",
+          "description": "True when -json is present."
+        },
+        {
+          "name": "force",
+          "type": "bool",
+          "description": "True when a known -force flag is present."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized terraform option tokens that must be present; this does not scan raw argv words."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized terraform option tokens that must start with these prefixes; this depends on the terraform parser."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Allow read-only Terraform commands",
+          "yaml": "permission:\n  allow:\n    - command:\n        name: terraform\n        semantic:\n          subcommand_in: [validate, plan, show, output]"
+        },
+        {
+          "title": "Ask before apply",
+          "yaml": "permission:\n  ask:\n    - command:\n        name: terraform\n        semantic:\n          subcommand: apply"
+        },
+        {
+          "title": "Deny auto-approved destroy",
+          "yaml": "permission:\n  deny:\n    - command:\n        name: terraform\n        semantic:\n          subcommand: destroy\n          auto_approve: true"
+        }
+      ]
+    },
+    {
+      "command": "docker",
+      "semantic_path": "command.semantic",
+      "description": "Docker CLI and docker compose commands with high-risk flag detection.",
+      "parser": "docker",
+      "fields": [
+        {
+          "name": "verb",
+          "type": "string",
+          "description": "Top-level docker command, such as run, exec, ps, images, system, or compose."
+        },
+        {
+          "name": "verb_in",
+          "type": "[]string",
+          "description": "Allowed docker verbs."
+        },
+        {
+          "name": "subverb",
+          "type": "string",
+          "description": "Second action token for command groups such as system prune or compose down."
+        },
+        {
+          "name": "subverb_in",
+          "type": "[]string",
+          "description": "Allowed docker subverbs."
+        },
+        {
+          "name": "compose_command",
+          "type": "string",
+          "description": "Command after docker compose, such as up, down, run, exec, logs, ps, or config."
+        },
+        {
+          "name": "compose_command_in",
+          "type": "[]string",
+          "description": "Allowed docker compose commands."
+        },
+        {
+          "name": "image",
+          "type": "string",
+          "description": "Image name for docker run, pull, push, or build -t when straightforward."
+        },
+        {
+          "name": "image_in",
+          "type": "[]string",
+          "description": "Allowed Docker images."
+        },
+        {
+          "name": "container",
+          "type": "string",
+          "description": "Container name or id for commands such as exec, logs, inspect, rm, and stop when straightforward."
+        },
+        {
+          "name": "service",
+          "type": "string",
+          "description": "Compose service for docker compose run or exec when straightforward."
+        },
+        {
+          "name": "context",
+          "type": "string",
+          "description": "Docker context from --context or -c before the verb."
+        },
+        {
+          "name": "context_in",
+          "type": "[]string",
+          "description": "Allowed Docker contexts."
+        },
+        {
+          "name": "host",
+          "type": "string",
+          "description": "Docker daemon host from -H or --host before the verb."
+        },
+        {
+          "name": "host_prefix",
+          "type": "string",
+          "description": "Required prefix for Docker daemon host."
+        },
+        {
+          "name": "file",
+          "type": "string",
+          "description": "Compose file or Dockerfile flag value when straightforward."
+        },
+        {
+          "name": "file_in",
+          "type": "[]string",
+          "description": "Allowed file values."
+        },
+        {
+          "name": "file_prefix",
+          "type": "string",
+          "description": "Required file path prefix."
+        },
+        {
+          "name": "project_name",
+          "type": "string",
+          "description": "Compose project name from -p or --project-name."
+        },
+        {
+          "name": "project_name_in",
+          "type": "[]string",
+          "description": "Allowed compose project names."
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "description": "Compose profile from --profile."
+        },
+        {
+          "name": "profile_in",
+          "type": "[]string",
+          "description": "Allowed compose profiles."
+        },
+        {
+          "name": "dry_run",
+          "type": "bool",
+          "description": "True for docker compose --dry-run."
+        },
+        {
+          "name": "detach",
+          "type": "bool",
+          "description": "True when -d or --detach is present."
+        },
+        {
+          "name": "interactive",
+          "type": "bool",
+          "description": "True when -i, --interactive, or -it is present."
+        },
+        {
+          "name": "tty",
+          "type": "bool",
+          "description": "True when -t, --tty, or -it is present."
+        },
+        {
+          "name": "rm",
+          "type": "bool",
+          "description": "True when --rm is present."
+        },
+        {
+          "name": "force",
+          "type": "bool",
+          "description": "True when -f or --force is present."
+        },
+        {
+          "name": "privileged",
+          "type": "bool",
+          "description": "True when --privileged is present."
+        },
+        {
+          "name": "user",
+          "type": "string",
+          "description": "User from -u or --user."
+        },
+        {
+          "name": "workdir",
+          "type": "string",
+          "description": "Working directory from -w or --workdir."
+        },
+        {
+          "name": "entrypoint",
+          "type": "string",
+          "description": "Entrypoint from --entrypoint."
+        },
+        {
+          "name": "network",
+          "type": "string",
+          "description": "Network mode from --network or --net."
+        },
+        {
+          "name": "network_host",
+          "type": "bool",
+          "description": "True when network mode is host."
+        },
+        {
+          "name": "pid",
+          "type": "string",
+          "description": "PID namespace from --pid."
+        },
+        {
+          "name": "pid_host",
+          "type": "bool",
+          "description": "True when --pid=host is present."
+        },
+        {
+          "name": "ipc",
+          "type": "string",
+          "description": "IPC namespace from --ipc."
+        },
+        {
+          "name": "ipc_host",
+          "type": "bool",
+          "description": "True when --ipc=host is present."
+        },
+        {
+          "name": "uts",
+          "type": "string",
+          "description": "UTS namespace from --uts."
+        },
+        {
+          "name": "uts_host",
+          "type": "bool",
+          "description": "True when --uts=host is present."
+        },
+        {
+          "name": "cap_add_contains",
+          "type": "[]string",
+          "description": "Required values from --cap-add."
+        },
+        {
+          "name": "cap_drop_contains",
+          "type": "[]string",
+          "description": "Required values from --cap-drop."
+        },
+        {
+          "name": "security_opt_contains",
+          "type": "[]string",
+          "description": "Required values from --security-opt."
+        },
+        {
+          "name": "device",
+          "type": "bool",
+          "description": "True when --device is present."
+        },
+        {
+          "name": "devices_contains",
+          "type": "[]string",
+          "description": "Required --device values."
+        },
+        {
+          "name": "mounts_contains",
+          "type": "[]string",
+          "description": "Required --mount values."
+        },
+        {
+          "name": "volumes_contains",
+          "type": "[]string",
+          "description": "Required -v or --volume values."
+        },
+        {
+          "name": "host_mount",
+          "type": "bool",
+          "description": "True when a bind mount source is an absolute host path."
+        },
+        {
+          "name": "root_mount",
+          "type": "bool",
+          "description": "True when a bind mount source is /."
+        },
+        {
+          "name": "docker_socket_mount",
+          "type": "bool",
+          "description": "True when a mount references common Docker socket paths."
+        },
+        {
+          "name": "env_files_contains",
+          "type": "[]string",
+          "description": "Required --env-file values."
+        },
+        {
+          "name": "env_keys_contains",
+          "type": "[]string",
+          "description": "Required keys from -e/--env KEY=VALUE."
+        },
+        {
+          "name": "ports_contains",
+          "type": "[]string",
+          "description": "Required -p/--publish values."
+        },
+        {
+          "name": "publish_all",
+          "type": "bool",
+          "description": "True when -P or --publish-all is present."
+        },
+        {
+          "name": "pull",
+          "type": "string",
+          "description": "Value from --pull."
+        },
+        {
+          "name": "no_cache",
+          "type": "bool",
+          "description": "True when --no-cache is present."
+        },
+        {
+          "name": "build_arg_keys_contains",
+          "type": "[]string",
+          "description": "Required keys from --build-arg KEY=VALUE."
+        },
+        {
+          "name": "platform",
+          "type": "string",
+          "description": "Platform from --platform."
+        },
+        {
+          "name": "all",
+          "type": "bool",
+          "description": "True when -a or --all is present."
+        },
+        {
+          "name": "volumes_flag",
+          "type": "bool",
+          "description": "True when --volumes is present."
+        },
+        {
+          "name": "prune",
+          "type": "bool",
+          "description": "True for docker system/image/volume/builder prune forms."
+        },
+        {
+          "name": "all_resources",
+          "type": "bool",
+          "description": "True for prune -a/--all or compose --all-resources."
+        },
+        {
+          "name": "remove_orphans",
+          "type": "bool",
+          "description": "True when --remove-orphans is present."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized docker option tokens that must be present."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized docker option tokens that must start with these prefixes."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Allow read-only Docker commands",
+          "yaml": "permission:\n  allow:\n    - command:\n        name: docker\n        semantic:\n          verb_in: [ps, images, inspect, logs, version, info]"
+        },
+        {
+          "title": "Deny privileged containers",
+          "yaml": "permission:\n  deny:\n    - command:\n        name: docker\n        semantic:\n          verb: run\n          privileged: true"
+        },
+        {
+          "title": "Deny Docker socket mounts",
+          "yaml": "permission:\n  deny:\n    - command:\n        name: docker\n        semantic:\n          docker_socket_mount: true"
+        }
+      ],
+      "notes": [
+        "Docker semantics are syntactic only; the parser does not inspect images, Dockerfiles, compose files, containers, or daemon state.",
+        "`host_mount`, `root_mount`, and `docker_socket_mount` are best-effort checks over command-line mount flags."
+      ]
+    }
+  ],
+  "schemas_by_command": {
+    "argocd": {
+      "command": "argocd",
+      "semantic_path": "command.semantic",
+      "description": "Argo CD app operations such as app get, list, diff, sync, rollback, and delete.",
+      "parser": "argocd",
+      "fields": [
+        {
+          "name": "verb",
+          "type": "string",
+          "description": "Argo CD action path such as app sync or app rollback."
+        },
+        {
+          "name": "verb_in",
+          "type": "[]string",
+          "description": "Allowed Argo CD action paths."
+        },
+        {
+          "name": "app_name",
+          "type": "string",
+          "description": "Application name positional for argocd app commands."
+        },
+        {
+          "name": "app_name_in",
+          "type": "[]string",
+          "description": "Allowed Argo CD application names."
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "description": "Project selected by --project."
+        },
+        {
+          "name": "project_in",
+          "type": "[]string",
+          "description": "Allowed Argo CD projects."
+        },
+        {
+          "name": "revision",
+          "type": "string",
+          "description": "Revision selected by --revision, or rollback revision positional."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized argocd option tokens that must be present; this does not scan raw argv words."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized argocd option tokens that must start with these prefixes; this depends on the argocd parser."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Ask before syncing an app",
+          "yaml": "permission:\n  ask:\n    - command:\n        name: argocd\n        semantic:\n          verb: app sync"
+        }
+      ]
+    },
+    "aws": {
+      "command": "aws",
+      "semantic_path": "command.semantic",
+      "description": "AWS CLI service, operation, profile, region, endpoint, and dry-run matching.",
+      "parser": "aws",
+      "fields": [
+        {
+          "name": "service",
+          "type": "string",
+          "description": "AWS service name such as s3 or iam."
+        },
+        {
+          "name": "service_in",
+          "type": "[]string",
+          "description": "Allowed AWS services."
+        },
+        {
+          "name": "operation",
+          "type": "string",
+          "description": "AWS operation name."
+        },
+        {
+          "name": "operation_in",
+          "type": "[]string",
+          "description": "Allowed AWS operations."
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "description": "AWS profile selected by --profile or AWS_PROFILE."
+        },
+        {
+          "name": "profile_in",
+          "type": "[]string",
+          "description": "Allowed AWS profiles."
+        },
+        {
+          "name": "region",
+          "type": "string",
+          "description": "AWS region selected by --region or environment."
+        },
+        {
+          "name": "region_in",
+          "type": "[]string",
+          "description": "Allowed AWS regions."
+        },
+        {
+          "name": "endpoint_url",
+          "type": "string",
+          "description": "Exact --endpoint-url value."
+        },
+        {
+          "name": "endpoint_url_prefix",
+          "type": "string",
+          "description": "--endpoint-url prefix."
+        },
+        {
+          "name": "dry_run",
+          "type": "bool",
+          "description": "True when --dry-run is present, false when --no-dry-run is present, and unset when neither form is recognized."
+        },
+        {
+          "name": "no_cli_pager",
+          "type": "bool",
+          "description": "True when --no-cli-pager is present."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized AWS option tokens that must be present; this does not scan raw argv words."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized AWS option tokens that must start with these prefixes; this depends on the AWS parser."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Ask for IAM writes",
+          "yaml": "permission:\n  ask:\n    - command:\n        name: aws\n        semantic:\n          service: iam"
+        }
+      ]
+    },
+    "docker": {
+      "command": "docker",
+      "semantic_path": "command.semantic",
+      "description": "Docker CLI and docker compose commands with high-risk flag detection.",
+      "parser": "docker",
+      "fields": [
+        {
+          "name": "verb",
+          "type": "string",
+          "description": "Top-level docker command, such as run, exec, ps, images, system, or compose."
+        },
+        {
+          "name": "verb_in",
+          "type": "[]string",
+          "description": "Allowed docker verbs."
+        },
+        {
+          "name": "subverb",
+          "type": "string",
+          "description": "Second action token for command groups such as system prune or compose down."
+        },
+        {
+          "name": "subverb_in",
+          "type": "[]string",
+          "description": "Allowed docker subverbs."
+        },
+        {
+          "name": "compose_command",
+          "type": "string",
+          "description": "Command after docker compose, such as up, down, run, exec, logs, ps, or config."
+        },
+        {
+          "name": "compose_command_in",
+          "type": "[]string",
+          "description": "Allowed docker compose commands."
+        },
+        {
+          "name": "image",
+          "type": "string",
+          "description": "Image name for docker run, pull, push, or build -t when straightforward."
+        },
+        {
+          "name": "image_in",
+          "type": "[]string",
+          "description": "Allowed Docker images."
+        },
+        {
+          "name": "container",
+          "type": "string",
+          "description": "Container name or id for commands such as exec, logs, inspect, rm, and stop when straightforward."
+        },
+        {
+          "name": "service",
+          "type": "string",
+          "description": "Compose service for docker compose run or exec when straightforward."
+        },
+        {
+          "name": "context",
+          "type": "string",
+          "description": "Docker context from --context or -c before the verb."
+        },
+        {
+          "name": "context_in",
+          "type": "[]string",
+          "description": "Allowed Docker contexts."
+        },
+        {
+          "name": "host",
+          "type": "string",
+          "description": "Docker daemon host from -H or --host before the verb."
+        },
+        {
+          "name": "host_prefix",
+          "type": "string",
+          "description": "Required prefix for Docker daemon host."
+        },
+        {
+          "name": "file",
+          "type": "string",
+          "description": "Compose file or Dockerfile flag value when straightforward."
+        },
+        {
+          "name": "file_in",
+          "type": "[]string",
+          "description": "Allowed file values."
+        },
+        {
+          "name": "file_prefix",
+          "type": "string",
+          "description": "Required file path prefix."
+        },
+        {
+          "name": "project_name",
+          "type": "string",
+          "description": "Compose project name from -p or --project-name."
+        },
+        {
+          "name": "project_name_in",
+          "type": "[]string",
+          "description": "Allowed compose project names."
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "description": "Compose profile from --profile."
+        },
+        {
+          "name": "profile_in",
+          "type": "[]string",
+          "description": "Allowed compose profiles."
+        },
+        {
+          "name": "dry_run",
+          "type": "bool",
+          "description": "True for docker compose --dry-run."
+        },
+        {
+          "name": "detach",
+          "type": "bool",
+          "description": "True when -d or --detach is present."
+        },
+        {
+          "name": "interactive",
+          "type": "bool",
+          "description": "True when -i, --interactive, or -it is present."
+        },
+        {
+          "name": "tty",
+          "type": "bool",
+          "description": "True when -t, --tty, or -it is present."
+        },
+        {
+          "name": "rm",
+          "type": "bool",
+          "description": "True when --rm is present."
+        },
+        {
+          "name": "force",
+          "type": "bool",
+          "description": "True when -f or --force is present."
+        },
+        {
+          "name": "privileged",
+          "type": "bool",
+          "description": "True when --privileged is present."
+        },
+        {
+          "name": "user",
+          "type": "string",
+          "description": "User from -u or --user."
+        },
+        {
+          "name": "workdir",
+          "type": "string",
+          "description": "Working directory from -w or --workdir."
+        },
+        {
+          "name": "entrypoint",
+          "type": "string",
+          "description": "Entrypoint from --entrypoint."
+        },
+        {
+          "name": "network",
+          "type": "string",
+          "description": "Network mode from --network or --net."
+        },
+        {
+          "name": "network_host",
+          "type": "bool",
+          "description": "True when network mode is host."
+        },
+        {
+          "name": "pid",
+          "type": "string",
+          "description": "PID namespace from --pid."
+        },
+        {
+          "name": "pid_host",
+          "type": "bool",
+          "description": "True when --pid=host is present."
+        },
+        {
+          "name": "ipc",
+          "type": "string",
+          "description": "IPC namespace from --ipc."
+        },
+        {
+          "name": "ipc_host",
+          "type": "bool",
+          "description": "True when --ipc=host is present."
+        },
+        {
+          "name": "uts",
+          "type": "string",
+          "description": "UTS namespace from --uts."
+        },
+        {
+          "name": "uts_host",
+          "type": "bool",
+          "description": "True when --uts=host is present."
+        },
+        {
+          "name": "cap_add_contains",
+          "type": "[]string",
+          "description": "Required values from --cap-add."
+        },
+        {
+          "name": "cap_drop_contains",
+          "type": "[]string",
+          "description": "Required values from --cap-drop."
+        },
+        {
+          "name": "security_opt_contains",
+          "type": "[]string",
+          "description": "Required values from --security-opt."
+        },
+        {
+          "name": "device",
+          "type": "bool",
+          "description": "True when --device is present."
+        },
+        {
+          "name": "devices_contains",
+          "type": "[]string",
+          "description": "Required --device values."
+        },
+        {
+          "name": "mounts_contains",
+          "type": "[]string",
+          "description": "Required --mount values."
+        },
+        {
+          "name": "volumes_contains",
+          "type": "[]string",
+          "description": "Required -v or --volume values."
+        },
+        {
+          "name": "host_mount",
+          "type": "bool",
+          "description": "True when a bind mount source is an absolute host path."
+        },
+        {
+          "name": "root_mount",
+          "type": "bool",
+          "description": "True when a bind mount source is /."
+        },
+        {
+          "name": "docker_socket_mount",
+          "type": "bool",
+          "description": "True when a mount references common Docker socket paths."
+        },
+        {
+          "name": "env_files_contains",
+          "type": "[]string",
+          "description": "Required --env-file values."
+        },
+        {
+          "name": "env_keys_contains",
+          "type": "[]string",
+          "description": "Required keys from -e/--env KEY=VALUE."
+        },
+        {
+          "name": "ports_contains",
+          "type": "[]string",
+          "description": "Required -p/--publish values."
+        },
+        {
+          "name": "publish_all",
+          "type": "bool",
+          "description": "True when -P or --publish-all is present."
+        },
+        {
+          "name": "pull",
+          "type": "string",
+          "description": "Value from --pull."
+        },
+        {
+          "name": "no_cache",
+          "type": "bool",
+          "description": "True when --no-cache is present."
+        },
+        {
+          "name": "build_arg_keys_contains",
+          "type": "[]string",
+          "description": "Required keys from --build-arg KEY=VALUE."
+        },
+        {
+          "name": "platform",
+          "type": "string",
+          "description": "Platform from --platform."
+        },
+        {
+          "name": "all",
+          "type": "bool",
+          "description": "True when -a or --all is present."
+        },
+        {
+          "name": "volumes_flag",
+          "type": "bool",
+          "description": "True when --volumes is present."
+        },
+        {
+          "name": "prune",
+          "type": "bool",
+          "description": "True for docker system/image/volume/builder prune forms."
+        },
+        {
+          "name": "all_resources",
+          "type": "bool",
+          "description": "True for prune -a/--all or compose --all-resources."
+        },
+        {
+          "name": "remove_orphans",
+          "type": "bool",
+          "description": "True when --remove-orphans is present."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized docker option tokens that must be present."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized docker option tokens that must start with these prefixes."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Allow read-only Docker commands",
+          "yaml": "permission:\n  allow:\n    - command:\n        name: docker\n        semantic:\n          verb_in: [ps, images, inspect, logs, version, info]"
+        },
+        {
+          "title": "Deny privileged containers",
+          "yaml": "permission:\n  deny:\n    - command:\n        name: docker\n        semantic:\n          verb: run\n          privileged: true"
+        },
+        {
+          "title": "Deny Docker socket mounts",
+          "yaml": "permission:\n  deny:\n    - command:\n        name: docker\n        semantic:\n          docker_socket_mount: true"
+        }
+      ],
+      "notes": [
+        "Docker semantics are syntactic only; the parser does not inspect images, Dockerfiles, compose files, containers, or daemon state.",
+        "`host_mount`, `root_mount`, and `docker_socket_mount` are best-effort checks over command-line mount flags."
+      ]
+    },
+    "gh": {
+      "command": "gh",
+      "semantic_path": "command.semantic",
+      "description": "GitHub CLI api, pr, issue, repo, release, secret, search, workflow, auth, and run operations.",
+      "parser": "gh",
+      "fields": [
+        {
+          "name": "area",
+          "type": "string",
+          "description": "Top-level gh area such as api, pr, issue, repo, release, secret, search, workflow, auth, or run."
+        },
+        {
+          "name": "area_in",
+          "type": "[]string",
+          "description": "Allowed gh areas."
+        },
+        {
+          "name": "verb",
+          "type": "string",
+          "description": "gh subcommand verb inside the selected area."
+        },
+        {
+          "name": "verb_in",
+          "type": "[]string",
+          "description": "Allowed gh verbs."
+        },
+        {
+          "name": "repo",
+          "type": "string",
+          "description": "Repository selected by -R or --repo, or the target repository positional for gh repo commands."
+        },
+        {
+          "name": "repo_in",
+          "type": "[]string",
+          "description": "Allowed repositories."
+        },
+        {
+          "name": "org",
+          "type": "string",
+          "description": "Organization selected by -o or --org."
+        },
+        {
+          "name": "org_in",
+          "type": "[]string",
+          "description": "Allowed organizations."
+        },
+        {
+          "name": "env",
+          "type": "string",
+          "description": "Environment selected by -e/--env or --env-name."
+        },
+        {
+          "name": "env_in",
+          "type": "[]string",
+          "description": "Allowed environments."
+        },
+        {
+          "name": "hostname",
+          "type": "string",
+          "description": "Hostname selected by --hostname."
+        },
+        {
+          "name": "hostname_in",
+          "type": "[]string",
+          "description": "Allowed hostnames."
+        },
+        {
+          "name": "web",
+          "type": "bool",
+          "description": "True when -w or --web is present."
+        },
+        {
+          "name": "method",
+          "type": "string",
+          "description": "HTTP method for gh api."
+        },
+        {
+          "name": "method_in",
+          "type": "[]string",
+          "description": "Allowed gh api HTTP methods."
+        },
+        {
+          "name": "endpoint",
+          "type": "string",
+          "description": "Normalized gh api endpoint."
+        },
+        {
+          "name": "endpoint_prefix",
+          "type": "string",
+          "description": "Normalized gh api endpoint prefix."
+        },
+        {
+          "name": "endpoint_contains",
+          "type": "[]string",
+          "description": "Endpoint substrings that must be present."
+        },
+        {
+          "name": "paginate",
+          "type": "bool",
+          "description": "True when gh api --paginate is present."
+        },
+        {
+          "name": "input",
+          "type": "bool",
+          "description": "True when gh api --input is present."
+        },
+        {
+          "name": "silent",
+          "type": "bool",
+          "description": "True when gh api --silent is present."
+        },
+        {
+          "name": "include_headers",
+          "type": "bool",
+          "description": "True when gh api -i or --include is present."
+        },
+        {
+          "name": "field_keys_contains",
+          "type": "[]string",
+          "description": "gh api -F/--field keys that must be present."
+        },
+        {
+          "name": "raw_field_keys_contains",
+          "type": "[]string",
+          "description": "gh api -f/--raw-field keys that must be present."
+        },
+        {
+          "name": "header_keys_contains",
+          "type": "[]string",
+          "description": "gh api -H/--header keys that must be present."
+        },
+        {
+          "name": "pr_number",
+          "type": "string",
+          "description": "Pull request number positional for gh pr commands."
+        },
+        {
+          "name": "issue_number",
+          "type": "string",
+          "description": "Issue number positional for gh issue commands."
+        },
+        {
+          "name": "secret_name",
+          "type": "string",
+          "description": "Secret name positional for gh secret commands."
+        },
+        {
+          "name": "secret_name_in",
+          "type": "[]string",
+          "description": "Allowed gh secret names."
+        },
+        {
+          "name": "tag",
+          "type": "string",
+          "description": "Release tag positional for gh release commands."
+        },
+        {
+          "name": "workflow_name",
+          "type": "string",
+          "description": "Workflow name positional for gh workflow commands."
+        },
+        {
+          "name": "workflow_id",
+          "type": "string",
+          "description": "Workflow ID positional for gh workflow commands."
+        },
+        {
+          "name": "search_type",
+          "type": "string",
+          "description": "Search type for gh search commands, such as code, commits, issues, prs, or repos."
+        },
+        {
+          "name": "search_type_in",
+          "type": "[]string",
+          "description": "Allowed gh search types."
+        },
+        {
+          "name": "query_contains",
+          "type": "string",
+          "description": "Substring that must be present in the gh search query."
+        },
+        {
+          "name": "base",
+          "type": "string",
+          "description": "Base branch selected by --base."
+        },
+        {
+          "name": "head",
+          "type": "string",
+          "description": "Head branch selected by --head."
+        },
+        {
+          "name": "ref",
+          "type": "string",
+          "description": "Ref selected by --ref."
+        },
+        {
+          "name": "ref_in",
+          "type": "[]string",
+          "description": "Allowed refs selected by --ref."
+        },
+        {
+          "name": "state",
+          "type": "string",
+          "description": "Issue state selected by --state."
+        },
+        {
+          "name": "state_in",
+          "type": "[]string",
+          "description": "Allowed issue states."
+        },
+        {
+          "name": "label_in",
+          "type": "[]string",
+          "description": "Issue labels selected by -l or --label; at least one listed label must be present."
+        },
+        {
+          "name": "assignee_in",
+          "type": "[]string",
+          "description": "Issue assignees selected by -a or --assignee; at least one listed assignee must be present."
+        },
+        {
+          "name": "title_contains",
+          "type": "string",
+          "description": "Substring that must be present in the issue title selected by -t or --title."
+        },
+        {
+          "name": "body_contains",
+          "type": "string",
+          "description": "Substring that must be present in the issue body selected by -b or --body."
+        },
+        {
+          "name": "draft",
+          "type": "bool",
+          "description": "True when gh pr create --draft is present."
+        },
+        {
+          "name": "prerelease",
+          "type": "bool",
+          "description": "True when gh release create/edit --prerelease is present."
+        },
+        {
+          "name": "latest",
+          "type": "bool",
+          "description": "True when gh release create/view --latest is present."
+        },
+        {
+          "name": "fill",
+          "type": "bool",
+          "description": "True when gh pr create --fill is present."
+        },
+        {
+          "name": "force",
+          "type": "bool",
+          "description": "True for gh pr checkout --force or -f, and gh run rerun --force."
+        },
+        {
+          "name": "admin",
+          "type": "bool",
+          "description": "True when gh pr merge --admin is present."
+        },
+        {
+          "name": "auto",
+          "type": "bool",
+          "description": "True when gh pr merge --auto is present."
+        },
+        {
+          "name": "delete_branch",
+          "type": "bool",
+          "description": "True when gh pr merge --delete-branch is present."
+        },
+        {
+          "name": "merge_strategy",
+          "type": "string",
+          "description": "Merge strategy selected by gh pr merge."
+        },
+        {
+          "name": "merge_strategy_in",
+          "type": "[]string",
+          "description": "Allowed merge strategies."
+        },
+        {
+          "name": "run_id",
+          "type": "string",
+          "description": "Run ID positional for gh run commands."
+        },
+        {
+          "name": "failed",
+          "type": "bool",
+          "description": "True when gh run rerun --failed is present."
+        },
+        {
+          "name": "job",
+          "type": "string",
+          "description": "Job selected by gh run rerun --job."
+        },
+        {
+          "name": "debug",
+          "type": "bool",
+          "description": "True when gh run rerun --debug is present."
+        },
+        {
+          "name": "exit_status",
+          "type": "bool",
+          "description": "True when gh run view --exit-status is present."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized gh option tokens that must be present; this does not scan raw argv words."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized gh option tokens that must start with these prefixes; this depends on the gh parser."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Deny mutating GitHub API calls",
+          "yaml": "permission:\n  deny:\n    - command:\n        name: gh\n        semantic:\n          area: api\n          method_in: [POST, PATCH, PUT, DELETE]"
+        }
+      ]
+    },
+    "git": {
+      "command": "git",
+      "semantic_path": "command.semantic",
+      "description": "Git operations such as push, clean, reset, diff, checkout, switch, and status.",
+      "parser": "git",
+      "fields": [
+        {
+          "name": "verb",
+          "type": "string",
+          "description": "Git verb parsed after global git options."
+        },
+        {
+          "name": "verb_in",
+          "type": "[]string",
+          "description": "Allowed Git verbs."
+        },
+        {
+          "name": "remote",
+          "type": "string",
+          "description": "Remote positional for commands such as git push."
+        },
+        {
+          "name": "remote_in",
+          "type": "[]string",
+          "description": "Allowed remotes."
+        },
+        {
+          "name": "branch",
+          "type": "string",
+          "description": "Branch positional for push, checkout, or switch."
+        },
+        {
+          "name": "branch_in",
+          "type": "[]string",
+          "description": "Allowed branches."
+        },
+        {
+          "name": "ref",
+          "type": "string",
+          "description": "Ref positional for push, reset, checkout, or switch."
+        },
+        {
+          "name": "ref_in",
+          "type": "[]string",
+          "description": "Allowed refs."
+        },
+        {
+          "name": "force",
+          "type": "bool",
+          "description": "For git push, true only when --force or -f is present. For git clean, true when -f or --force is present."
+        },
+        {
+          "name": "force_with_lease",
+          "type": "bool",
+          "description": "For git push, true when --force-with-lease is present."
+        },
+        {
+          "name": "force_if_includes",
+          "type": "bool",
+          "description": "For git push, true when --force-if-includes is present."
+        },
+        {
+          "name": "hard",
+          "type": "bool",
+          "description": "True for git reset --hard."
+        },
+        {
+          "name": "recursive",
+          "type": "bool",
+          "description": "True for git clean -d."
+        },
+        {
+          "name": "include_ignored",
+          "type": "bool",
+          "description": "True for git clean -x or --ignored."
+        },
+        {
+          "name": "cached",
+          "type": "bool",
+          "description": "True for git diff --cached or --staged."
+        },
+        {
+          "name": "staged",
+          "type": "bool",
+          "description": "True for git diff --cached or --staged."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized git option tokens that must be present; this does not scan raw argv words."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized git option tokens that must start with these prefixes; this depends on the git parser."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Deny destructive force pushes",
+          "yaml": "permission:\n  deny:\n    - command:\n        name: git\n        semantic:\n          verb: push\n          force: true"
+        }
+      ],
+      "notes": [
+        "`force`, `force_with_lease`, and `force_if_includes` are separate git push fields; use all three when a policy should cover every force-like push syntax.",
+        "`flags_contains` and `flags_prefixes` inspect parser-recognized option tokens, not raw argv words. GenericParser fallback never satisfies semantic flags."
+      ]
+    },
+    "gws": {
+      "command": "gws",
+      "semantic_path": "command.semantic",
+      "description": "Google Workspace CLI dynamic Discovery and helper commands.",
+      "parser": "gws",
+      "fields": [
+        {
+          "name": "service",
+          "type": "string",
+          "description": "First non-global gws action token, such as drive, gmail, calendar, sheets, docs, chat, auth, schema, events, workflow, modelarmor, or script."
+        },
+        {
+          "name": "service_in",
+          "type": "[]string",
+          "description": "Allowed gws services."
+        },
+        {
+          "name": "resource_path",
+          "type": "[]string",
+          "description": "Exact resource path tokens between service and method, such as [files] or [spreadsheets, values]."
+        },
+        {
+          "name": "resource_path_contains",
+          "type": "[]string",
+          "description": "Resource path tokens that must be present."
+        },
+        {
+          "name": "method",
+          "type": "string",
+          "description": "Final Discovery method or helper command name, such as list, get, create, delete, update, patch, export, login, +send, or +upload."
+        },
+        {
+          "name": "method_in",
+          "type": "[]string",
+          "description": "Allowed gws methods or helper names."
+        },
+        {
+          "name": "helper",
+          "type": "bool",
+          "description": "True when the parsed method starts with +."
+        },
+        {
+          "name": "mutating",
+          "type": "bool",
+          "description": "True for methods inferred to write or change server state."
+        },
+        {
+          "name": "destructive",
+          "type": "bool",
+          "description": "True for methods inferred to delete, clear, trash, or remove data."
+        },
+        {
+          "name": "read_only",
+          "type": "bool",
+          "description": "True for methods inferred to read without mutation."
+        },
+        {
+          "name": "dry_run",
+          "type": "bool",
+          "description": "True when --dry-run is present."
+        },
+        {
+          "name": "page_all",
+          "type": "bool",
+          "description": "True when --page-all is present."
+        },
+        {
+          "name": "upload",
+          "type": "bool",
+          "description": "True when --upload is present."
+        },
+        {
+          "name": "sanitize",
+          "type": "bool",
+          "description": "True when --sanitize is present."
+        },
+        {
+          "name": "params",
+          "type": "bool",
+          "description": "True when --params is present."
+        },
+        {
+          "name": "json_body",
+          "type": "bool",
+          "description": "True when --json is present."
+        },
+        {
+          "name": "unmasked",
+          "type": "bool",
+          "description": "True when --unmasked is present."
+        },
+        {
+          "name": "scopes",
+          "type": "[]string",
+          "description": "Scopes selected by --scopes or -s, split on commas and spaces."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized gws option tokens that must be present; this does not scan raw argv words."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized gws option tokens that must start with these prefixes; this depends on the gws parser."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Allow Drive file listing",
+          "yaml": "permission:\n  allow:\n    - command:\n        name: gws\n        semantic:\n          service: drive\n          resource_path: [files]\n          method: list"
+        }
+      ],
+      "notes": [
+        "`gws` dynamically builds much of its command surface from Google Discovery Service, so this schema exposes generic service/resource_path/method fields instead of a closed list of API methods.",
+        "`mutating`, `destructive`, and `read_only` are conservative method-name inferences; use explicit service, resource_path, and method fields for tighter policies."
+      ]
+    },
+    "helm": {
+      "command": "helm",
+      "semantic_path": "command.semantic",
+      "description": "Helm verb, subverb, release, chart, namespace, kube context, values, set keys, and safety flag matching.",
+      "parser": "helm",
+      "fields": [
+        {
+          "name": "verb",
+          "type": "string",
+          "description": "Top-level Helm command such as install, upgrade, uninstall, status, get, repo, registry, plugin, dependency, package, pull, or push."
+        },
+        {
+          "name": "verb_in",
+          "type": "[]string",
+          "description": "Allowed top-level Helm commands."
+        },
+        {
+          "name": "subverb",
+          "type": "string",
+          "description": "Second action token for grouped commands such as repo add, registry login, plugin install, dependency update, get values, or show chart."
+        },
+        {
+          "name": "subverb_in",
+          "type": "[]string",
+          "description": "Allowed Helm grouped command subverbs."
+        },
+        {
+          "name": "release",
+          "type": "string",
+          "description": "Release name for release-oriented commands when it can be identified."
+        },
+        {
+          "name": "chart",
+          "type": "string",
+          "description": "Chart argument for install, upgrade, template, package, pull, push, verify, and lint when it can be identified."
+        },
+        {
+          "name": "chart_in",
+          "type": "[]string",
+          "description": "Allowed chart arguments."
+        },
+        {
+          "name": "namespace",
+          "type": "string",
+          "description": "Namespace selected by -n or --namespace."
+        },
+        {
+          "name": "namespace_in",
+          "type": "[]string",
+          "description": "Allowed namespaces."
+        },
+        {
+          "name": "namespace_missing",
+          "type": "bool",
+          "description": "True when no namespace was selected."
+        },
+        {
+          "name": "kube_context",
+          "type": "string",
+          "description": "Kube context selected by --kube-context."
+        },
+        {
+          "name": "kube_context_in",
+          "type": "[]string",
+          "description": "Allowed kube contexts."
+        },
+        {
+          "name": "kube_context_missing",
+          "type": "bool",
+          "description": "True when no kube context was selected."
+        },
+        {
+          "name": "kubeconfig",
+          "type": "string",
+          "description": "Kubeconfig selected by --kubeconfig."
+        },
+        {
+          "name": "dry_run",
+          "type": "bool",
+          "description": "True when --dry-run is present."
+        },
+        {
+          "name": "force",
+          "type": "bool",
+          "description": "True when --force is present."
+        },
+        {
+          "name": "atomic",
+          "type": "bool",
+          "description": "True when --atomic is present."
+        },
+        {
+          "name": "wait",
+          "type": "bool",
+          "description": "True when --wait is present."
+        },
+        {
+          "name": "wait_for_jobs",
+          "type": "bool",
+          "description": "True when --wait-for-jobs is present."
+        },
+        {
+          "name": "install",
+          "type": "bool",
+          "description": "True when helm upgrade uses --install or -i."
+        },
+        {
+          "name": "reuse_values",
+          "type": "bool",
+          "description": "True when --reuse-values is present."
+        },
+        {
+          "name": "reset_values",
+          "type": "bool",
+          "description": "True when --reset-values is present."
+        },
+        {
+          "name": "reset_then_reuse_values",
+          "type": "bool",
+          "description": "True when --reset-then-reuse-values is present."
+        },
+        {
+          "name": "cleanup_on_fail",
+          "type": "bool",
+          "description": "True when --cleanup-on-fail is present."
+        },
+        {
+          "name": "create_namespace",
+          "type": "bool",
+          "description": "True when --create-namespace is present."
+        },
+        {
+          "name": "dependency_update",
+          "type": "bool",
+          "description": "True when --dependency-update is present."
+        },
+        {
+          "name": "devel",
+          "type": "bool",
+          "description": "True when --devel is present."
+        },
+        {
+          "name": "keep_history",
+          "type": "bool",
+          "description": "True when uninstall --keep-history is present."
+        },
+        {
+          "name": "cascade",
+          "type": "string",
+          "description": "Cascade value selected by --cascade."
+        },
+        {
+          "name": "cascade_in",
+          "type": "[]string",
+          "description": "Allowed cascade values."
+        },
+        {
+          "name": "values_file",
+          "type": "string",
+          "description": "Values file selected by -f or --values."
+        },
+        {
+          "name": "values_file_in",
+          "type": "[]string",
+          "description": "Allowed values files."
+        },
+        {
+          "name": "values_files",
+          "type": "[]string",
+          "description": "Values files that must be present."
+        },
+        {
+          "name": "set_keys_contains",
+          "type": "[]string",
+          "description": "Keys selected by --set that must be present."
+        },
+        {
+          "name": "set_string_keys_contains",
+          "type": "[]string",
+          "description": "Keys selected by --set-string that must be present."
+        },
+        {
+          "name": "set_file_keys_contains",
+          "type": "[]string",
+          "description": "Keys selected by --set-file that must be present."
+        },
+        {
+          "name": "repo_name",
+          "type": "string",
+          "description": "Repository name for helm repo add/remove."
+        },
+        {
+          "name": "repo_url",
+          "type": "string",
+          "description": "Repository URL for helm repo add."
+        },
+        {
+          "name": "registry",
+          "type": "string",
+          "description": "Registry host or URL for helm registry login/logout."
+        },
+        {
+          "name": "plugin_name",
+          "type": "string",
+          "description": "Plugin argument for helm plugin install/update/uninstall/list when straightforward."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized Helm option tokens that must be present; this does not scan raw argv words."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized Helm option tokens that must start with these prefixes; this depends on the Helm parser."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Allow Helm inspection",
+          "yaml": "permission:\n  allow:\n    - command:\n        name: helm\n        semantic:\n          verb_in: [list, status, history, get, show, search, template, lint]"
+        },
+        {
+          "title": "Ask before install or upgrade",
+          "yaml": "permission:\n  ask:\n    - command:\n        name: helm\n        semantic:\n          verb_in: [install, upgrade]"
+        }
+      ]
+    },
+    "helmfile": {
+      "command": "helmfile",
+      "semantic_path": "command.semantic",
+      "description": "Helmfile apply, sync, destroy, diff, environment, file, selector, namespace, and values matching.",
+      "parser": "helmfile",
+      "fields": [
+        {
+          "name": "verb",
+          "type": "string",
+          "description": "helmfile verb such as apply, sync, destroy, or diff."
+        },
+        {
+          "name": "verb_in",
+          "type": "[]string",
+          "description": "Allowed helmfile verbs."
+        },
+        {
+          "name": "environment",
+          "type": "string",
+          "description": "Environment selected by -e or --environment."
+        },
+        {
+          "name": "environment_in",
+          "type": "[]string",
+          "description": "Allowed environments."
+        },
+        {
+          "name": "environment_missing",
+          "type": "bool",
+          "description": "True when no environment was selected."
+        },
+        {
+          "name": "file",
+          "type": "string",
+          "description": "State file selected by -f or --file."
+        },
+        {
+          "name": "file_in",
+          "type": "[]string",
+          "description": "Allowed state files."
+        },
+        {
+          "name": "file_prefix",
+          "type": "string",
+          "description": "State file prefix."
+        },
+        {
+          "name": "file_missing",
+          "type": "bool",
+          "description": "True when no state file was selected."
+        },
+        {
+          "name": "namespace",
+          "type": "string",
+          "description": "Namespace selected by --namespace."
+        },
+        {
+          "name": "namespace_in",
+          "type": "[]string",
+          "description": "Allowed namespaces."
+        },
+        {
+          "name": "namespace_missing",
+          "type": "bool",
+          "description": "True when no namespace was selected."
+        },
+        {
+          "name": "kube_context",
+          "type": "string",
+          "description": "Kube context selected by --kube-context."
+        },
+        {
+          "name": "kube_context_in",
+          "type": "[]string",
+          "description": "Allowed kube contexts."
+        },
+        {
+          "name": "kube_context_missing",
+          "type": "bool",
+          "description": "True when no kube context was selected."
+        },
+        {
+          "name": "selector",
+          "type": "string",
+          "description": "Selector selected by -l or --selector."
+        },
+        {
+          "name": "selector_in",
+          "type": "[]string",
+          "description": "Allowed selectors."
+        },
+        {
+          "name": "selector_contains",
+          "type": "[]string",
+          "description": "Selectors that must be present."
+        },
+        {
+          "name": "selector_missing",
+          "type": "bool",
+          "description": "True when no selector was selected."
+        },
+        {
+          "name": "interactive",
+          "type": "bool",
+          "description": "True when --interactive is present."
+        },
+        {
+          "name": "dry_run",
+          "type": "bool",
+          "description": "True when --dry-run is present."
+        },
+        {
+          "name": "wait",
+          "type": "bool",
+          "description": "True when --wait is present."
+        },
+        {
+          "name": "wait_for_jobs",
+          "type": "bool",
+          "description": "True when --wait-for-jobs is present."
+        },
+        {
+          "name": "skip_diff",
+          "type": "bool",
+          "description": "True when --skip-diff is present."
+        },
+        {
+          "name": "skip_needs",
+          "type": "bool",
+          "description": "True when --skip-needs is present."
+        },
+        {
+          "name": "include_needs",
+          "type": "bool",
+          "description": "True when --include-needs is present."
+        },
+        {
+          "name": "include_transitive_needs",
+          "type": "bool",
+          "description": "True when --include-transitive-needs is present."
+        },
+        {
+          "name": "purge",
+          "type": "bool",
+          "description": "True when --purge is present."
+        },
+        {
+          "name": "cascade",
+          "type": "string",
+          "description": "Cascade value selected by --cascade."
+        },
+        {
+          "name": "cascade_in",
+          "type": "[]string",
+          "description": "Allowed cascade values."
+        },
+        {
+          "name": "delete_wait",
+          "type": "bool",
+          "description": "True when --delete-wait is present."
+        },
+        {
+          "name": "state_values_file",
+          "type": "string",
+          "description": "State values file selected by --state-values-file."
+        },
+        {
+          "name": "state_values_file_in",
+          "type": "[]string",
+          "description": "Allowed state values files."
+        },
+        {
+          "name": "state_values_set_keys_contains",
+          "type": "[]string",
+          "description": "Keys selected by --state-values-set that must be present."
+        },
+        {
+          "name": "state_values_set_string_keys_contains",
+          "type": "[]string",
+          "description": "Keys selected by --state-values-set-string that must be present."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized helmfile option tokens that must be present; this does not scan raw argv words."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized helmfile option tokens that must start with these prefixes; this depends on the helmfile parser."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Ask before production destroy",
+          "yaml": "permission:\n  ask:\n    - command:\n        name: helmfile\n        semantic:\n          verb: destroy\n          environment: prod"
+        }
+      ]
+    },
+    "kubectl": {
+      "command": "kubectl",
+      "semantic_path": "command.semantic",
+      "description": "Kubernetes verb, resource, namespace, context, filename, selector, and container matching.",
+      "parser": "kubectl",
+      "fields": [
+        {
+          "name": "verb",
+          "type": "string",
+          "description": "kubectl verb such as get, apply, delete, or exec."
+        },
+        {
+          "name": "verb_in",
+          "type": "[]string",
+          "description": "Allowed kubectl verbs."
+        },
+        {
+          "name": "subverb",
+          "type": "string",
+          "description": "Secondary action for compound kubectl commands."
+        },
+        {
+          "name": "subverb_in",
+          "type": "[]string",
+          "description": "Allowed kubectl subverbs."
+        },
+        {
+          "name": "resource_type",
+          "type": "string",
+          "description": "Kubernetes resource type."
+        },
+        {
+          "name": "resource_type_in",
+          "type": "[]string",
+          "description": "Allowed resource types."
+        },
+        {
+          "name": "resource_name",
+          "type": "string",
+          "description": "Kubernetes resource name."
+        },
+        {
+          "name": "resource_name_in",
+          "type": "[]string",
+          "description": "Allowed resource names."
+        },
+        {
+          "name": "namespace",
+          "type": "string",
+          "description": "Namespace selected by -n or --namespace."
+        },
+        {
+          "name": "namespace_in",
+          "type": "[]string",
+          "description": "Allowed namespaces."
+        },
+        {
+          "name": "namespace_missing",
+          "type": "bool",
+          "description": "True when no namespace was selected."
+        },
+        {
+          "name": "context",
+          "type": "string",
+          "description": "Context selected by --context."
+        },
+        {
+          "name": "context_in",
+          "type": "[]string",
+          "description": "Allowed contexts."
+        },
+        {
+          "name": "kubeconfig",
+          "type": "string",
+          "description": "Kubeconfig path selected by --kubeconfig."
+        },
+        {
+          "name": "all_namespaces",
+          "type": "bool",
+          "description": "True when -A or --all-namespaces is present."
+        },
+        {
+          "name": "filename",
+          "type": "string",
+          "description": "Filename selected by -f or --filename."
+        },
+        {
+          "name": "filename_in",
+          "type": "[]string",
+          "description": "Allowed filenames."
+        },
+        {
+          "name": "filename_prefix",
+          "type": "string",
+          "description": "Filename prefix selected by -f or --filename."
+        },
+        {
+          "name": "selector",
+          "type": "string",
+          "description": "Selector selected by -l or --selector."
+        },
+        {
+          "name": "selector_in",
+          "type": "[]string",
+          "description": "Allowed selectors."
+        },
+        {
+          "name": "selector_contains",
+          "type": "[]string",
+          "description": "Selectors that must be present."
+        },
+        {
+          "name": "selector_missing",
+          "type": "bool",
+          "description": "True when no selector was selected."
+        },
+        {
+          "name": "container",
+          "type": "string",
+          "description": "Container selected by -c or --container."
+        },
+        {
+          "name": "dry_run",
+          "type": "bool",
+          "description": "True when --dry-run or a --dry-run value other than none is present; false when --dry-run=none is present; unset when absent."
+        },
+        {
+          "name": "force",
+          "type": "bool",
+          "description": "True when --force is present."
+        },
+        {
+          "name": "recursive",
+          "type": "bool",
+          "description": "True when -R or --recursive is present."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized kubectl option tokens that must be present; this does not scan raw argv words."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized kubectl option tokens that must start with these prefixes; this depends on the kubectl parser."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Deny production deletes",
+          "yaml": "permission:\n  deny:\n    - command:\n        name: kubectl\n        semantic:\n          verb: delete\n          namespace: prod"
+        }
+      ]
+    },
+    "terraform": {
+      "command": "terraform",
+      "semantic_path": "command.semantic",
+      "description": "Terraform subcommands, workspace/state subcommands, and high-risk infrastructure flags.",
+      "parser": "terraform",
+      "fields": [
+        {
+          "name": "subcommand",
+          "type": "string",
+          "description": "Terraform subcommand such as init, validate, plan, apply, destroy, state, or workspace."
+        },
+        {
+          "name": "subcommand_in",
+          "type": "[]string",
+          "description": "Allowed Terraform subcommands."
+        },
+        {
+          "name": "global_chdir",
+          "type": "string",
+          "description": "Directory selected by global -chdir."
+        },
+        {
+          "name": "workspace_subcommand",
+          "type": "string",
+          "description": "Workspace subcommand such as list, show, select, new, or delete."
+        },
+        {
+          "name": "workspace_subcommand_in",
+          "type": "[]string",
+          "description": "Allowed workspace subcommands."
+        },
+        {
+          "name": "state_subcommand",
+          "type": "string",
+          "description": "State subcommand such as list, show, mv, rm, pull, push, or replace-provider."
+        },
+        {
+          "name": "state_subcommand_in",
+          "type": "[]string",
+          "description": "Allowed state subcommands."
+        },
+        {
+          "name": "target",
+          "type": "bool",
+          "description": "True when -target is present."
+        },
+        {
+          "name": "targets_contains",
+          "type": "[]string",
+          "description": "Targets selected by -target that must be present."
+        },
+        {
+          "name": "replace",
+          "type": "bool",
+          "description": "True when -replace is present."
+        },
+        {
+          "name": "replaces_contains",
+          "type": "[]string",
+          "description": "Replace addresses selected by -replace that must be present."
+        },
+        {
+          "name": "destroy",
+          "type": "bool",
+          "description": "True for terraform destroy or plan -destroy."
+        },
+        {
+          "name": "auto_approve",
+          "type": "bool",
+          "description": "True when -auto-approve is present."
+        },
+        {
+          "name": "input",
+          "type": "bool",
+          "description": "Value selected by -input=true/false."
+        },
+        {
+          "name": "lock",
+          "type": "bool",
+          "description": "Value selected by -lock=true/false."
+        },
+        {
+          "name": "refresh",
+          "type": "bool",
+          "description": "Value selected by -refresh=true/false."
+        },
+        {
+          "name": "refresh_only",
+          "type": "bool",
+          "description": "True when -refresh-only is present."
+        },
+        {
+          "name": "out",
+          "type": "string",
+          "description": "Plan output selected by -out."
+        },
+        {
+          "name": "plan_file",
+          "type": "string",
+          "description": "Plan file argument used by terraform apply \u003cplanfile\u003e."
+        },
+        {
+          "name": "var_files_contains",
+          "type": "[]string",
+          "description": "Variable files selected by -var-file that must be present."
+        },
+        {
+          "name": "vars",
+          "type": "bool",
+          "description": "True when -var is present."
+        },
+        {
+          "name": "backend",
+          "type": "bool",
+          "description": "Value selected by terraform init -backend=true/false."
+        },
+        {
+          "name": "upgrade",
+          "type": "bool",
+          "description": "True when terraform init -upgrade is present."
+        },
+        {
+          "name": "reconfigure",
+          "type": "bool",
+          "description": "True when terraform init -reconfigure is present."
+        },
+        {
+          "name": "migrate_state",
+          "type": "bool",
+          "description": "True when terraform init -migrate-state is present."
+        },
+        {
+          "name": "recursive",
+          "type": "bool",
+          "description": "True when terraform fmt -recursive is present."
+        },
+        {
+          "name": "check",
+          "type": "bool",
+          "description": "True when terraform fmt -check is present."
+        },
+        {
+          "name": "json",
+          "type": "bool",
+          "description": "True when -json is present."
+        },
+        {
+          "name": "force",
+          "type": "bool",
+          "description": "True when a known -force flag is present."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized terraform option tokens that must be present; this does not scan raw argv words."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized terraform option tokens that must start with these prefixes; this depends on the terraform parser."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Allow read-only Terraform commands",
+          "yaml": "permission:\n  allow:\n    - command:\n        name: terraform\n        semantic:\n          subcommand_in: [validate, plan, show, output]"
+        },
+        {
+          "title": "Ask before apply",
+          "yaml": "permission:\n  ask:\n    - command:\n        name: terraform\n        semantic:\n          subcommand: apply"
+        },
+        {
+          "title": "Deny auto-approved destroy",
+          "yaml": "permission:\n  deny:\n    - command:\n        name: terraform\n        semantic:\n          subcommand: destroy\n          auto_approve: true"
+        }
+      ]
+    }
+  }
+}
