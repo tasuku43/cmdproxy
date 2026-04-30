@@ -84,6 +84,25 @@ flags include `redirect_stream_merge`, `redirect_to_devnull`,
 `redirect_file_write`, `redirect_append_file`, `redirect_stdin_from_file`, and
 `redirect_heredoc`.
 
+`command.tolerated_redirects.only` is valid only in `permission.allow` rules.
+It is not a match predicate for `deny` or `ask`; it permits an otherwise
+matching allow rule to remain effective when the command has only the listed
+redirect categories. Supported categories are `stdout_to_devnull`,
+`stderr_to_devnull`, and `stdin_from_devnull`. Any unsupported, dynamic, or
+untolerated redirect keeps the fail-closed `ask` behavior.
+
+```yaml
+permission:
+  allow:
+    - name: ls with devnull redirects
+      command:
+        name: ls
+        tolerated_redirects:
+          only:
+            - stdout_to_devnull
+            - stderr_to_devnull
+```
+
 Top-level `test` asserts final permission decision only:
 
 ```yaml

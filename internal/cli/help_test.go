@@ -201,6 +201,8 @@ func TestHelpPermissionExplainsCurrentSchema(t *testing.T) {
 		"command.name_in",
 		"Use command.semantic for commands listed",
 		"Use command.name_in for a non-semantic OR list",
+		"tolerated_redirects",
+		"stdout_to_devnull",
 		"Use patterns for raw regex fallbacks",
 		"Put rules under permission.deny",
 		"Do not combine command and patterns",

@@ -377,6 +377,9 @@ When to use each matcher:
   Use command.shape_flags_any/all/none for parser-derived shell shape flags,
   such as redirect_stream_merge, redirect_to_devnull, redirect_file_write,
   redirect_append_file, redirect_stdin_from_file, and redirect_heredoc.
+  Use command.tolerated_redirects.only in allow rules when a command should
+  remain allowed with specific harmless redirects, such as stdout_to_devnull
+  or stderr_to_devnull.
   Semantic fields live directly under command.semantic; no extra tool-name
   nesting is required because command.name is the discriminator.
   Use patterns for raw regex fallbacks that cannot be expressed with name_in.
@@ -415,6 +418,14 @@ Example:
             - head
             - tail
             - wc
+
+      - name: ls with devnull redirects
+        command:
+          name: ls
+          tolerated_redirects:
+            only:
+              - stdout_to_devnull
+              - stderr_to_devnull
 
     deny:
       - name: block stream merge redirects

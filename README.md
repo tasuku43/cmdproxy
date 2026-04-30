@@ -350,6 +350,27 @@ Use the focused examples when you want one parser or workflow in isolation:
 - [`examples/docker-strict.yml`](examples/docker-strict.yml)
 - [`examples/docker-compose-safe.yml`](examples/docker-compose-safe.yml)
 
+### Tolerated redirects
+
+Redirects normally keep allow rules fail-closed. Use
+`command.tolerated_redirects.only` in `permission.allow` when a specific command
+should remain allowed with harmless redirects.
+
+```yaml
+permission:
+  allow:
+    - name: ls with devnull redirects
+      command:
+        name: ls
+        tolerated_redirects:
+          only:
+            - stdout_to_devnull
+            - stderr_to_devnull
+```
+
+This allows `ls`, `ls > /dev/null`, and `ls 2> /dev/null`. Other redirects,
+including file writes and stream merges such as `2>&1`, still ask.
+
 ### Raw patterns
 
 Use `patterns` as a fallback for deliberate raw-string checks or commands

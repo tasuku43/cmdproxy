@@ -420,8 +420,8 @@ func TestParseCommandPlanClassifiesRedirectionShapeFlags(t *testing.T) {
 		{name: "stdout stderr stream merge", raw: "git status 1>&2", wantFlag: "redirect_stream_merge", wantUnsafe: true},
 		{name: "file write", raw: "ls > /tmp/out", wantFlag: "redirect_file_write", wantUnsafe: true},
 		{name: "file append", raw: "ls >> /tmp/out", wantFlag: "redirect_append_file", wantUnsafe: true},
-		{name: "devnull sink", raw: "ls > /dev/null", wantFlag: "redirect_to_devnull", wantUnsafe: false},
-		{name: "heredoc input", raw: "cat <<EOF | psql\nselect 1;\nEOF", wantFlag: "redirect_heredoc", wantUnsafe: false},
+		{name: "devnull sink", raw: "ls > /dev/null", wantFlag: "redirect_to_devnull", wantUnsafe: true},
+		{name: "heredoc input", raw: "cat <<EOF | psql\nselect 1;\nEOF", wantFlag: "redirect_heredoc", wantUnsafe: true},
 	}
 
 	for _, tt := range tests {

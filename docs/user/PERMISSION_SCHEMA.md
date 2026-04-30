@@ -108,9 +108,30 @@ permission:
           - grep
 ```
 
-With this policy, `ls 2>&1` is denied, `ls > /dev/null` may be allowed by the
-base `ls` rule, and `ls > /tmp/out` still asks because file writes remain
-fail-closed unless explicitly handled.
+With this policy, `ls 2>&1` is denied. Redirects still ask unless an allow rule
+explicitly tolerates them.
+
+`tolerated_redirects.only` can be placed under `command` in
+`permission.allow` rules when an otherwise allowed command should remain
+allowed with specific harmless redirects. It is not a redirect matcher for
+`deny` or `ask`; it only relaxes redirect fail-closed behavior for the matching
+allow rule.
+
+```yaml
+permission:
+  allow:
+    - name: ls with devnull redirects
+      command:
+        name: ls
+        tolerated_redirects:
+          only:
+            - stdout_to_devnull
+            - stderr_to_devnull
+```
+
+With this policy, `ls`, `ls > /dev/null`, and `ls 2> /dev/null` are allowed.
+`ls > /tmp/out`, dynamic redirect targets, stream merges such as `2>&1`, and
+other redirects still ask unless another rule handles them.
 
 ```yaml
 permission:

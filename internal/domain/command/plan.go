@@ -524,13 +524,7 @@ func (p CommandPlan) structuredSafeForAllow() bool {
 	if len(p.Shape.RedirectionFlags) == 0 {
 		return invocation.IsStructuredSafeForAllow(p.Raw)
 	}
-	if hasUnsafeRedirectionFlag(p.Shape.RedirectionFlags) {
-		return false
-	}
-	if len(p.Commands) != 1 {
-		return false
-	}
-	return invocation.IsStructuredSafeForAllow(p.Commands[0].Raw)
+	return false
 }
 
 func (s ShellShape) hasNonPipelineCompoundFeature() bool {
@@ -607,7 +601,7 @@ func (w *planWalker) visitStmt(stmt *syntax.Stmt) {
 		w.shape.HasBackground = true
 	}
 	redirFlags := redirectionFlags(stmt.Redirs)
-	if hasUnsafeRedirectionFlag(redirFlags) {
+	if len(redirFlags) > 0 {
 		w.shape.HasRedirection = true
 	}
 	w.shape.RedirectionFlags = append(w.shape.RedirectionFlags, redirFlags...)
@@ -838,43 +832,65 @@ func redirectionFlags(redirs []*syntax.Redirect) []string {
 		if redir == nil {
 			continue
 		}
-		flags = append(flags, redirectionFlag(redir))
+		flags = append(flags, redirectionFlagsForRedirect(redir)...)
 	}
 	return dedupeStrings(flags)
 }
 
-func redirectionFlag(redir *syntax.Redirect) string {
+func redirectionFlagsForRedirect(redir *syntax.Redirect) []string {
 	switch redir.Op {
 	case syntax.DplOut:
 		if isFdWord(redir.Word) {
-			return "redirect_stream_merge"
+			return []string{"redirect_stream_merge"}
 		}
-		return "redirect_output_dup"
+		return []string{"redirect_output_dup"}
 	case syntax.DplIn:
 		if isFdWord(redir.Word) {
-			return "redirect_stream_merge"
+			return []string{"redirect_stream_merge"}
 		}
-		return "redirect_input_dup"
+		return []string{"redirect_input_dup"}
 	case syntax.RdrOut, syntax.RdrClob, syntax.RdrAll, syntax.RdrAllClob:
 		if isDevNullWord(redir.Word) {
-			return "redirect_to_devnull"
+			return devNullOutputRedirectFlags(redir)
 		}
-		return "redirect_file_write"
+		return []string{"redirect_file_write"}
 	case syntax.AppOut, syntax.AppClob, syntax.AppAll, syntax.AppAllClob:
 		if isDevNullWord(redir.Word) {
-			return "redirect_to_devnull"
+			return devNullOutputRedirectFlags(redir)
 		}
-		return "redirect_append_file"
+		return []string{"redirect_append_file"}
 	case syntax.RdrIn, syntax.RdrInOut:
 		if isDevNullWord(redir.Word) {
-			return "redirect_from_devnull"
+			return []string{"redirect_from_devnull", "stdin_from_devnull"}
 		}
-		return "redirect_stdin_from_file"
+		return []string{"redirect_stdin_from_file"}
 	case syntax.Hdoc, syntax.DashHdoc, syntax.WordHdoc:
-		return "redirect_heredoc"
+		return []string{"redirect_heredoc"}
 	default:
-		return "redirect_unknown"
+		return []string{"redirect_unknown"}
 	}
+}
+
+func devNullOutputRedirectFlags(redir *syntax.Redirect) []string {
+	flags := []string{"redirect_to_devnull"}
+	if redir.Op == syntax.RdrAll || redir.Op == syntax.RdrAllClob || redir.Op == syntax.AppAll || redir.Op == syntax.AppAllClob {
+		return append(flags, "stdout_to_devnull", "stderr_to_devnull")
+	}
+	switch redirectFD(redir) {
+	case "2":
+		return append(flags, "stderr_to_devnull")
+	case "", "1":
+		return append(flags, "stdout_to_devnull")
+	default:
+		return append(flags, "redirect_unknown")
+	}
+}
+
+func redirectFD(redir *syntax.Redirect) string {
+	if redir == nil || redir.N == nil {
+		return ""
+	}
+	return redir.N.Value
 }
 
 func hasUnsafeRedirectionFlag(flags []string) bool {

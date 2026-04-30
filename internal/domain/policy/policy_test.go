@@ -167,7 +167,7 @@ func TestEvaluatePermissionCommandShapeFlagsForRedirectionKinds(t *testing.T) {
 		{command: "git status 1>&2", want: "deny"},
 		{command: "ls 2>&1 | jq .", want: "deny"},
 		{command: "ls", want: "allow"},
-		{command: "ls > /dev/null", want: "allow"},
+		{command: "ls > /dev/null", want: "ask"},
 		{command: "grep '2>&1' file", want: "allow"},
 		{command: "echo '> /tmp/out'", want: "allow"},
 		{command: "ls > /tmp/out", want: "ask"},
@@ -184,6 +184,81 @@ func TestEvaluatePermissionCommandShapeFlagsForRedirectionKinds(t *testing.T) {
 				t.Fatalf("Outcome = %q, want %q; decision=%+v", got.Outcome, tt.want, got)
 			}
 		})
+	}
+}
+
+func TestEvaluateAllowToleratedRedirects(t *testing.T) {
+	p := NewPipeline(PipelineSpec{
+		Permission: PermissionSpec{
+			Allow: []PermissionRuleSpec{{
+				Command: PermissionCommandSpec{
+					Name: "ls",
+					ToleratedRedirects: ToleratedRedirectsSpec{
+						Only: []string{"stdout_to_devnull", "stderr_to_devnull"},
+					},
+				},
+			}},
+		},
+	}, Source{})
+
+	tests := []struct {
+		command string
+		want    string
+	}{
+		{command: "ls", want: "allow"},
+		{command: "ls > /dev/null", want: "allow"},
+		{command: "ls 1> /dev/null", want: "allow"},
+		{command: "ls 2> /dev/null", want: "allow"},
+		{command: "ls &> /dev/null", want: "allow"},
+		{command: "ls 3> /dev/null", want: "ask"},
+		{command: "ls > /tmp/out", want: "ask"},
+		{command: "ls > \"$OUT\"", want: "ask"},
+		{command: "ls 2>&1", want: "ask"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.command, func(t *testing.T) {
+			got, err := Evaluate(p, tt.command)
+			if err != nil {
+				t.Fatalf("Evaluate() error = %v", err)
+			}
+			if got.Outcome != tt.want {
+				t.Fatalf("Outcome = %q, want %q; decision=%+v", got.Outcome, tt.want, got)
+			}
+		})
+	}
+}
+
+func TestValidateToleratedRedirectsAllowOnly(t *testing.T) {
+	spec := PipelineSpec{
+		Permission: PermissionSpec{
+			Deny: []PermissionRuleSpec{{
+				Command: PermissionCommandSpec{
+					Name: "ls",
+					ToleratedRedirects: ToleratedRedirectsSpec{
+						Only: []string{"stdout_to_devnull"},
+					},
+				},
+			}},
+			Allow: []PermissionRuleSpec{{
+				Command: PermissionCommandSpec{
+					Name: "ls",
+					ToleratedRedirects: ToleratedRedirectsSpec{
+						Only: []string{"file_write"},
+					},
+				},
+			}},
+		},
+	}
+
+	issues := ValidatePipeline(spec)
+	for _, want := range []string{
+		"permission.deny[0].command.tolerated_redirects is only supported in permission.allow rules",
+		"permission.allow[0].command.tolerated_redirects.only[0] is not supported: file_write",
+	} {
+		if !containsSubstring(issues, want) {
+			t.Fatalf("issues=%#v, want %q", issues, want)
+		}
 	}
 }
 
@@ -2900,7 +2975,7 @@ func TestRegisteredSemanticFieldsAreAcceptedByValidation(t *testing.T) {
 				issues := ValidatePermissionCommandSpec("permission.deny[0].command", PermissionCommandSpec{
 					Name:     schema.Command,
 					Semantic: &semantic,
-				})
+				}, "deny")
 				for _, issue := range issues {
 					if strings.Contains(issue, "not supported for command") {
 						t.Fatalf("registered field rejected: %s", issue)
