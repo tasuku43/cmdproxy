@@ -1138,7 +1138,9 @@ func effectiveFingerprint(tool string, sources []Source, settingsPaths []string)
 	}
 	for _, path := range settingsPaths {
 		_, _ = h.Write([]byte("settings:" + path + "\n"))
-		if data, err := os.ReadFile(path); err == nil {
+		if tool == claude.Tool {
+			_, _ = h.Write(claude.SettingsFingerprintData(path))
+		} else if data, err := os.ReadFile(path); err == nil {
 			_, _ = h.Write(data)
 		}
 		_, _ = h.Write([]byte("\n"))

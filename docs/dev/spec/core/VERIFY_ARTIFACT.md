@@ -52,6 +52,11 @@ included file makes the artifact stale. Hook runtime evaluates the bundled
 pipeline from the artifact rather than treating included YAML files as separate
 policy inputs.
 
+For Claude hook execution, the effective fingerprint also includes the
+permission-relevant parts of Claude settings files: `permissions.allow`,
+`permissions.ask`, and `permissions.deny`. Unrelated Claude settings keys do
+not make the artifact stale.
+
 ## Non-Goals
 
 - human readability

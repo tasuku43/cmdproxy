@@ -48,6 +48,32 @@ func SettingsPaths(cwd string, home string) []string {
 	return settingsPaths(cwd, home)
 }
 
+func SettingsFingerprintData(path string) []byte {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var root map[string]any
+	if err := json.Unmarshal(data, &root); err != nil {
+		return data
+	}
+	permissions, ok := root["permissions"].(map[string]any)
+	if !ok {
+		return []byte("{}")
+	}
+	relevant := map[string]any{}
+	for _, key := range []string{"allow", "ask", "deny"} {
+		if value, ok := permissions[key]; ok {
+			relevant[key] = value
+		}
+	}
+	canonical, err := json.Marshal(map[string]any{"permissions": relevant})
+	if err != nil {
+		return data
+	}
+	return canonical
+}
+
 func ProjectRoot(cwd string) string {
 	return findProjectRoot(cwd)
 }

@@ -1030,6 +1030,22 @@ test:
 		t.Fatalf("hook errors = %v", hookLoaded.Errors)
 	}
 
+	if err := os.WriteFile(settingsPath, []byte(`{"permissions":{"allow":["Bash(git status)"]},"theme":"dark"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	hookLoaded = LoadEffectiveForHookTool(project, home, "", cacheHome, "claude")
+	if len(hookLoaded.Errors) != 0 {
+		t.Fatalf("unrelated settings changes should not invalidate artifact: %v", hookLoaded.Errors)
+	}
+
+	if err := os.WriteFile(settingsPath, []byte(`{"permissions":{"allow":["Bash(git status)"],"extra":["Bash(git diff)"]}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	hookLoaded = LoadEffectiveForHookTool(project, home, "", cacheHome, "claude")
+	if len(hookLoaded.Errors) != 0 {
+		t.Fatalf("irrelevant permission keys should not invalidate artifact: %v", hookLoaded.Errors)
+	}
+
 	if err := os.WriteFile(settingsPath, []byte(`{"permissions":{"deny":["Bash(git status)"]}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
