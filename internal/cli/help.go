@@ -248,9 +248,9 @@ Options:
 
 Note:
   You usually do not run this manually. Edit rules and use cc-bash-guard verify
-  while authoring policy instead. The hook fails closed when verified artifacts
-  are missing or stale. Run cc-bash-guard verify explicitly after policy or
-  settings changes.
+  while authoring policy instead. The hook asks with a warning when verified
+  artifacts are missing or stale. Run cc-bash-guard verify explicitly after
+  policy or settings changes.
   Safe single-command cc-bash-guard invocations, including cc-bash-guard verify,
   bypass hook policy to avoid setup deadlocks. Compound commands, redirects, and
   pipelines do not bypass policy.
@@ -264,8 +264,10 @@ Hook protocol:
   Deny is also returned as JSON with exit 0. Claude Code only parses structured
   hook JSON from successful hook processes; non-zero exits are reserved for
   hook command failures and make Claude Code ignore stdout JSON. Invalid input
-  and missing or stale verified artifacts therefore fail closed by returning
-  permissionDecision: deny.
+  invalid input therefore fails closed by returning permissionDecision: deny.
+  Missing or stale verified artifacts return permissionDecision: ask with a
+  warning systemMessage and additionalContext, so Claude Code can continue
+  through confirmation without trusting stale policy.
 
 RTK integration:
   --rtk is optional. Use it only when you want RTK command rewriting.
@@ -547,9 +549,9 @@ Docs:
 Common checks:
 
 Verified artifact missing or stale:
-  Run cc-bash-guard verify after editing policy. The hook fails closed when the
-  verified artifact is missing or stale. Included policy files are part of the
-  verified artifact, so editing any included file also requires
+  Run cc-bash-guard verify after editing policy. The hook asks with a warning
+  when the verified artifact is missing or stale. Included policy files are part
+  of the verified artifact, so editing any included file also requires
   cc-bash-guard verify.
 
 Include error:

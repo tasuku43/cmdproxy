@@ -24,6 +24,9 @@ func RunHook(raw []byte, opts HookOptions, env Env) HookResult {
 
 	_, decision, err := EvaluateForCommand(req.Command, env)
 	if err != nil {
+		if isRecoverableArtifactDrift(err) {
+			return HookResult{Payload: hookPayload(artifactDriftDecision(req.Command, err), req)}
+		}
 		return HookResult{Payload: hookErrorPayload(claude.Tool, "invalid_config", err.Error())}
 	}
 	if opts.UseRTK && decision.Outcome != "deny" {
@@ -74,6 +77,38 @@ func shouldAttemptImplicitVerify(errs []error) bool {
 	return false
 }
 
+func isRecoverableArtifactDrift(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "incompatible") || strings.Contains(msg, "evaluation semantics version") {
+		return false
+	}
+	return strings.Contains(msg, "verified artifact missing or stale")
+}
+
+func artifactDriftDecision(command string, err error) policy.Decision {
+	reason := "cc-bash-guard warning: verified artifact is missing or stale; continuing with Claude Code confirmation. Run cc-bash-guard verify."
+	if err != nil {
+		reason = reason + " Details: " + err.Error()
+	}
+	return policy.Decision{
+		Command:  command,
+		Outcome:  "ask",
+		Explicit: true,
+		Reason:   reason,
+		Message:  reason,
+		Trace: []policy.TraceStep{{
+			Action:  "permission",
+			Name:    "verified_artifact_drift",
+			Effect:  "ask",
+			Reason:  reason,
+			Message: reason,
+		}},
+	}
+}
+
 func hookPayload(decision policy.Decision, req hookinput.ExecRequest) map[string]any {
 	switch decision.Outcome {
 	case "allow", "ask":
@@ -91,6 +126,9 @@ func hookPayload(decision policy.Decision, req hookinput.ExecRequest) map[string
 		} else {
 			hookOutput["permissionDecision"] = "ask"
 		}
+		if message, ok := buildArtifactWarningSystemMessage(decision); ok {
+			hookOutput["additionalContext"] = message
+		}
 		payload := map[string]any{
 			"hookSpecificOutput": hookOutput,
 			"cc-bash-guard": map[string]any{
@@ -101,6 +139,9 @@ func hookPayload(decision policy.Decision, req hookinput.ExecRequest) map[string
 			},
 		}
 		if message, ok := buildRewriteSystemMessage(decision); ok {
+			payload["systemMessage"] = message
+		}
+		if message, ok := buildArtifactWarningSystemMessage(decision); ok {
 			payload["systemMessage"] = message
 		}
 		return payload
@@ -122,6 +163,23 @@ func hookPayload(decision policy.Decision, req hookinput.ExecRequest) map[string
 	default:
 		return hookErrorPayload(claude.Tool, "runtime_error", "unsupported decision outcome")
 	}
+}
+
+func buildArtifactWarningSystemMessage(decision policy.Decision) (string, bool) {
+	for _, step := range decision.Trace {
+		if step.Name != "verified_artifact_drift" {
+			continue
+		}
+		message := strings.TrimSpace(step.Message)
+		if message == "" {
+			message = strings.TrimSpace(step.Reason)
+		}
+		if message == "" {
+			message = "cc-bash-guard warning: verified artifact is missing or stale; continuing with Claude Code confirmation. Run cc-bash-guard verify."
+		}
+		return message, true
+	}
+	return "", false
 }
 
 func updatedInput(req hookinput.ExecRequest, command string) map[string]any {

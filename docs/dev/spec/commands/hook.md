@@ -16,7 +16,8 @@ Runtime flow:
 2. allow safe, single-command `cc-bash-guard ...` invocations without loading
    the verified artifact, so setup commands such as `cc-bash-guard verify` do
    not deadlock while the hook is installed
-3. load the verified effective policy artifact
+3. load the verified effective policy artifact; if it is missing or stale,
+   return `ask` with a warning instead of evaluating stale policy
 4. parse the original command string into a `CommandPlan`
 5. evaluate `cc-bash-guard` permission policy
 6. merge `cc-bash-guard` policy with Claude settings as permission sources
@@ -81,8 +82,11 @@ Claude Code would ignore the JSON payload and handle the result as an
 exit-code-based hook error instead. That would lose the structured
 `permissionDecision` and `permissionDecisionReason`.
 
-Invalid input, invalid config, missing verified artifacts, stale verified
-artifacts, and incompatible verified artifacts fail closed by returning
-`permissionDecision: "deny"` with a reason that names the error. These cases
-also exit `0` after producing valid hook JSON so Claude Code can process the
-deny decision.
+Invalid input, invalid config, and incompatible verified artifacts fail closed
+by returning `permissionDecision: "deny"` with a reason that names the error.
+Missing or stale verified artifacts return `permissionDecision: "ask"` with a
+warning `systemMessage` and `hookSpecificOutput.additionalContext`, so Claude
+Code can continue through its normal confirmation flow without trusting stale
+cc-bash-guard policy, while Claude can still see that verification needs to be
+rerun. These cases exit `0` after producing valid hook JSON so Claude Code can
+process the structured decision.

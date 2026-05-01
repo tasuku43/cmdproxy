@@ -124,11 +124,12 @@ than as the intended permission decision.
 Fail-closed cases include:
 
 - invalid hook input
-- missing verified artifacts
-- stale verified artifacts
 - incompatible verified artifacts
 - unsafe or unparsable shell shapes
 - invalid config
+
+Missing or stale verified artifacts return `ask` with a warning instead of
+evaluating stale policy.
 
 Unsafe shell shapes include parse errors, redirects, background execution,
 subshells, command substitution, process substitution, and unknown shell shapes.

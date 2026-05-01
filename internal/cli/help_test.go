@@ -115,7 +115,7 @@ func TestHookHelpDocumentsNoPolicyRewriteAndRTKIntegration(t *testing.T) {
 		"Hook protocol:",
 		"permissionDecision: allow, ask, or deny",
 		"Deny is also returned as JSON with exit 0",
-		"missing or stale verified artifacts therefore fail closed",
+		"Missing or stale verified artifacts return permissionDecision: ask",
 		"--rtk",
 		"optional bridge to external RTK",
 		"RTK integration:",
