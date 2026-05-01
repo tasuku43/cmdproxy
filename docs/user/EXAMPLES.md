@@ -8,6 +8,10 @@ deliberate raw-string checks.
 For production-oriented operating postures that combine these patterns, see
 `docs/user/OPERATIONAL_TEMPLATES.md`.
 
+In `test` examples, use literal dummy values such as `1abcDEF` for variable
+IDs. Do not write angle-bracket placeholders such as `<file-id>`; the shell
+parser treats `<` and `>` as redirection syntax.
+
 ## Semantic Git Status
 
 One semantic rule can allow equivalent forms of `git status` without a broad

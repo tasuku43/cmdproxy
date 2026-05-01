@@ -2,6 +2,7 @@ package command
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -29,6 +30,19 @@ func TestParseCommandPlanSimpleGitStatus(t *testing.T) {
 	}
 	if cmd.Git == nil || cmd.Git.Verb != "status" {
 		t.Fatalf("Git semantic = %+v, want verb status", cmd.Git)
+	}
+}
+
+func TestParseCommandPlanShellPlaceholderHint(t *testing.T) {
+	plan := Parse("gws drive files export <file-id>")
+
+	if len(plan.Diagnostics) != 1 {
+		t.Fatalf("len(Diagnostics) = %d, want 1; diagnostics=%+v", len(plan.Diagnostics), plan.Diagnostics)
+	}
+	got := plan.Diagnostics[0].Message
+	want := "if <id> is meant as a placeholder, replace it with a literal value such as 1abcDEF"
+	if !strings.Contains(got, want) {
+		t.Fatalf("diagnostic = %q, want containing %q", got, want)
 	}
 }
 

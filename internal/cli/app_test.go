@@ -3426,6 +3426,41 @@ func TestRunVerifyIncludedSourceMetadata(t *testing.T) {
 	}
 }
 
+func TestRunVerifyRuleTestPlaceholderParseHint(t *testing.T) {
+	cwd := t.TempDir()
+	writeProjectConfig(t, cwd, `permission:
+  allow:
+    - name: gws drive files export
+      command:
+        name: gws
+        semantic:
+          service: drive
+          resource_path: [files]
+          method: export
+      test:
+        allow:
+          - "gws drive files export <file-id>"
+        abstain:
+          - "gws drive files delete 1abcDEF"
+`)
+
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"verify"}, Streams{Stdout: &stdout, Stderr: &stderr}, Env{Cwd: cwd, Home: t.TempDir()})
+	if code == 0 {
+		t.Fatalf("code = 0 stdout=%s stderr=%s", stdout.String(), stderr.String())
+	}
+	out := stdout.String()
+	for _, want := range []string{
+		"E2E test failed",
+		"gws drive files export <file-id>",
+		"if <id> is meant as a placeholder, replace it with a literal value such as 1abcDEF",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, out)
+		}
+	}
+}
+
 func TestRunInitCreatesStarterConfig(t *testing.T) {
 	dir := t.TempDir()
 	home := t.TempDir()

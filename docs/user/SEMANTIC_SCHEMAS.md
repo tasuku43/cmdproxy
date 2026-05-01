@@ -361,6 +361,11 @@ Google Discovery Service, so the parser intentionally exposes generic
 `service`, `resource_path`, and `method` fields rather than a closed enum of
 every API method.
 
+When writing `test` inputs for semantic rules, use literal dummy values for
+variable IDs, such as `1abcDEF`. Avoid angle-bracket placeholders like
+`<file-id>` because they are parsed as shell redirection syntax before semantic
+matching runs.
+
 Core fields:
 
 - `service`, `service_in`: first action token after `gws`, such as `drive`,

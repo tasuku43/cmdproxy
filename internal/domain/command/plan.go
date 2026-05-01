@@ -420,7 +420,7 @@ func ParseWithRegistry(raw string, registry *CommandParserRegistry) CommandPlan 
 	parser := syntax.NewParser()
 	file, err := parser.Parse(strings.NewReader(raw), "")
 	if err != nil {
-		plan.Diagnostics = append(plan.Diagnostics, Diagnostic{Severity: "error", Message: err.Error()})
+		plan.Diagnostics = append(plan.Diagnostics, Diagnostic{Severity: "error", Message: shellParseErrorMessage(raw, err)})
 		return plan
 	}
 
@@ -443,6 +443,14 @@ func ParseWithRegistry(raw string, registry *CommandParserRegistry) CommandPlan 
 		len(plan.Diagnostics) == 0 &&
 		plan.structuredSafeForAllow()
 	return plan
+}
+
+func shellParseErrorMessage(raw string, err error) string {
+	message := err.Error()
+	if strings.Contains(raw, "<") && strings.Contains(raw, ">") {
+		message += "; if <id> is meant as a placeholder, replace it with a literal value such as 1abcDEF"
+	}
+	return message
 }
 
 func IsSafeForEvaluation(plan CommandPlan) bool {

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/tasuku43/cc-bash-guard/internal/adapter/claude"
+	commandpkg "github.com/tasuku43/cc-bash-guard/internal/domain/command"
 	"github.com/tasuku43/cc-bash-guard/internal/domain/policy"
 	semanticpkg "github.com/tasuku43/cc-bash-guard/internal/domain/semantic"
 	"github.com/tasuku43/cc-bash-guard/internal/infra/buildinfo"
@@ -205,7 +206,7 @@ func CollectTestFailures(p policy.Pipeline, tool string, cwd string, home string
 			}
 			for _, ex := range expect {
 				if !permissionRuleMatchesEffect(rule, ex, effect) {
-					if add(TestFailure{Scope: scope, Name: scopeName(scope, i), Kind: "expect", Example: ex, Source: rule.Source, Expected: effect}) {
+					if add(TestFailure{Scope: scope, Name: scopeName(scope, i), Kind: "expect", Example: ex, Source: rule.Source, Expected: effect, Reason: commandParseFailureReason(ex)}) {
 						return errStopTests
 					}
 				}
@@ -400,6 +401,17 @@ func isBroadAllowPattern(pattern string) bool {
 		}
 	}
 	return false
+}
+
+func commandParseFailureReason(command string) string {
+	plan := commandpkg.Parse(command)
+	var reasons []string
+	for _, diagnostic := range plan.Diagnostics {
+		if diagnostic.Severity == "error" {
+			reasons = append(reasons, diagnostic.Message)
+		}
+	}
+	return strings.Join(reasons, "; ")
 }
 
 func permissionRuleMatchesEffect(rule policy.PermissionRuleSpec, command string, effect string) bool {
