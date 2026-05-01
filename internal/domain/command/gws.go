@@ -103,14 +103,8 @@ func buildGwsSemantic(action []string, options []Option) *GwsSemantic {
 		semantic.Service = action[0]
 	}
 	if len(action) > 1 {
-		methodIndex := len(action) - 1
-		for i, token := range action[1:] {
-			if strings.HasPrefix(token, "+") {
-				methodIndex = i + 1
-				semantic.Helper = true
-				break
-			}
-		}
+		methodIndex, helper := gwsMethodIndex(action)
+		semantic.Helper = helper
 		semantic.Method = action[methodIndex]
 		semantic.ResourcePath = append([]string(nil), action[1:methodIndex]...)
 	}
@@ -126,6 +120,25 @@ func buildGwsSemantic(action []string, options []Option) *GwsSemantic {
 	semantic.Destructive = gwsMethodIn(semantic.Method, gwsDestructiveMethods())
 	semantic.ReadOnly = gwsMethodIn(semantic.Method, gwsReadOnlyMethods())
 	return semantic
+}
+
+func gwsMethodIndex(action []string) (int, bool) {
+	methodIndex := len(action) - 1
+	for i, token := range action[1:] {
+		if strings.HasPrefix(token, "+") {
+			return i + 1, true
+		}
+	}
+	for i := 1; i < len(action); i++ {
+		if gwsKnownDiscoveryMethod(action[i]) {
+			return i, false
+		}
+	}
+	return methodIndex, false
+}
+
+func gwsKnownDiscoveryMethod(method string) bool {
+	return gwsMethodIn(method, gwsDiscoveryMethods())
 }
 
 func normalizedGwsFlags(options []Option) []string {
@@ -174,6 +187,26 @@ func gwsMutatingMethods() map[string]struct{} {
 		"batchUpdate": {}, "watch": {}, "push": {}, "renew": {}, "insert": {},
 		"+send": {}, "+upload": {},
 	}
+}
+
+func gwsDiscoveryMethods() map[string]struct{} {
+	methods := map[string]struct{}{}
+	for method := range gwsReadOnlyMethods() {
+		methods[method] = struct{}{}
+	}
+	for method := range gwsMutatingMethods() {
+		methods[method] = struct{}{}
+	}
+	for method := range gwsDestructiveMethods() {
+		methods[method] = struct{}{}
+	}
+	for _, method := range []string{
+		"batchGet", "batchDelete", "batchClear", "batchUpdate", "copy", "export",
+		"import", "insert", "move", "undelete",
+	} {
+		methods[method] = struct{}{}
+	}
+	return methods
 }
 
 func gwsDestructiveMethods() map[string]struct{} {

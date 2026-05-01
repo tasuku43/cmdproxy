@@ -39,6 +39,7 @@ var gwsSchema = Schema{
 	},
 	Notes: []string{
 		"`gws` dynamically builds much of its command surface from Google Discovery Service, so this schema exposes generic service/resource_path/method fields instead of a closed list of API methods.",
+		"Known Discovery method names are split from following positional arguments, so commands like `gws drive files get 1abcDEF` parse as `resource_path: [files]` and `method: get`.",
 		"`mutating`, `destructive`, and `read_only` are conservative method-name inferences; use explicit service, resource_path, and method fields for tighter policies.",
 	},
 }

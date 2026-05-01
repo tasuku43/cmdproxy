@@ -44,6 +44,7 @@ func TestEvaluateGwsSemanticRules(t *testing.T) {
 			}},
 			Allow: []PermissionRuleSpec{
 				{Command: PermissionCommandSpec{Name: "gws", Semantic: &SemanticMatchSpec{Service: "drive", ResourcePath: []string{"files"}, Method: "list"}}},
+				{Command: PermissionCommandSpec{Name: "gws", Semantic: &SemanticMatchSpec{Service: "drive", ResourcePath: []string{"files"}, MethodIn: []string{"get", "export"}}}},
 				{Command: PermissionCommandSpec{Name: "gws", Semantic: &SemanticMatchSpec{Service: "gmail", Method: "+send", Helper: &trueValue}}},
 			},
 		},
@@ -54,6 +55,8 @@ func TestEvaluateGwsSemanticRules(t *testing.T) {
 		want    string
 	}{
 		{command: `gws drive files list --params '{"pageSize": 5}'`, want: "allow"},
+		{command: `gws drive files get 1abcDEF`, want: "allow"},
+		{command: `gws drive files export 1abcDEF`, want: "allow"},
 		{command: `gws drive files delete --params '{"fileId":"abc"}'`, want: "abstain"},
 		{command: `gws auth export --unmasked`, want: "deny"},
 		{command: `gws chat spaces messages create --params '{"parent":"spaces/xyz"}' --json '{"text":"hello"}' --dry-run`, want: "ask"},

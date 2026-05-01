@@ -374,6 +374,9 @@ Core fields:
   and method, such as `[files]` or `[spreadsheets, values]`.
 - `method`, `method_in`: final Discovery method or helper command, such as
   `list`, `get`, `create`, `delete`, `export`, `login`, `+send`, or `+upload`.
+  Known Discovery method names are split from following positional arguments,
+  so `gws drive files get 1abcDEF` parses as `resource_path: [files]` and
+  `method: get`.
 - `helper`: true when the method starts with `+`.
 - `mutating`, `destructive`, `read_only`: conservative method-name
   classifications.

@@ -21,6 +21,8 @@ func TestGwsParserExtractsSemanticFields(t *testing.T) {
 		wantScope        string
 	}{
 		{name: "drive list files", raw: `gws drive files list --params '{"pageSize": 5}'`, wantService: "drive", wantResourcePath: []string{"files"}, wantMethod: "list", wantReadOnly: true, wantParams: true},
+		{name: "drive get file id", raw: `gws drive files get 1abcDEF`, wantService: "drive", wantResourcePath: []string{"files"}, wantMethod: "get", wantReadOnly: true},
+		{name: "drive export file id", raw: `gws drive files export 1abcDEF --mime-type text/plain`, wantService: "drive", wantResourcePath: []string{"files"}, wantMethod: "export"},
 		{name: "drive delete files", raw: `gws drive files delete --params '{"fileId":"abc"}'`, wantService: "drive", wantResourcePath: []string{"files"}, wantMethod: "delete", wantMutating: true, wantDestructive: true, wantParams: true},
 		{name: "sheets append values", raw: `gws sheets spreadsheets values append --params '{"spreadsheetId":"id"}' --json '{"values":[["A"]]}'`, wantService: "sheets", wantResourcePath: []string{"spreadsheets", "values"}, wantMethod: "append", wantMutating: true, wantParams: true, wantJSONBody: true},
 		{name: "gmail helper send", raw: `gws gmail +send --to a@example.com --subject hi --body hello`, wantService: "gmail", wantMethod: "+send", wantHelper: true, wantMutating: true},
