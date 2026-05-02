@@ -34,14 +34,19 @@ Evaluation-only normalization includes:
 
 Unsafe shell shapes, parse errors, redirects, background execution, subshells,
 command substitution, process substitution, and unknown shapes fail closed and
-must not broaden to `allow`.
+must not broaden to `allow`. Redirects may allow only when an otherwise
+matching allow rule explicitly tolerates them, or when the global effective
+`permission.tolerated_redirects.only` does. This redirect relaxation also
+applies to pipeline composition when every segment is allowed and the only
+unsafe feature is tolerated redirection.
 
 Compound commands are evaluated through `CommandPlan.Commands`. If any inner
 command is denied, the whole command is denied. If all inner commands are
 allowed and the composition shape is allowable, the whole command may allow;
-otherwise it falls back to `ask`. When multiple permission sources are active,
-each inner command is evaluated through the merged source result before the
-compound decision is aggregated.
+pipeline plus tolerated redirection is allowable. Other unsafe composition
+shapes fall back to `ask`. When multiple permission sources are active, each
+inner command is evaluated through the merged source result before the compound
+decision is aggregated.
 
 Raw regex matching is always `patterns`. `patterns` match the original command
 string and parsed command elements in `CommandPlan.Commands`, including shell

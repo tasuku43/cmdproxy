@@ -137,6 +137,10 @@ permission:
 ```
 
 With this policy, `ls`, `ls > /dev/null`, and `ls 2> /dev/null` are allowed.
+Pipeline forms such as `find . -type f | xargs -r grep foo 2>/dev/null` can
+also allow when every parsed segment matches an allow rule and the only
+redirects are in `tolerated_redirects.only`. Conditional and sequence forms
+such as `cd repo && grep foo . 2>/dev/null` still require confirmation.
 Supported values are `stdout_to_devnull`, `stderr_to_devnull`, and
 `stdin_from_devnull`. `ls > /tmp/out`, append redirects, dynamic redirect
 targets, stream merges such as `2>&1`, heredocs, and unknown redirects still

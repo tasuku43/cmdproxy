@@ -379,7 +379,7 @@ func Evaluate(p Pipeline, command string) (Decision, error) {
 		return Decision{Outcome: "deny", Explicit: true, Reason: "rule_match", Command: command, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
 	}
 	if !safety.Safe {
-		if decision, ok := evaluateCommandPlanComposition(prepared.Deny, prepared.Ask, prepared.Allow, plan, false, false); ok {
+		if decision, ok := evaluateCommandPlanComposition(prepared.Deny, prepared.Ask, prepared.Allow, prepared.ToleratedRedirects, plan, false, false); ok {
 			trace = append(trace, decision.Trace...)
 			return Decision{Outcome: decision.Outcome, Explicit: true, Reason: "composition", Command: command, OriginalCommand: command, Message: decision.Message, Trace: trace}, nil
 		}
@@ -397,7 +397,7 @@ func Evaluate(p Pipeline, command string) (Decision, error) {
 			trace = append(trace, permissionTraceStepForCommand("allow", permissionRuleTypeStructured, rule, cmd))
 			return Decision{Outcome: "allow", Explicit: true, Reason: "rule_match", Command: command, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
 		}
-		if decision, ok := evaluateCommandPlanComposition(prepared.Deny, prepared.Ask, prepared.Allow, plan, true, false); ok {
+		if decision, ok := evaluateCommandPlanComposition(prepared.Deny, prepared.Ask, prepared.Allow, prepared.ToleratedRedirects, plan, true, true); ok {
 			trace = append(trace, decision.Trace...)
 			return Decision{Outcome: decision.Outcome, Explicit: true, Reason: "composition", Command: command, OriginalCommand: command, Message: decision.Message, Trace: trace}, nil
 		}
@@ -408,7 +408,7 @@ func Evaluate(p Pipeline, command string) (Decision, error) {
 		trace = append(trace, permissionTraceStepForCommand("allow", permissionRuleTypeStructured, rule, cmd))
 		return Decision{Outcome: "allow", Explicit: true, Reason: "rule_match", Command: command, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
 	}
-	if decision, ok := evaluateCommandPlanComposition(prepared.Deny, prepared.Ask, prepared.Allow, plan, false, true); ok {
+	if decision, ok := evaluateCommandPlanComposition(prepared.Deny, prepared.Ask, prepared.Allow, prepared.ToleratedRedirects, plan, false, true); ok {
 		trace = append(trace, decision.Trace...)
 		return Decision{Outcome: decision.Outcome, Explicit: true, Reason: "composition", Command: command, OriginalCommand: command, Message: decision.Message, Trace: trace}, nil
 	}
@@ -416,7 +416,7 @@ func Evaluate(p Pipeline, command string) (Decision, error) {
 		trace = append(trace, permissionPatternTraceStep("allow", rule, cmd))
 		return Decision{Outcome: "allow", Explicit: true, Reason: "rule_match", Command: command, OriginalCommand: command, Message: rule.Message, Trace: trace}, nil
 	}
-	if decision, ok := evaluateCommandPlanComposition(prepared.Deny, prepared.Ask, prepared.Allow, plan, true, true); ok {
+	if decision, ok := evaluateCommandPlanComposition(prepared.Deny, prepared.Ask, prepared.Allow, prepared.ToleratedRedirects, plan, true, true); ok {
 		trace = append(trace, decision.Trace...)
 		return Decision{Outcome: decision.Outcome, Explicit: true, Reason: "composition", Command: command, OriginalCommand: command, Message: decision.Message, Trace: trace}, nil
 	}
@@ -646,7 +646,7 @@ type compositionDecision struct {
 	Trace    []TraceStep
 }
 
-func evaluateCommandPlanComposition(deny []preparedPermissionRule, ask []preparedPermissionRule, allow []preparedPermissionRule, plan commandpkg.CommandPlan, includeDefaultAsk bool, allowComposition bool) (compositionDecision, bool) {
+func evaluateCommandPlanComposition(deny []preparedPermissionRule, ask []preparedPermissionRule, allow []preparedPermissionRule, global ToleratedRedirectsSpec, plan commandpkg.CommandPlan, includeDefaultAsk bool, allowComposition bool) (compositionDecision, bool) {
 	if plan.Shape.Kind == commandpkg.ShellShapeSimple || len(plan.Commands) == 0 {
 		return compositionDecision{}, false
 	}
@@ -701,7 +701,7 @@ func evaluateCommandPlanComposition(deny []preparedPermissionRule, ask []prepare
 		return compositionDecision{}, false
 	}
 
-	if isAllowableCompositionShape(plan.Shape) {
+	if isAllowableCompositionShape(plan.Shape) || isAllowableCompositionShapeWithToleratedRedirects(plan, decisions, global) {
 		decision := compositionDecision{
 			Outcome:  "allow",
 			Message:  decisions[0].Rule.Message,
@@ -739,6 +739,39 @@ func isAllowableCompositionShape(shape commandpkg.ShellShape) bool {
 		return false
 	}
 	return shape.HasPipeline || shape.HasConditional || shape.HasSequence
+}
+
+func isAllowableCompositionShapeWithToleratedRedirects(plan commandpkg.CommandPlan, decisions []commandDecision, global ToleratedRedirectsSpec) bool {
+	shape := plan.Shape
+	if shape.Kind != commandpkg.ShellShapeCompound ||
+		!shape.HasPipeline ||
+		!shape.HasRedirection ||
+		shape.HasConditional ||
+		shape.HasSequence ||
+		shape.HasBackground ||
+		shape.HasSubshell ||
+		shape.HasCommandSubstitution ||
+		shape.HasProcessSubstitution {
+		return false
+	}
+	if len(decisions) != len(plan.Commands) {
+		return false
+	}
+	for _, decision := range decisions {
+		if len(toleratedRedirectFlags(decision.Command.ShapeFlags)) == 0 {
+			continue
+		}
+		if len(decision.Rule.Command.ToleratedRedirects.Only) > 0 {
+			if !toleratedRedirectsMatch(decision.Rule.Command.ToleratedRedirects, decision.Command.ShapeFlags) {
+				return false
+			}
+			continue
+		}
+		if len(global.Only) == 0 || !toleratedRedirectsMatch(global, decision.Command.ShapeFlags) {
+			return false
+		}
+	}
+	return true
 }
 
 func unsafeCompositionReason(shape commandpkg.ShellShape) string {
