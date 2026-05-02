@@ -33,6 +33,9 @@ func TestRootHelpOrientsNewUsers(t *testing.T) {
 		"evaluates Bash commands against policy",
 		"Start here:",
 		"cc-bash-guard help setup",
+		"Claude Code ready check:",
+		"cc-bash-guard init --profile git-safe",
+		"add the printed PreToolUse Bash snippet to Claude Code settings",
 		"Policy authoring loop:",
 		"write test examples -> add narrow rules -> cc-bash-guard verify",
 		"cc-bash-guard explain",
@@ -69,6 +72,11 @@ func TestHelpSetupExplainsTestFirstPolicyLoop(t *testing.T) {
 	for _, want := range []string{
 		"test-first loop",
 		"First-time setup:",
+		"cc-bash-guard init --profile git-safe",
+		"add the printed PreToolUse Bash snippet to Claude Code settings",
+		"Claude Code is ready when:",
+		"PASS verify",
+		"Claude Code Bash hook registration as pass",
 		"After init, replace the starter policy",
 		"one top-level test and one rule-local test",
 		"Recommended policy loop:",
@@ -174,9 +182,10 @@ func TestHelpInitGivesNextSteps(t *testing.T) {
 		"prints the user config path",
 		"prints the Claude Code PreToolUse Bash hook snippet",
 		"After init:",
+		"add the printed snippet to ~/.claude/settings.json",
 		"edit ~/.config/cc-bash-guard/cc-bash-guard.yml",
 		"cc-bash-guard verify",
-		"~/.claude/settings.json",
+		"cc-bash-guard doctor",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("help init missing %q:\n%s", want, stdout)

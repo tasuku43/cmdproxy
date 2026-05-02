@@ -1797,6 +1797,84 @@
         "Docker semantics are syntactic only; the parser does not inspect images, Dockerfiles, compose files, containers, or daemon state.",
         "`host_mount`, `root_mount`, and `docker_socket_mount` are best-effort checks over command-line mount flags."
       ]
+    },
+    {
+      "command": "xargs",
+      "semantic_path": "command.semantic",
+      "description": "xargs wrapper execution with dynamic stdin-derived arguments.",
+      "parser": "xargs",
+      "fields": [
+        {
+          "name": "inner_command",
+          "type": "string",
+          "description": "Command token xargs will execute, or echo when xargs has no explicit command."
+        },
+        {
+          "name": "inner_command_in",
+          "type": "[]string",
+          "description": "Allowed xargs inner command tokens."
+        },
+        {
+          "name": "inner_args_contains",
+          "type": "[]string",
+          "description": "Static inner command arguments that must be present after the inner command token."
+        },
+        {
+          "name": "null_separated",
+          "type": "bool",
+          "description": "True when -0 or --null is present."
+        },
+        {
+          "name": "no_run_if_empty",
+          "type": "bool",
+          "description": "True when -r or --no-run-if-empty is present."
+        },
+        {
+          "name": "replace_mode",
+          "type": "bool",
+          "description": "True when -I, -i, --replace, or --replace-str is present."
+        },
+        {
+          "name": "parallel",
+          "type": "bool",
+          "description": "True when -P/--max-procs allows more than one process."
+        },
+        {
+          "name": "max_args",
+          "type": "string",
+          "description": "Value from -n/--max-args when present."
+        },
+        {
+          "name": "dynamic_args",
+          "type": "bool",
+          "description": "Always true for parsed xargs commands because stdin supplies runtime argv."
+        },
+        {
+          "name": "implicit_echo",
+          "type": "bool",
+          "description": "True when xargs has no explicit command and will execute echo."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized xargs option tokens that must be present."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized xargs option tokens that must start with these prefixes."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Allow a narrow grep through xargs",
+          "yaml": "permission:\n  allow:\n    - command:\n        name: xargs\n        semantic:\n          inner_command: grep\n          null_separated: true\n          no_run_if_empty: true\n          replace_mode: false\n          parallel: false"
+        }
+      ],
+      "notes": [
+        "`xargs` semantic rules do not make `command.name: grep` match `xargs grep`; xargs must be allowed explicitly.",
+        "`dynamic_args` records that stdin can append runtime arguments. Keep allow rules narrow."
+      ]
     }
   ],
   "schemas_by_command": {
@@ -3596,6 +3674,84 @@
           "title": "Deny auto-approved destroy",
           "yaml": "permission:\n  deny:\n    - command:\n        name: terraform\n        semantic:\n          subcommand: destroy\n          auto_approve: true"
         }
+      ]
+    },
+    "xargs": {
+      "command": "xargs",
+      "semantic_path": "command.semantic",
+      "description": "xargs wrapper execution with dynamic stdin-derived arguments.",
+      "parser": "xargs",
+      "fields": [
+        {
+          "name": "inner_command",
+          "type": "string",
+          "description": "Command token xargs will execute, or echo when xargs has no explicit command."
+        },
+        {
+          "name": "inner_command_in",
+          "type": "[]string",
+          "description": "Allowed xargs inner command tokens."
+        },
+        {
+          "name": "inner_args_contains",
+          "type": "[]string",
+          "description": "Static inner command arguments that must be present after the inner command token."
+        },
+        {
+          "name": "null_separated",
+          "type": "bool",
+          "description": "True when -0 or --null is present."
+        },
+        {
+          "name": "no_run_if_empty",
+          "type": "bool",
+          "description": "True when -r or --no-run-if-empty is present."
+        },
+        {
+          "name": "replace_mode",
+          "type": "bool",
+          "description": "True when -I, -i, --replace, or --replace-str is present."
+        },
+        {
+          "name": "parallel",
+          "type": "bool",
+          "description": "True when -P/--max-procs allows more than one process."
+        },
+        {
+          "name": "max_args",
+          "type": "string",
+          "description": "Value from -n/--max-args when present."
+        },
+        {
+          "name": "dynamic_args",
+          "type": "bool",
+          "description": "Always true for parsed xargs commands because stdin supplies runtime argv."
+        },
+        {
+          "name": "implicit_echo",
+          "type": "bool",
+          "description": "True when xargs has no explicit command and will execute echo."
+        },
+        {
+          "name": "flags_contains",
+          "type": "[]string",
+          "description": "Parser-recognized xargs option tokens that must be present."
+        },
+        {
+          "name": "flags_prefixes",
+          "type": "[]string",
+          "description": "Parser-recognized xargs option tokens that must start with these prefixes."
+        }
+      ],
+      "examples": [
+        {
+          "title": "Allow a narrow grep through xargs",
+          "yaml": "permission:\n  allow:\n    - command:\n        name: xargs\n        semantic:\n          inner_command: grep\n          null_separated: true\n          no_run_if_empty: true\n          replace_mode: false\n          parallel: false"
+        }
+      ],
+      "notes": [
+        "`xargs` semantic rules do not make `command.name: grep` match `xargs grep`; xargs must be allowed explicitly.",
+        "`dynamic_args` records that stdin can append runtime arguments. Keep allow rules narrow."
       ]
     }
   }

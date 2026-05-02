@@ -357,4 +357,28 @@ var coverageDetails = map[string]commandCoverageDetail{
         semantic:
           docker_socket_mount: true`,
 	},
+	"xargs": {
+		ReadOnlyExamples:  []string{"find . -type f -print0 | xargs -0 -r grep -n TODO", "printf '%s\\n' README.md | xargs cat"},
+		MutatingExamples:  []string{"xargs rm -rf", "xargs gh pr merge", "xargs git reset"},
+		RecommendedPolicy: "Allow only explicit xargs semantic rules for known inner commands; keep dynamic stdin-derived argv in mind.",
+		Limitations:       []string{"stdin contents", "runtime argv expansion", "paths supplied by earlier pipeline commands", "parallel process effects"},
+		ExplainCommand:    "xargs -0 -r grep -n TODO",
+		YAML: `permission:
+  allow:
+    - name: xargs grep readonly
+      command:
+        name: xargs
+        semantic:
+          inner_command: grep
+          null_separated: true
+          no_run_if_empty: true
+          replace_mode: false
+          parallel: false
+  deny:
+    - name: xargs rm
+      command:
+        name: xargs
+        semantic:
+          inner_command: rm`,
+	},
 }

@@ -38,6 +38,7 @@ type Command struct {
 	ArgoCD           *ArgoCDSemantic
 	Docker           *DockerSemantic
 	Terraform        *TerraformSemantic
+	Xargs            *XargsSemantic
 }
 
 type Option struct {
@@ -318,6 +319,19 @@ type TerraformSemantic struct {
 	JSON                bool
 	Force               bool
 	Flags               []string
+}
+
+type XargsSemantic struct {
+	InnerCommand  string
+	InnerArgs     []string
+	NullSeparated bool
+	NoRunIfEmpty  bool
+	ReplaceMode   bool
+	Parallel      bool
+	MaxArgs       string
+	DynamicArgs   bool
+	ImplicitEcho  bool
+	Flags         []string
 }
 
 func (c Command) HasOption(name string) bool {

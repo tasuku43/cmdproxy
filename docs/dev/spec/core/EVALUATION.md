@@ -27,6 +27,8 @@ Evaluation-only normalization includes:
 - `rtk proxy <command...>` wrapper inspection; an optional `--` immediately
   after `proxy` is treated as a separator
 - basename command matching for absolute command paths
+- `xargs` semantic inspection; policy must match `command.name: xargs`
+  explicitly, because stdin-derived runtime arguments are dynamic
 - command-specific semantic parsing, including AWS `--profile`,
   `--profile=value`, and `AWS_PROFILE`
 

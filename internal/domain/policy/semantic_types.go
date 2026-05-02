@@ -245,6 +245,16 @@ type SemanticMatchSpec struct {
 	Prune                            *bool    `yaml:"prune" json:"prune,omitempty"`
 	AllResources                     *bool    `yaml:"all_resources" json:"all_resources,omitempty"`
 	RemoveOrphans                    *bool    `yaml:"remove_orphans" json:"remove_orphans,omitempty"`
+	InnerCommand                     string   `yaml:"inner_command" json:"inner_command,omitempty"`
+	InnerCommandIn                   []string `yaml:"inner_command_in" json:"inner_command_in,omitempty"`
+	InnerArgsContains                []string `yaml:"inner_args_contains" json:"inner_args_contains,omitempty"`
+	NullSeparated                    *bool    `yaml:"null_separated" json:"null_separated,omitempty"`
+	NoRunIfEmpty                     *bool    `yaml:"no_run_if_empty" json:"no_run_if_empty,omitempty"`
+	ReplaceMode                      *bool    `yaml:"replace_mode" json:"replace_mode,omitempty"`
+	Parallel                         *bool    `yaml:"parallel" json:"parallel,omitempty"`
+	MaxArgs                          string   `yaml:"max_args" json:"max_args,omitempty"`
+	DynamicArgs                      *bool    `yaml:"dynamic_args" json:"dynamic_args,omitempty"`
+	ImplicitEcho                     *bool    `yaml:"implicit_echo" json:"implicit_echo,omitempty"`
 }
 
 type GitSemanticSpec struct {
@@ -602,6 +612,21 @@ type TerraformSemanticSpec struct {
 	FlagsPrefixes         []string
 }
 
+type XargsSemanticSpec struct {
+	InnerCommand      string
+	InnerCommandIn    []string
+	InnerArgsContains []string
+	NullSeparated     *bool
+	NoRunIfEmpty      *bool
+	ReplaceMode       *bool
+	Parallel          *bool
+	MaxArgs           string
+	DynamicArgs       *bool
+	ImplicitEcho      *bool
+	FlagsContains     []string
+	FlagsPrefixes     []string
+}
+
 func (s SemanticMatchSpec) Git() GitSemanticSpec {
 	return GitSemanticSpec{
 		Verb: s.Verb, VerbIn: s.VerbIn, Remote: s.Remote, RemoteIn: s.RemoteIn,
@@ -749,5 +774,15 @@ func (s SemanticMatchSpec) Terraform() TerraformSemanticSpec {
 		Backend: s.Backend, Upgrade: s.Upgrade, Reconfigure: s.Reconfigure,
 		MigrateState: s.MigrateState, Recursive: s.Recursive, Check: s.Check, JSON: s.JSON,
 		Force: s.Force, FlagsContains: s.FlagsContains, FlagsPrefixes: s.FlagsPrefixes,
+	}
+}
+
+func (s SemanticMatchSpec) Xargs() XargsSemanticSpec {
+	return XargsSemanticSpec{
+		InnerCommand: s.InnerCommand, InnerCommandIn: s.InnerCommandIn,
+		InnerArgsContains: s.InnerArgsContains, NullSeparated: s.NullSeparated,
+		NoRunIfEmpty: s.NoRunIfEmpty, ReplaceMode: s.ReplaceMode, Parallel: s.Parallel,
+		MaxArgs: s.MaxArgs, DynamicArgs: s.DynamicArgs, ImplicitEcho: s.ImplicitEcho,
+		FlagsContains: s.FlagsContains, FlagsPrefixes: s.FlagsPrefixes,
 	}
 }

@@ -217,7 +217,8 @@ What it helps with:
   raw `patterns`, environment checks, Claude settings permissions, and verified
   policy artifacts
 - unwraps clearly bounded wrapper forms for evaluation, including shell `-c`
-  and `rtk proxy <command...>` with an optional `--` separator
+  and `rtk proxy <command...>` with an optional `--` separator, and exposes
+  `xargs` inner command metadata through explicit `xargs` semantic rules
 - merges permission sources as `deny > ask > allow > abstain`, with final
   fallback to `ask` when all sources abstain
 - regenerates missing or stale verified artifacts when verification passes,
@@ -329,7 +330,7 @@ permission:
 ```
 
 Supported semantic parsers currently include `git`, `aws`, `kubectl`, `gh`,
-`gws`, `helm`, `helmfile`, `argocd`, `terraform`, and `docker`. Treat
+`gws`, `helm`, `helmfile`, `argocd`, `terraform`, `docker`, and `xargs`. Treat
 `cc-bash-guard help semantic` and
 `cc-bash-guard semantic-schema --format json` as the source of truth for the
 installed binary. See

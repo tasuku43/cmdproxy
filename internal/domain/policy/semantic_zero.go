@@ -159,3 +159,12 @@ func IsZeroTerraformSemanticSpec(semantic TerraformSemanticSpec) bool {
 		semantic.Check == nil && semantic.JSON == nil && semantic.Force == nil &&
 		len(semantic.FlagsContains) == 0 && len(semantic.FlagsPrefixes) == 0
 }
+
+func IsZeroXargsSemanticSpec(semantic XargsSemanticSpec) bool {
+	return semantic.InnerCommand == "" && len(semantic.InnerCommandIn) == 0 &&
+		len(semantic.InnerArgsContains) == 0 &&
+		semantic.NullSeparated == nil && semantic.NoRunIfEmpty == nil &&
+		semantic.ReplaceMode == nil && semantic.Parallel == nil &&
+		semantic.MaxArgs == "" && semantic.DynamicArgs == nil && semantic.ImplicitEcho == nil &&
+		len(semantic.FlagsContains) == 0 && len(semantic.FlagsPrefixes) == 0
+}

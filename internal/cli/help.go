@@ -18,6 +18,12 @@ It evaluates Bash commands against policy and returns allow, ask, or deny.
 Start here:
   cc-bash-guard help setup
 
+Claude Code ready check:
+  cc-bash-guard init --profile git-safe
+  add the printed PreToolUse Bash snippet to Claude Code settings
+  cc-bash-guard verify
+  cc-bash-guard doctor
+
 Policy authoring loop:
   write test examples -> add narrow rules -> cc-bash-guard verify
   -> cc-bash-guard explain "<command>" when unclear -> repeat
@@ -95,11 +101,16 @@ func writeCommandHelp(w io.Writer, command string) {
 Set up cc-bash-guard and author policy with a test-first loop.
 
 First-time setup:
-  cc-bash-guard init
+  cc-bash-guard init --profile git-safe
+  add the printed PreToolUse Bash snippet to Claude Code settings
   edit ~/.config/cc-bash-guard/cc-bash-guard.yml
   cc-bash-guard verify
   cc-bash-guard doctor
-  add the printed PreToolUse Bash snippet to Claude Code settings
+
+Claude Code is ready when:
+  - cc-bash-guard verify exits with PASS verify
+  - cc-bash-guard doctor reports the binary, config, verified artifact, and
+    Claude Code Bash hook registration as pass
 
 After init, replace the starter policy with examples from your workflow. Keep at
 least one top-level test and one rule-local test for every rule you add.
@@ -180,9 +191,10 @@ What it does:
 
 After init:
   cc-bash-guard init --profile git-safe
-  edit ~/.config/cc-bash-guard/cc-bash-guard.yml
-  cc-bash-guard verify
   add the printed snippet to ~/.claude/settings.json
+  cc-bash-guard verify
+  cc-bash-guard doctor
+  edit ~/.config/cc-bash-guard/cc-bash-guard.yml
 `)
 	case "doctor":
 		fmt.Fprint(w, `cc-bash-guard doctor

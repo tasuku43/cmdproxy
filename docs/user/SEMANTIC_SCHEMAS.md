@@ -51,6 +51,7 @@ The current registry supports:
 - `argocd`
 - `terraform`
 - `docker`
+- `xargs`
 
 Treat the CLI output as the source of truth for the installed binary. Semantic
 coverage is finite. Unsupported commands, unknown subcommands, and semantic
@@ -135,6 +136,47 @@ permission:
           verb: compose
           compose_command: down
           volumes_flag: true
+```
+
+## xargs
+
+Use xargs semantic fields only for explicit xargs rules. A normal rule such as
+`command.name: grep` does not allow `xargs grep`, because stdin can append
+runtime arguments that are not visible in the command string.
+
+Common fields:
+
+- `inner_command`, `inner_command_in`: command token xargs will execute.
+- `inner_args_contains`: static arguments present after the inner command.
+- `null_separated`: true for `-0` or `--null`.
+- `no_run_if_empty`: true for `-r` or `--no-run-if-empty`.
+- `replace_mode`: true for `-I`, `-i`, `--replace`, or `--replace-str`.
+- `parallel`: true when `-P` or `--max-procs` allows more than one process.
+- `max_args`: value from `-n` or `--max-args`.
+- `dynamic_args`: true for parsed xargs commands because stdin supplies argv.
+- `implicit_echo`: true when xargs has no explicit command and runs `echo`.
+
+Recipe:
+
+```yaml
+permission:
+  allow:
+    - name: xargs grep readonly
+      command:
+        name: xargs
+        semantic:
+          inner_command: grep
+          null_separated: true
+          no_run_if_empty: true
+          replace_mode: false
+          parallel: false
+
+  deny:
+    - name: xargs rm
+      command:
+        name: xargs
+        semantic:
+          inner_command: rm
 ```
 
 ## Field Types

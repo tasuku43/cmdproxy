@@ -33,6 +33,7 @@ is a generated coverage guide for humans.
 | `argocd` | `verb`, `app_name`, `project`, `revision`, parser-recognized flags | `argocd app get my-app`, `argocd app list` | `argocd app sync my-app`, `argocd app delete my-app` | Allow read-only app verbs for known apps/projects; ask for sync/rollback/delete. | Does not inspect Argo CD RBAC, app manifests, sync waves, hooks, or server-side effects. |
 | `terraform` | `subcommand`, workspace/state subcommands, `global_chdir`, target/replace/destroy/apply/init/fmt booleans, plan/var fields, parser-recognized flags | `terraform plan`, `terraform show`, `terraform validate` | `terraform apply`, `terraform destroy`, `terraform state rm`, workspace changes | Allow review/read-only subcommands narrowly; ask for apply/import/state/workspace writes; deny auto-approved destroy. | Does not inspect providers, modules, plans, state contents, backend credentials, or provisioner effects. |
 | `docker` | `verb`, `subverb`, compose/image/container/service, context/host/file/project/profile, runtime risk fields, prune/build/publish booleans, parser-recognized flags | `docker ps`, `docker images`, `docker inspect` | `docker run --privileged`, host/socket mounts, `docker system prune -a --volumes`, `docker compose up` | Allow inspection verbs; deny privileged/socket/root mounts and destructive prune; ask for run/compose/build. | Does not inspect images, Dockerfiles, Compose files, daemon state, container entrypoints, or mounted file contents. |
+| `xargs` | `inner_command`, static inner args, null/no-run/replace/parallel/max-args fields, dynamic argv booleans, parser-recognized flags | `find . -type f -print0 \| xargs -0 -r grep -n TODO` | `xargs rm -rf`, `xargs gh pr merge`, `xargs git reset` | Allow only explicit xargs semantic rules for known inner commands; keep stdin-derived argv in mind. | Does not inspect stdin contents, paths from earlier pipeline commands, or runtime argv expansion. |
 
 ## Policy Guidance
 
@@ -940,5 +941,77 @@ Notes:
 
 - Docker semantics are syntactic only; the parser does not inspect images, Dockerfiles, compose files, containers, or daemon state.
 - `host_mount`, `root_mount`, and `docker_socket_mount` are best-effort checks over command-line mount flags.
+
+### xargs
+
+xargs wrapper execution with dynamic stdin-derived arguments.
+
+**Common safe/read-only examples:**
+
+- `find . -type f -print0 | xargs -0 -r grep -n TODO`
+- `printf '%s\n' README.md | xargs cat`
+
+**Common mutating/destructive examples:**
+
+- `xargs rm -rf`
+- `xargs gh pr merge`
+- `xargs git reset`
+
+**Suggested policy style:** Allow only explicit xargs semantic rules for known inner commands; keep dynamic stdin-derived argv in mind.
+
+**Known limitations / conservative fallback cases:**
+
+- `stdin contents`
+- `runtime argv expansion`
+- `paths supplied by earlier pipeline commands`
+- `parallel process effects`
+
+Inspect parser output:
+
+```sh
+cc-bash-guard explain "xargs -0 -r grep -n TODO"
+```
+
+Example rule snippet:
+
+```yaml
+permission:
+  allow:
+    - name: xargs grep readonly
+      command:
+        name: xargs
+        semantic:
+          inner_command: grep
+          null_separated: true
+          no_run_if_empty: true
+          replace_mode: false
+          parallel: false
+  deny:
+    - name: xargs rm
+      command:
+        name: xargs
+        semantic:
+          inner_command: rm
+```
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `inner_command` | `string` | Command token xargs will execute, or echo when xargs has no explicit command. |
+| `inner_command_in` | `[]string` | Allowed xargs inner command tokens. |
+| `inner_args_contains` | `[]string` | Static inner command arguments that must be present after the inner command token. |
+| `null_separated` | `bool` | True when -0 or --null is present. |
+| `no_run_if_empty` | `bool` | True when -r or --no-run-if-empty is present. |
+| `replace_mode` | `bool` | True when -I, -i, --replace, or --replace-str is present. |
+| `parallel` | `bool` | True when -P/--max-procs allows more than one process. |
+| `max_args` | `string` | Value from -n/--max-args when present. |
+| `dynamic_args` | `bool` | Always true for parsed xargs commands because stdin supplies runtime argv. |
+| `implicit_echo` | `bool` | True when xargs has no explicit command and will execute echo. |
+| `flags_contains` | `[]string` | Parser-recognized xargs option tokens that must be present. |
+| `flags_prefixes` | `[]string` | Parser-recognized xargs option tokens that must start with these prefixes. |
+
+Notes:
+
+- `xargs` semantic rules do not make `command.name: grep` match `xargs grep`; xargs must be allowed explicitly.
+- `dynamic_args` records that stdin can append runtime arguments. Keep allow rules narrow.
 
 <!-- END GENERATED SEMANTIC FIELD REFERENCE -->
