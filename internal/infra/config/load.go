@@ -1136,6 +1136,9 @@ func configDependencySources(sources []Source) []Source {
 	for _, src := range sources {
 		_, files, err := loadFileWithIncludes(src)
 		if err != nil || len(files) == 0 {
+			if !pathExists(src.Path) {
+				continue
+			}
 			if _, ok := seen[src.Path]; !ok {
 				seen[src.Path] = struct{}{}
 				deps = append(deps, src)
@@ -1151,6 +1154,11 @@ func configDependencySources(sources []Source) []Source {
 		}
 	}
 	return deps
+}
+
+func pathExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func existingPaths(paths []string) []string {

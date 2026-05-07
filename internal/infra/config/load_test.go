@@ -1146,6 +1146,69 @@ func TestVerifyEffectiveStoresFingerprintInputs(t *testing.T) {
 	}
 }
 
+func TestResolveEffectiveInputsSkipsMissingProjectConfigInFingerprint(t *testing.T) {
+	home := t.TempDir()
+	cwd := t.TempDir()
+	if err := os.Mkdir(filepath.Join(cwd, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(home, ".config", "cc-bash-guard", "cc-bash-guard.yml")
+	writeFile(t, configPath, `permission:
+  allow:
+    - command:
+        name: git
+        semantic:
+          verb: status
+      test:
+        allow: ["git status"]
+        abstain: ["git diff"]
+`)
+	missingProjectConfig := filepath.Join(cwd, ".cc-bash-guard", "cc-bash-guard.yml")
+
+	inputs := ResolveEffectiveInputs(cwd, home, "", "claude")
+	for _, src := range inputs.ConfigFiles {
+		if src.Path == missingProjectConfig {
+			t.Fatalf("missing project config included in config files: %+v", inputs.ConfigFiles)
+		}
+	}
+	for _, input := range inputs.Inputs {
+		if strings.Contains(input.Name, missingProjectConfig) {
+			t.Fatalf("missing project config included in fingerprint inputs: %+v", inputs.Inputs)
+		}
+	}
+	if !hasFingerprintInput(inputs.Inputs, FingerprintInput{Kind: "config", Name: "user:" + configPath}) {
+		t.Fatalf("user config missing from fingerprint inputs: %+v", inputs.Inputs)
+	}
+}
+
+func TestVerifiedEffectiveArtifactIgnoresMissingProjectConfigAfterVerify(t *testing.T) {
+	home := t.TempDir()
+	cwd := t.TempDir()
+	cacheHome := t.TempDir()
+	if err := os.Mkdir(filepath.Join(cwd, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(home, ".config", "cc-bash-guard", "cc-bash-guard.yml")
+	writeFile(t, configPath, `permission:
+  allow:
+    - command:
+        name: git
+        semantic:
+          verb: status
+      test:
+        allow: ["git status"]
+        abstain: ["git diff"]
+`)
+
+	if _, err := VerifyEffectiveToAllCaches(cwd, home, "", cacheHome, "claude", "vtest"); err != nil {
+		t.Fatalf("VerifyEffectiveToAllCaches() error = %v", err)
+	}
+	loaded := LoadEffectiveForHookTool(cwd, home, "", cacheHome, "claude")
+	if len(loaded.Errors) != 0 {
+		t.Fatalf("hook errors after verify = %v", loaded.Errors)
+	}
+}
+
 func TestLoadEffectiveForHookToolRejectsMismatchedEvaluationSemantics(t *testing.T) {
 	home := t.TempDir()
 	cwd := t.TempDir()

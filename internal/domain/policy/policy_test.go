@@ -190,6 +190,40 @@ func TestEvaluatePermissionCommandShapeFlagsForRedirectionKinds(t *testing.T) {
 	}
 }
 
+func TestEvaluatePermissionCommandShapeFlagsWithoutNameForPipelineSpacing(t *testing.T) {
+	p := NewPipeline(PipelineSpec{
+		Permission: PermissionSpec{
+			Deny: []PermissionRuleSpec{{
+				Command: PermissionCommandSpec{
+					ShapeFlagsAny: []string{"redirect_stream_merge"},
+				},
+			}},
+			Allow: []PermissionRuleSpec{{
+				Command: PermissionCommandSpec{NameIn: []string{"echo", "jq", "ls"}},
+			}},
+		},
+	}, Source{})
+
+	tests := []string{
+		"ls 2>&1",
+		"ls 2>&1; echo",
+		"ls 2>&1|jq .",
+		"ls 2>&1 | jq .",
+	}
+
+	for _, command := range tests {
+		t.Run(command, func(t *testing.T) {
+			got, err := Evaluate(p, command)
+			if err != nil {
+				t.Fatalf("Evaluate() error = %v", err)
+			}
+			if got.Outcome != "deny" {
+				t.Fatalf("Outcome = %q, want deny; decision=%+v", got.Outcome, got)
+			}
+		})
+	}
+}
+
 func TestEvaluatePermissionRuleShapeFlagsWithoutCommand(t *testing.T) {
 	p := NewPipeline(PipelineSpec{
 		Permission: PermissionSpec{
@@ -927,6 +961,35 @@ func TestPermissionRuleMatchesPatternsShellDashCInnerCommand(t *testing.T) {
 	}
 	if PermissionRuleMatches(rule, "bash -c 'AWS_PROFILE=dev aws s3 ls'") {
 		t.Fatal("did not expect env-scoped patterns rule to match")
+	}
+}
+
+func TestPermissionRuleMatchesShapeFlagsForCompoundSpacing(t *testing.T) {
+	commandRule := PermissionRuleSpec{
+		Command: PermissionCommandSpec{
+			ShapeFlagsAny: []string{"redirect_stream_merge"},
+		},
+	}
+	topLevelRule := PermissionRuleSpec{
+		ShapeFlagsAny: []string{"redirect_stream_merge"},
+	}
+
+	for _, rule := range []PermissionRuleSpec{commandRule, topLevelRule} {
+		for _, command := range []string{
+			"ls 2>&1",
+			"ls 2>&1; echo",
+			"ls 2>&1|jq .",
+			"ls 2>&1 | jq .",
+		} {
+			t.Run(command, func(t *testing.T) {
+				if !PermissionRuleMatches(rule, command) {
+					t.Fatalf("PermissionRuleMatches(%q) = false, want true", command)
+				}
+			})
+		}
+		if PermissionRuleMatches(rule, "grep '2>&1' file") {
+			t.Fatal("quoted stream merge literal matched shape flag rule")
+		}
 	}
 }
 

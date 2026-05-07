@@ -1270,8 +1270,8 @@ func (m MatchSpec) MatchMatches(command string) bool {
 func PermissionRuleMatches(rule PermissionRuleSpec, command string) bool {
 	selector := preparePermissionSelector(rule)
 	if selector.hasCommandSelector() {
-		_, ok := selector.matchesCommand(command)
-		return ok
+		plan := commandpkg.Parse(command)
+		return selector.matchesCommandPlan(plan)
 	}
 	plan := commandpkg.Parse(command)
 	prepared := preparedPermissionRule{Spec: rule, Selector: selector}
@@ -1300,6 +1300,34 @@ func PermissionAllowRuleMatches(rule PermissionRuleSpec, command string) bool {
 	prepared := preparedPermissionRule{Spec: rule, Selector: selector}
 	_, _, ok := firstPreparedPatternAllowPermissionMatch([]preparedPermissionRule{prepared}, command, plan)
 	return ok
+}
+
+func (s preparedPermissionSelector) matchesCommandPlan(plan commandpkg.CommandPlan) bool {
+	for _, cmd := range plan.Commands {
+		if s.matchesCommandValue(cmd) {
+			return true
+		}
+	}
+	if !s.matchesPlanShapeFlags(plan.Shape.Flags()) {
+		return false
+	}
+	if !IsZeroPermissionEnvSpec(s.Env) {
+		return false
+	}
+	if strings.TrimSpace(s.Command.Name) != "" || len(s.Command.NameIn) > 0 || s.Command.Semantic != nil {
+		return false
+	}
+	return true
+}
+
+func (s preparedPermissionSelector) matchesPlanShapeFlags(flags []string) bool {
+	if permissionCommandUsesShapeFlags(s.Command) && !permissionCommandShapeFlagsMatch(s.Command, flags) {
+		return false
+	}
+	if !permissionShapeFlagsMatch(s.ShapeFlagsAny, s.ShapeFlagsAll, s.ShapeFlagsNone, flags) {
+		return false
+	}
+	return permissionCommandUsesShapeFlags(s.Command) || len(s.ShapeFlagsAny) > 0 || len(s.ShapeFlagsAll) > 0 || len(s.ShapeFlagsNone) > 0
 }
 
 func selectorMatches(command string, match MatchSpec, pattern string, patterns []string) bool {
